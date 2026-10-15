@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sincronismo</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="loading-screen" style="display:none">
+  <div class="spinner"></div>
+  <div id="loading-text">Carregando dados...</div>
+</div>
+
+<header>
+  <div class="brand" onclick="irParaInicio()">
+    <div class="brand-logo">PENSI</div>
+    <div class="brand-title">
+      <h1>Sincronismo Pensi</h1>
+    </div>
+  </div>
+  <div class="header-actions">
+    <button class="btn-header-outline" onclick="abrirRelatorios()"><i data-ic="chart"></i> Relatórios</button>
+    <button class="btn-header-outline" id="btn-logout" onclick="fazerLogout()" style="display:none"><i data-ic="logout"></i> Sair</button>
+  </div>
+</header>
+
+<!-- MODAL DE AUTENTICAÇÃO -->
+<div class="modal-overlay" id="auth-modal" style="display:none">
+  <div class="auth-card">
+    <button class="close-modal" onclick="fecharModalAuth()" aria-label="Fechar"><i data-ic="x" data-size="18"></i></button>
+    <div class="auth-tabs">
+      <div class="auth-tab active" id="tab-login" onclick="alternarAuth('login')">Entrar</div>
+      <div class="auth-tab" id="tab-register" onclick="alternarAuth('register')">Criar Conta</div>
+    </div>
+
+    <div id="login-form">
+      <div class="form-group">
+        <label>E-mail Institucional</label>
+        <input type="email" id="login-email" class="form-control" placeholder="professor@pensi.com.br">
+      </div>
+      <div class="form-group">
+        <label>Senha</label>
+        <input type="password" id="login-senha" class="form-control" placeholder="••••••••">
+      </div>
+      <button class="btn-auth" id="btn-login" onclick="realizarLogin()">Entrar</button>
+    </div>
+
+    <div id="register-form" style="display:none">
+      <div class="form-group">
+        <label>Nome Completo</label>
+        <input type="text" id="reg-nome" class="form-control" placeholder="Seu nome">
+      </div>
+      <div class="form-group">
+        <label>E-mail Institucional</label>
+        <input type="email" id="reg-email" class="form-control" placeholder="professor@pensi.com.br">
+      </div>
+      <div class="form-group">
+        <label>Senha (mínimo 6 caracteres)</label>
+        <input type="password" id="reg-senha" class="form-control" placeholder="••••••••">
+      </div>
+      <div class="form-group">
+        <label>Disciplina(s) <span class="label-hint">— marque todas que você leciona</span></label>
+        <div id="reg-disciplinas" class="check-list"></div>
+      </div>
+      <div class="form-group">
+        <label>Unidade</label>
+        <input type="text" id="reg-unidade" class="form-control" placeholder="Ex: Tijuca / Méier">
+      </div>
+      <button class="btn-auth" id="btn-cadastrar" onclick="realizarCadastro()">Cadastrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- TELA INICIAL -->
+<div id="home-screen">
+  <section class="hero" id="hero">
+    <div class="hero-eyebrow">Olá, seja bem-vindo(a) ao sincronismo digital!</div>
+    <h2>Acompanhe a sua disciplina</h2>
+    <p>Consulte o planejamento semanal e veja o detalhamento de cada aula. Entre abaixo com sua conta para resgistrar os dados da sua disciplina!</p>
+    <div class="hero-actions">
+      <button class="btn-primary" onclick="abrirModalAuth('login')"><i data-ic="login"></i> Entrar</button>
+      <button class="btn-ghost" onclick="abrirModalAuth('register')"><i data-ic="userPlus"></i> Criar conta</button>
+    </div>
+  </section>
+
+  <div class="home-top">
+    <div class="grid-title" id="grid-title-txt">Disciplinas Disponíveis</div>
+    <select id="year-select" class="series-selector" onchange="mudarAno(this.value)">
+      <option value="2026" selected>2026</option>
+      <option value="2027">2027</option>
+    </select>
+  </div>
+  <div class="subjects-grid" id="subjects-grid"></div>
+</div>
+
+<!-- TELA CALENDÁRIO -->
+<div id="app-screen">
+  <div class="layout">
+    <section class="calendar-panel">
+      <button class="btn-back" onclick="irParaInicio()"><i data-ic="arrowLeft"></i> Voltar para Início</button>
+      <div class="toolbar">
+        <div class="month-nav">
+          <button class="btn-nav" onclick="mesAnterior()" title="Mês anterior"><i data-ic="chevL" data-size="18"></i></button>
+          <select id="month-select" class="series-selector" onchange="mudarMes(this.value)"></select>
+          <button class="btn-nav" onclick="mesProximo()" title="Próximo mês"><i data-ic="chevR" data-size="18"></i></button>
+        </div>
+        <select id="series-select" class="series-selector" onchange="mudarSerie(this.value)"></select>
+      </div>
+
+      <div class="week-header-row">
+        <div>PERÍODO</div><div>SEG</div><div>TER</div><div>QUA</div><div>QUI</div><div>SEX</div><div>SÁB</div>
+      </div>
+      <div id="calendar-container"></div>
+    </section>
+
+    <aside class="detail-panel" id="detail"></aside>
+  </div>
+</div>
+
+<!-- TELA DE RELATÓRIOS -->
+<div id="report-screen">
+  <div class="report-wrap">
+    <div class="home-top">
+      <div class="grid-title">Relatórios de Acompanhamento</div>
+      <div class="report-actions">
+        <button class="btn-header-dark" onclick="carregarRelatorio()"><i data-ic="refresh"></i> Atualizar</button>
+        <button class="btn-header-dark" onclick="exportarPDF()"><i data-ic="fileDown"></i> Exportar PDF</button>
+        <button class="btn-header-dark" onclick="irParaInicio()"><i data-ic="arrowLeft"></i> Voltar para Início</button>
+      </div>
+    </div>
+
+    <div class="report-filters">
+      <div class="form-group">
+        <label>Professor</label>
+        <input type="text" id="rel-professor" class="form-control" placeholder="Buscar por nome ou e-mail" oninput="renderizarRelatorio()">
+      </div>
+      <div class="form-group">
+        <label>Disciplina</label>
+        <select id="rel-disciplina" class="form-control" onchange="renderizarRelatorio()"></select>
+      </div>
+      <div class="form-group">
+        <label>Unidade</label>
+        <select id="rel-unidade" class="form-control" onchange="renderizarRelatorio()"></select>
+      </div>
+      <div class="form-group">
+        <label>Situação</label>
+        <select id="rel-situacao" class="form-control" onchange="renderizarRelatorio()">
+          <option value="">Todos</option>
+          <option value="com">Professores com registro</option>
+          <option value="sem">Professores sem registro</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>De</label>
+        <input type="date" id="rel-de" class="form-control" onchange="renderizarRelatorio()">
+      </div>
+      <div class="form-group">
+        <label>Até</label>
+        <input type="date" id="rel-ate" class="form-control" onchange="renderizarRelatorio()">
+      </div>
+      <div class="form-group">
+        <label>&nbsp;</label>
+        <button class="btn-header-dark btn-full" onclick="limparFiltrosRelatorio()">Limpar filtros</button>
+      </div>
+    </div>
+
+    <div class="report-cards" id="rel-cards"></div>
+
+    <div class="report-section">
+      <h3>Conformidade por professor</h3>
+      <div class="table-scroll" id="rel-professores"></div>
+    </div>
+
+    <div class="report-section">
+      <h3>Aulas dadas por disciplina e série</h3>
+      <div class="table-scroll" id="rel-series"></div>
+    </div>
+
+    <div class="report-section">
+      <h3>Histórico de checks <span id="rel-hist-info"></span></h3>
+      <div class="table-scroll" id="rel-historico"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="script.js"></script>
+</body>
+</html>
