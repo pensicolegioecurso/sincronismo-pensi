@@ -44,11 +44,7 @@ header{background:var(--pensi-dark);color:#fff;padding:14px 24px;display:flex;al
 
 .brand{display:flex;align-items:center;gap:12px;cursor:pointer}
 
-.brand-logo{background:var(--pensi-yellow);color:var(--pensi-dark);font-weight:900;font-size:16px;padding:6px 10px;border-radius:4px;letter-spacing:1px}
-
-.brand-title h1{font-size:16px;margin:0;font-weight:700}
-
-.brand-title .sub{font-size:11px;color:#bdbdbd;margin-top:2px}
+.brand img{height: 30px; margin-left: 15px;}
 
 .header-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 
@@ -340,6 +336,10 @@ header{background:var(--pensi-dark);color:#fff;padding:14px 24px;display:flex;al
 
   .hero{padding:44px 20px}
 
+  .calendar-container{
+    font-size: 7px!;
+  }
+
 }
 
 
@@ -502,17 +502,19 @@ body {
 
   .hero-actions {
     flex-direction: column;
-    align-items: stretch;
+    align-items: center;
+    justify-items: center;
   }
 
   .hero-actions .btn-primary,
   .hero-actions .btn-ghost {
-    width: 100%;
+    width: 65%;
   }
 
   #year-select {
     min-width: 130px;
     min-height: 46px;
+    align-self: right;
   }
 
   .auth-card {
@@ -1126,6 +1128,7 @@ body:has(#report-screen[style*="display: flex"]) > header {
 @media (max-width: 560px) {
   #home-screen .hero {
     padding: 48px 18px 40px;
+    font-size: medium;
   }
 
   #report-screen .report-filters .form-group:has(.btn-full) {
