@@ -15,10 +15,7 @@
 
 <header>
   <div class="brand" onclick="irParaInicio()">
-    <div class="brand-logo">PENSI</div>
-    <div class="brand-title">
-      <h1>Sincronismo Pensi</h1>
-    </div>
+    <img src="./logo.png" alt="logo pensi">
   </div>
   <div class="header-actions">
     <button class="btn-header-outline" onclick="abrirRelatorios()"><i data-ic="chart"></i> Relatórios</button>
@@ -38,7 +35,7 @@
     <div id="login-form">
       <div class="form-group">
         <label>E-mail Institucional</label>
-        <input type="email" id="login-email" class="form-control" placeholder="professor@pensi.com.br">
+        <input type="email" id="login-email" class="form-control" placeholder="nome.sobrenome@pensi.com.br">
       </div>
       <div class="form-group">
         <label>Senha</label>
@@ -54,10 +51,10 @@
       </div>
       <div class="form-group">
         <label>E-mail Institucional</label>
-        <input type="email" id="reg-email" class="form-control" placeholder="professor@pensi.com.br">
+        <input type="email" id="reg-email" class="form-control" placeholder="nome.sobrenome@pensi.com.br">
       </div>
       <div class="form-group">
-        <label>Senha (mínimo 6 caracteres)</label>
+        <label>Senha <span class="label-hint">(mínimo 6 caracteres)</span></label>
         <input type="password" id="reg-senha" class="form-control" placeholder="••••••••">
       </div>
       <div class="form-group">
@@ -65,8 +62,8 @@
         <div id="reg-disciplinas" class="check-list"></div>
       </div>
       <div class="form-group">
-        <label>Unidade</label>
-        <input type="text" id="reg-unidade" class="form-control" placeholder="Ex: Tijuca / Méier">
+        <label>Unidade(s) <span class="label-hint">— marque todas que você é parte</span></label>
+        <div id="reg-unidades" class="check-list"></div>
       </div>
       <button class="btn-auth" id="btn-cadastrar" onclick="realizarCadastro()">Cadastrar</button>
     </div>
@@ -86,7 +83,7 @@
   </section>
 
   <div class="home-top">
-    <div class="grid-title" id="grid-title-txt">Disciplinas Disponíveis</div>
+    <div class="grid-title" id="grid-title-txt">Visualização rápida</div>
     <select id="year-select" class="series-selector" onchange="mudarAno(this.value)">
       <option value="2026" selected>2026</option>
       <option value="2027">2027</option>
@@ -168,10 +165,6 @@
 
     <div class="report-cards" id="rel-cards"></div>
 
-    <div class="report-section">
-      <h3>Conformidade por professor</h3>
-      <div class="table-scroll" id="rel-professores"></div>
-    </div>
 
     <div class="report-section">
       <h3>Aulas dadas por disciplina e série</h3>
