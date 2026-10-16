@@ -22,7 +22,7 @@ const DISCIPLINAS_POR_ANO = {
   }
 };
 
-const UNIDADES = ["Cabo Frio", "Campos dos Goytacazes", "Copacabana", "Flamengo", "Freguesia", "Ilha do Governador", "Icaraí", "Icaraí III (Lobo Torres)", "Itaipu", "Juiz de Fora (MG)", "Méier", "Nova Friburgo", "Petrópolis", "Recreio I", "Recreio II", "Rio das Ostras", "Teresópolis", "Tijuca I", "Tijuca II", "Vila da Penha", "Vila Isabel"];
+const UNIDADES = ["Cabo Frio", "Campos dos Goytacazes", "Copacabana", "Flamengo", "Freguesia", "Ilha do Governador", "Icaraí I", "Icaraí","Icaraí III", "Itaipu", "Juiz de Fora (MG)", "Méier", "Petrópolis", "Recreio I", "Recreio II", "Rio das Ostras", "Teresópolis", "Tijuca I", "Tijuca II", "Vila da Penha", "Vila Isabel"];
 
 // Elementos que podem não existir no HTML: acesso seguro (evita "Cannot set properties of null")
 const SUB = { set innerText(v) { const e = document.getElementById("header-sub"); if (e) e.innerText = v; } };
