@@ -2,23 +2,31 @@ const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyfK8QCoWrjiQh6
 
 const DISCIPLINAS_POR_ANO = {
   "2026": {
-    artes: { nome: "Artes / História da Arte", id: "18NSvdeodSTaZrILjfa2R_jhGMd4_-poA", abas: ["6 ano", "7 ano", "8 ano", "9 ano", "EM"] },
+    artes: { nome: "Artes", id: "18NSvdeodSTaZrILjfa2R_jhGMd4_-poA", abas: ["6 ano", "7 ano", "8 ano", "9 ano", "EM"] },
     ciencia: { nome: "Ciência - Biologia", id: "1TelpJW14TftVcMC5o-qB44sMnSSnSwUB", abas: ["6º ano", "7º ano", "8º ano", "9º ano", "1ª Série", "2ª Série", "3ª Série - Bio 1", "3ª Série - Bio 2", "Medicina -Bio3"] },
-    ed_fisica: { nome: "Educação Física", id: "1bknuRelx4OCF1yLWBjH2sUwhJHKTjRf5", abas: ["6º ano", "7º ano", "8º ano", "9º ano", "1ª Série", "2ª Série", "3ª Série"] },
-    filosofia_sociologia: { nome: "Filosofia / Sociologia", id: "1JpKUOw0jFsF7n9Wm1c9bHMxrFz_oh9t_", abas: ["6º ano", "7º ano", "8º ano", "9º ano", "1ª Série", "2ª Série", "3ª Série"] },
-    fisica: { nome: "Física", id: "12ImxTsoFS3gJo-e7oAdqhSH6myL4Bofp", abas: ["6º ano", "7º ano", "8º ano", "9º ano", "1ª Série", "2ª Série", "3ª Série"] },
+    ed_fisica: { nome: "Educação Física", id: "1bknuRelx4OCF1yLWBjH2sUwhJHKTjRf5", abas: ["6º EFAF", "7º EFAF", "8º EFAF", "9º ano", "1ª série EM", "2ª série EM"] },
+    filosofia_sociologia: { nome: "Filosofia / Sociologia", id: "1JpKUOw0jFsF7n9Wm1c9bHMxrFz_oh9t_", abas: ["Sexto ano", "Sétimo ano", "Oitavo ano", "Filosofia(1 série)", "Sociologia( 2 série)", "Filosofia(3 série)", "Sociologia(3 série)"] },
+    fisica: { nome: "Física", id: "12ImxTsoFS3gJo-e7oAdqhSH6myL4Bofp", abas: ["9º ANO", "1ª SÉRIE", "2ª SÉRIE", "3ª SÉRIE"] },
     geografia: { nome: "Geografia", id: "1wzFJ5Tg7QV859KCjhZtoMWL1HygWQ557", abas: ["6º ano", "7º ano", "8º ano", "9º ano", "1ª Série", "2ª Série", "3ª Série"] },
-    historia: { nome: "História", id: "1llM2EPxKkwDD7tcXrbMGyAccxTMT8PJ3", abas: ["6º ano", "7º ano", "8º ano", "9º ano", "1ª Série", "2ª Série", "3ª Série"] },
-    ingles: { nome: "Inglês", id: "1StfLas4USAOY72uNPen7iPZy7zGCewBk", abas: ["6º ano", "7º ano", "8º ano", "9º ano", "1ª Série", "2ª Série", "3ª Série"] },
-    oficina_leitura: { nome: "Oficina de Leitura", id: "1torzz5fWme7lC6QPFzU9DI9hL_cwH_B0", abas: ["6º ano", "7º ano", "8º ano", "9º ano", "EM"] },
-    projeto_colaborativo: { nome: "Projeto Colaborativo", id: "1ZzCg5rB7JoPu4gXVaUDhYVz3OequoicW", abas: ["6º ano", "7º ano", "8º ano", "9º ano", "EM"] },
-    quimica: { nome: "Química", id: "1QNua_qvQ_wKKgU2WYsj4Msw0Qd6z1JqB", abas: ["6º ano", "7º ano", "8º ano", "9º ano", "1ª Série", "2ª Série", "3ª Série"] }
+    historia: { nome: "História", id: "1llM2EPxKkwDD7tcXrbMGyAccxTMT8PJ3", abas: ["6ºano", "7ºano", "8ºano", "9ºano", "1ªsérie", "2ªsérie", "3ªsérie&Pré-Vestibular", "3ªsérie&Medicina"] },
+    ingles: { nome: "Inglês", id: "1StfLas4USAOY72uNPen7iPZy7zGCewBk", abas: ["6o ano EFAF", "7o ano EFAF", "8o ano EFAF", "9o ano EFAF", "1a série EM", "2a série EM"] },
+    liv: { nome: "LIV", id: "1N83ZZHQdRQCvoheCsJ6LVOoDFhRanlhC", abas: ["6° Ano", "7º Ano", "8º Ano", "9° Ano", "1ª Série", "2ª Série"] },
+    oficina_leitura: { nome: "Oficina de Leitura", id: "1torzz5fWme7lC6QPFzU9DI9hL_cwH_B0", abas: ["6° ANO", "7° ANO", "8° ANO ", "9° ANO "] },
+    portugues: { nome: "Língua Portuguesa", id: "1V1BY9zAUPWrQs83LYsDxHR6SAjGzUuVI", abas: ["6º ano", "7º ano", "8º ano", "9º ano", "1ª série", "2ª série", "3ª série"] },
+    projeto_colaborativo: { nome: "Projeto Colaborativo", id: "1ZzCg5rB7JoPu4gXVaUDhYVz3OequoicW", abas: ["6º ano", "7º ano", "8º ano", "EM", "EM - Medicina"] },
+    quimica: { nome: "Química", id: "1QNua_qvQ_wKKgU2WYsj4Msw0Qd6z1JqB", abas: ["9º ano", "1ª série", "1ª Série MED - Frente 2", "2ª Série", "2ª Série MED - Frente 2", "3ª Série", "3ª MED"] },
+    redacão: { nome: "Redação", id: "1VQMCpGYnnnMm-Du9b6_llhBoCCWyim94", abas: ["6° ANO", "7º ANO", "8º ANO", "9º ANO", "1ª SÉRIE", "2ª SÉRIE"] }
   },
   "2027": {
     artes: { nome: "Artes", id: "1PywZmRUbrH2tRbmIjpX0ktu7MiBnY900kXPhf_GwQuA", fonte: "script" }
-    // ciencias: { nome: "Ciências", id: "ID_DA_PLANILHA", fonte: "script" },
   }
 };
+
+const UNIDADES = ["Cabo Frio", "Campos dos Goytacazes", "Copacabana", "Flamengo", "Freguesia", "Ilha do Governador", "Icaraí", "Icaraí III (Lobo Torres)", "Itaipu", "Juiz de Fora (MG)", "Méier", "Nova Friburgo", "Petrópolis", "Recreio I", "Recreio II", "Rio das Ostras", "Teresópolis", "Tijuca I", "Tijuca II", "Vila da Penha", "Vila Isabel"];
+
+// Elementos que podem não existir no HTML: acesso seguro (evita "Cannot set properties of null")
+const SUB = { set innerText(v) { const e = document.getElementById("header-sub"); if (e) e.innerText = v; } };
+const RELPROF = { set innerHTML(v) { const e = document.getElementById("rel-professores"); if (e) e.innerHTML = v; } };
 
 const MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 const NOMES_MES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
@@ -132,7 +140,8 @@ function normalizarProfessor(p) {
     nome: pick(p, "nome"),
     email: pick(p, "email", "professoremail").toLowerCase(),
     disciplinas: splitDisc(pick(p, "disciplinas", "disciplinakey", "disciplina")),
-    unidade: pick(p, "unidade")
+    unidades: splitDisc(pick(p, "unidade", "unidades")),
+    unidade: splitDisc(pick(p, "unidade", "unidades")).join(", ")
   };
 }
 // Identidade única de um check: professor/disciplina/série/semana/DIA/aula
@@ -163,6 +172,12 @@ function alternarAuth(tipo) {
   document.getElementById("tab-register").classList.toggle("active", !login);
   document.getElementById("login-form").style.display = login ? "block" : "none";
   document.getElementById("register-form").style.display = login ? "none" : "block";
+}
+
+function montarChecklistUnidades() {
+  const box = document.getElementById("reg-unidades");
+  if (!box) return;
+  box.innerHTML = UNIDADES.map(u => `<label class="check-item"><input type="checkbox" value="${esc(u)}"> ${esc(u)}</label>`).join("");
 }
 
 function montarChecklistDisciplinas() {
@@ -204,13 +219,16 @@ async function realizarCadastro() {
   const nome = val("reg-nome").trim();
   const email = val("reg-email").trim().toLowerCase();
   const senha = val("reg-senha").trim();
-  const unidade = val("reg-unidade").trim();
+  const boxU = document.getElementById("reg-unidades");
+  const unidades = boxU ? [...boxU.querySelectorAll("input:checked")].map(i => i.value) : splitDisc(val("reg-unidade"));
+  const unidade = unidades.join(",");
   const disciplinas = [...document.querySelectorAll("#reg-disciplinas input:checked")].map(i => i.value);
 
   if (!nome || !email || !senha) { alert("Preencha nome, e-mail e senha."); return; }
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { alert("Informe um e-mail válido."); return; }
   if (senha.length < 6) { alert("A senha precisa ter pelo menos 6 caracteres."); return; }
   if (!disciplinas.length) { alert("Marque pelo menos uma disciplina."); return; }
+  if (!unidades.length) { alert("Marque pelo menos uma unidade."); return; }
 
   const btn = document.getElementById("btn-cadastrar");
   btn.disabled = true;
@@ -279,7 +297,7 @@ function mostrarTela(nome) {
 function irParaInicio() {
   mostrarTela("home");
   document.getElementById("hero").style.display = usuarioLogado ? "none" : "block";
-  document.getElementById("header-sub").innerText = usuarioLogado
+  SUB.innerText = usuarioLogado
     ? `Prof. ${usuarioLogado.nome} (${usuarioLogado.unidade || "Pensi"})`
     : "Painel Pedagógico";
 }
@@ -314,7 +332,7 @@ function montarDashboard() {
     card.className = "subject-card";
     card.onclick = () => selecionarDisciplina(key);
     card.innerHTML = `<div class="subject-icon">${ic("book", 20)}</div>
-      <div class="txt"><h3>${esc(disc.nome)}</h3><p>Planilha Oficial Pensi</p></div>
+      <div class="txt"><h3>${esc(disc.nome)}</h3></div>
       <span class="go">${ic("arrowRight", 18)}</span>`;
     grid.appendChild(card);
   });
@@ -324,7 +342,7 @@ function montarDashboard() {
 async function selecionarDisciplina(key) {
   disciplinaAtualKey = key;
   const disc = DISCIPLINAS[key];
-  dadosCache[key] = {};          // antes: só criava se não existisse
+  dadosCache[key] = {};
   mostrarTela("app");
   resetarDetalhe();
   document.getElementById("calendar-container").innerHTML = "";
@@ -377,20 +395,32 @@ function carregarAbaEspecifica(key, sheetName) {
 
 function carregarViaGviz(key, sheetName, disc) {
   const ano = anoAtual;
-  return new Promise(resolve => {
-    const cb = "cb_" + key + "_" + Math.random().toString(36).slice(2);
+  const nomes = [sheetName];
+  if (sheetName.trim() !== sheetName) nomes.push(sheetName.trim());
+
+  // Nome do callback SEMPRE ascii (a chave "redacão" tinha "ã" e o Google recusava, travando o carregamento).
+  // Se a resposta não vier (planilha privada/nome errado), o timeout destrava.
+  const tentar = nome => new Promise(resolve => {
+    const cb = "cbg" + Math.random().toString(36).slice(2);
     const script = document.createElement("script");
-    function limpar() { delete window[cb]; script.remove(); }
-    window[cb] = function (json) {
-      if (json && json.table && ano === anoAtual) {
-        (dadosCache[key] = dadosCache[key] || {})[sheetName] = parseGvizTable(json.table);
-      }
-      limpar(); resolve();
-    };
-    script.onerror = () => { limpar(); resolve(); };
-    script.src = `https://docs.google.com/spreadsheets/d/${disc.id}/gviz/tq?tqx=responseHandler:${cb}&sheet=${encodeURIComponent(sheetName)}`;
+    let fim = false;
+    const limpar = () => { if (fim) return; fim = true; clearTimeout(t); delete window[cb]; script.remove(); };
+    const t = setTimeout(() => { limpar(); resolve(null); }, 12000);
+    window[cb] = json => { const rows = json && json.table ? parseGvizTable(json.table) : null; limpar(); resolve(rows); };
+    script.onerror = () => { limpar(); resolve(null); };
+    script.src = `https://docs.google.com/spreadsheets/d/${disc.id}/gviz/tq?tqx=responseHandler:${cb}&sheet=${encodeURIComponent(nome)}`;
     document.body.appendChild(script);
   });
+
+  return (async () => {
+    for (const nome of nomes) {
+      const rows = await tentar(nome);
+      if (rows) {
+        if (ano === anoAtual) (dadosCache[key] = dadosCache[key] || {})[sheetName] = rows;
+        return;
+      }
+    }
+  })();
 }
 
 async function carregarViaScript(key, sheetName, disc) {
@@ -430,10 +460,14 @@ async function mudarSerie(sheetName) {
   const key = disciplinaAtualKey;
   document.getElementById("series-select").value = sheetName;
   showLoading(`Carregando ${sheetName}...`);
-  await carregarAbaEspecifica(key, sheetName);
-  hideLoading();
+  try { await carregarAbaEspecifica(key, sheetName); } catch (e) { /* tratado abaixo */ } finally { hideLoading(); }
   if (sheetName !== currentSheetName || key !== disciplinaAtualKey) return;
-  processarDadosAba(sheetName);
+  try {
+    processarDadosAba(sheetName);
+  } catch (e) {
+    console.error(e);
+    document.getElementById("calendar-container").innerHTML = `<div class="detail-empty"><h3>Erro ao montar o calendário desta aba.</h3><p>${esc(e && e.message)}</p></div>`;
+  }
 
   const abas = [...document.getElementById("series-select").options].map(o => o.value);
   prefetchAbas(key, abas);
@@ -460,6 +494,13 @@ function detectarModelo(rows) {
 
 function processarDadosAba(sheetName) {
   const rows = (dadosCache[disciplinaAtualKey] || {})[sheetName] || [];
+  if (!rows.length) {
+    currentWeeks = []; mesesDisp = [];
+    document.getElementById("calendar-container").innerHTML =
+      `<div class="detail-empty"><h3>Não foi possível carregar a guia "${esc(sheetName)}".</h3><p>Confira se o nome da guia está igual ao da planilha e se a planilha está compartilhada (qualquer pessoa com o link pode ver).</p></div>`;
+    resetarDetalhe();
+    return;
+  }
   currentModelo = detectarModelo(rows);
   if (currentModelo === "semana") processarModeloSemana(rows);
   else processarModeloAula(rows);
@@ -468,7 +509,7 @@ function processarDadosAba(sheetName) {
   renderizarCalendario();
 
   const disc = DISCIPLINAS[disciplinaAtualKey];
-  document.getElementById("header-sub").innerText = `${disc.nome} · Guia: ${sheetName}`;
+  SUB.innerText = `${disc.nome} · Guia: ${sheetName}`;
   resetarDetalhe();
 }
 
@@ -554,7 +595,7 @@ function detectarColunas(rows) {
       set("sab", n.indexOf("sabado") === 0 || n === "sab");
       set("ementas", n.indexOf("ementa") === 0);
       set("obs", n.indexOf("observa") === 0);
-      set("aula", n === "aula" || n === "aulas");
+      set("aula", /^(n\s*(da\s*)?)?aulas?(\s*n)?$/.test(n.replace(/[ºª°.]/g, "").trim()));
       set("cap", n === "capitulo" || n === "cap.");
       set("tema", n.indexOf("tema") === 0);
       set("expect", n.indexOf("expectativa") === 0);
@@ -596,7 +637,7 @@ function processarModeloAula(rows) {
       instrucoes: cel(r, col.instr),
       exercicios: cel(r, col.exerc)
     };
-    if (!tema && !cap && !linha.expectativas && !linha.instrucoes) continue;
+    if (!tema && !cap && !linha.expectativas && !linha.instrucoes && !linha.exercicios) continue;
 
     expandirNumeros(aulaCell.replace(/[ªº°]/g, "")).forEach(n => { (aulasMap[n] = aulasMap[n] || []).push(linha); });
     extrairCapitulos(cap).forEach(c => { (capsMap[c] = capsMap[c] || []).push(linha); });
@@ -605,6 +646,7 @@ function processarModeloAula(rows) {
   const semanas = [];
   const chavesUsadas = {};
   const temPeriodo = col.seg > 0;
+  const reDataPeriodo = /\d{1,2}\s*[\/.-]\s*(?:[a-z]{3,}|\d{1,2})/;
 
   for (let i = headerRow + 1; i < rows.length; i++) {
     const r = rows[i];
@@ -614,15 +656,20 @@ function processarModeloAula(rows) {
       "Quinta": cel(r, col.qui), "Sexta": cel(r, col.sex), "Sábado": cel(r, col.sab)
     };
     const valores = Object.values(dias);
-    if (!valores.some(v => v)) continue;
-    if (valores.every(v => /^\d+$/.test(v))) continue;
+    const temTexto = valores.some(v => v);
 
     const periodo = temPeriodo ? cel(r, 0) : "";
+    const np = norm(periodo);
+    let temData = false;
     if (temPeriodo) {
-      const np = norm(periodo);
       if (!np) continue;
       if (np === "semana" || np === "periodo" || np.indexOf("capitulos") !== -1 || np.indexOf("trabalhados") !== -1) continue;
+      temData = reDataPeriodo.test(np);
     }
+    // semana com data aparece SEMPRE (mesmo vazia); sem data, só se tiver texto
+    if (!temData && !temTexto) continue;
+    if (!temData && !temPeriodo && valores.every(v => /^\d+$/.test(v))) continue;
+
     semanas.push({
       key: uniqueKey(chavesUsadas, periodo || ("Semana " + (semanas.length + 1))),
       periodo, ementas: cel(r, col.ementas), obs: cel(r, col.obs), dias
@@ -693,7 +740,7 @@ function processarModeloSemana(rows) {
 
   const semanas = [], semanasMap = {}, aulaIdx = {};
   const usadas = {};
-  const reData = /\d{1,2}\s*\/\s*[a-z]{3}/;
+  const reData = /\d{1,2}\s*[\/.-]\s*(?:[a-z]{3,}|\d{1,2})/;
 
   for (let i = headerRow + 1; i < rows.length; i++) {
     const r = rows[i];
@@ -744,11 +791,18 @@ function processarModeloSemana(rows) {
 
 /* ================= CALENDÁRIO MENSAL ================= */
 function parsePeriodoInicio(periodo, ano) {
-  const m = norm(periodo).match(/(\d{1,2})\s*\/\s*([a-z]{3})/);
-  if (!m) return null;
-  const mes = MESES.indexOf(m[2]);
-  if (mes < 0) return null;
-  return new Date(ano, mes, parseInt(m[1], 10));
+  const t = norm(periodo);
+  let m = t.match(/(\d{1,2})\s*[\/.-]\s*([a-z]{3})/);
+  if (m) {
+    const mes = MESES.indexOf(m[2]);
+    return mes < 0 ? null : new Date(ano, mes, parseInt(m[1], 10));
+  }
+  m = t.match(/(\d{1,2})\s*[\/.-]\s*(\d{1,2})/);
+  if (m) {
+    const mes = parseInt(m[2], 10) - 1;
+    return (mes < 0 || mes > 11) ? null : new Date(ano, mes, parseInt(m[1], 10));
+  }
+  return null;
 }
 
 function prepararMeses() {
@@ -810,7 +864,7 @@ function renderizarCalendario() {
 
   currentWeeks.forEach((sem, idx) => {
     if (mes.m >= 0) {
-      if (!sem.datas || !sem.datas.slice(0, 5).some(d => d.getFullYear() === mes.y && d.getMonth() === mes.m)) return;
+      if (sem.datas && !sem.datas.slice(0, 5).some(d => d.getFullYear() === mes.y && d.getMonth() === mes.m)) return;
     }
     n++;
     html += `
@@ -912,7 +966,7 @@ function detalheModeloAula(idx, semData, tagDia) {
     aulasDoDia.forEach(n => {
       const linhas = currentAulas[n] || [];
       if (!linhas.length) {
-        html += `<div class="lesson-card"><div class="lesson-header"><span>Aula ${n}</span></div>
+        html += `<div class="lesson-card"><div class="lesson-header"><span>Aula ${n}</span>${botaoCheck(idx, "A" + n, semData.key)}</div>
           <div class="lesson-body"><p>Esta aula ainda não tem conteúdo cadastrado na planilha.</p></div></div>`;
         return;
       }
@@ -920,19 +974,21 @@ function detalheModeloAula(idx, semData, tagDia) {
       html += `
         <div class="lesson-card">
           <div class="lesson-header">
-            <span>Aula ${n} — Capítulo${caps.length > 1 ? "s" : ""} ${caps.length ? esc(caps.join(" e ")) : "—"}</span>
+            <span>Aula ${n}${caps.length ? " — Capítulo" + (caps.length > 1 ? "s " : " ") + esc(caps.join(" e ")) : ""}</span>
             ${botaoCheck(idx, "A" + n, semData.key)}
           </div>
           <div class="lesson-body">
             ${blocoTemas(linhas)}
-            ${blocoCampo(linhas, "expectativas", "Expectativas de Aprendizagem") || "<p><strong>Expectativas de Aprendizagem:</strong> —</p>"}
-            ${blocoCampo(linhas, "instrucoes", "Instruções de Trabalho") || "<p><strong>Instruções de Trabalho:</strong> —</p>"}
+            ${blocoCampo(linhas, "expectativas", "Expectativas de Aprendizagem")}
+            ${blocoCampo(linhas, "instrucoes", "Instruções de Trabalho")}
             ${blocoCampo(linhas, "exercicios", "Exercícios Sugeridos")}
           </div>
         </div>`;
     });
   } else {
-    html += `<div class="detail-empty"><h3>Este dia (${esc(tagDia || "sem atividade")}) refere-se a fim de semana/evento/recesso/feriado/avaliação e não possui aula sequencial cadastrada.</h3></div>`;
+    html += tagDia
+      ? `<div class="not-found">Sem aula numerada vinculada a este dia: <strong>${fmt(tagDia)}</strong></div>`
+      : `<div class="not-found">Nenhuma atividade registrada para este dia.</div>`;
     const capsEmenta = extrairCapitulos(semData.ementas).filter(c => currentCaps[c]);
     if (tagDia && capsEmenta.length) {
       html += `<div class="sec-title">Conteúdo da Ementa (Capítulos ${capsEmenta.join(", ")})</div>`;
@@ -950,7 +1006,7 @@ function detalheModeloSemana(idx, semData, tagDia) {
   const ref = resolverReferencia(tagDia);
 
   if (!ref.nums.length) {
-    return `<div class="detail-empty"><h3>Este dia (${esc(tagDia || "sem atividade")}) refere-se a fim deevento/recesso/feriado/avaliação/revisão e não possui semana de aula vinculada.</h3></div>`;
+    return `<div class="detail-empty"><h3>Este dia (${esc(tagDia || "sem atividade")}) refere-se a evento/recesso/feriado/avaliação/revisão e não possui semana de aula vinculada.</h3></div>`;
   }
 
   let tipo = ref.tipo;
@@ -1052,7 +1108,7 @@ function darCheck(weekIdx, k, aulaKey) {
 /* ================= RELATÓRIOS ================= */
 function abrirRelatorios() {
   mostrarTela("report");
-  document.getElementById("header-sub").innerText = "Relatórios de Acompanhamento";
+  SUB.innerText = "Relatórios de Acompanhamento";
   if (!relCarregado) carregarRelatorio();
 }
 
@@ -1069,7 +1125,7 @@ async function carregarRelatorio() {
     renderizarRelatorio();
   } catch (e) {
     document.getElementById("rel-cards").innerHTML = "";
-    document.getElementById("rel-professores").innerHTML = `<div class="rel-vazio">Erro ao carregar os dados do relatório. Confira se o Apps Script foi reimplantado e tente atualizar.</div>`;
+    RELPROF.innerHTML = `<div class="rel-vazio">Erro ao carregar os dados do relatório. Confira se o Apps Script foi reimplantado e tente atualizar.</div>`;
     document.getElementById("rel-series").innerHTML = "";
     document.getElementById("rel-historico").innerHTML = "";
   }
@@ -1083,7 +1139,7 @@ function popularFiltrosRelatorio() {
 
   const discs = [...new Set([...relProfessores.flatMap(p => p.disciplinas), ...relChecks.map(c => c.disciplina)].filter(Boolean))]
     .sort((a, b) => nomeDisciplina(a).localeCompare(nomeDisciplina(b), "pt-BR"));
-  const unis = [...new Set(relProfessores.map(p => p.unidade).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const unis = [...new Set(relProfessores.flatMap(p => p.unidades).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
 
   selDisc.innerHTML = `<option value="">Todas</option>` + discs.map(d => `<option value="${esc(d)}">${esc(nomeDisciplina(d))}</option>`).join("");
   selUni.innerHTML = `<option value="">Todas</option>` + unis.map(u => `<option value="${esc(u)}">${esc(u)}</option>`).join("");
@@ -1121,7 +1177,7 @@ function renderizarRelatorio() {
   const checks = relChecks.filter(c => {
     const p = mapaProf[c.professorEmail];
     if (fDisc && c.disciplina !== fDisc) return false;
-    if (fUni && (!p || p.unidade !== fUni)) return false;
+    if (fUni && (!p || !p.unidades.includes(fUni))) return false;
     if (!profOk(c.professorEmail)) return false;
     if (dtDe || dtAte) {
       const d = new Date(c.dataHora);
@@ -1145,7 +1201,7 @@ function renderizarRelatorio() {
   const porProf = {};
   relProfessores.forEach(p => {
     if (fDisc && !p.disciplinas.includes(fDisc)) return;
-    if (fUni && p.unidade !== fUni) return;
+    if (fUni && !p.unidades.includes(fUni)) return;
     if (!profOk(p.email)) return;
     porProf[p.email] = { nome: p.nome || p.email, email: p.email, unidade: p.unidade, disciplinas: p.disciplinas, aulas: 0, ultimo: null };
   });
@@ -1162,16 +1218,14 @@ function renderizarRelatorio() {
   const todosProf = Object.values(porProf).sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
   const comRegistro = todosProf.filter(p => p.aulas > 0).length;
   const semRegistro = todosProf.length - comRegistro;
-  const pct = todosProf.length ? Math.round(comRegistro / todosProf.length * 100) : 0;
 
   document.getElementById("rel-cards").innerHTML = `
     <div class="stat-card"><div class="num">${comRegistro}</div><div class="lbl">Professores com registro</div></div>
-    <div class="stat-card"><div class="num">${semRegistro}</div><div class="lbl">Professores sem registro</div></div>
-    <div class="stat-card"><div class="num">${pct}%</div><div class="lbl">Conformidade</div></div>`;
+    <div class="stat-card"><div class="num">${semRegistro}</div><div class="lbl">Professores sem registro</div></div>`;
 
   relListaProf = todosProf.filter(p => fSit === "com" ? p.aulas > 0 : fSit === "sem" ? p.aulas === 0 : true);
   if (!relListaProf.length) {
-    document.getElementById("rel-professores").innerHTML = `<div class="rel-vazio">Nenhum professor encontrado para os filtros escolhidos.</div>`;
+    RELPROF.innerHTML = `<div class="rel-vazio">Nenhum professor encontrado para os filtros escolhidos.</div>`;
   } else {
     let t = `<table class="rel-table"><thead><tr><th>Professor</th><th>E-mail</th><th>Unidade</th><th>Disciplina(s)</th><th>Aulas dadas</th><th>Última atividade</th><th>Situação</th></tr></thead><tbody>`;
     relListaProf.forEach(p => {
@@ -1185,7 +1239,7 @@ function renderizarRelatorio() {
         <td>${p.aulas > 0 ? '<span class="pill ok">Com registro</span>' : '<span class="pill zero">Sem registro</span>'}</td>
       </tr>`;
     });
-    document.getElementById("rel-professores").innerHTML = t + `</tbody></table>`;
+    RELPROF.innerHTML = t + `</tbody></table>`;
   }
 
   // ---- aulas por disciplina e série ----
@@ -1284,5 +1338,6 @@ function exportarPDF() {
 /* ================= INICIALIZAÇÃO ================= */
 hidratarIcones();
 montarChecklistDisciplinas();
+montarChecklistUnidades();
 montarDashboard();
 irParaInicio();
