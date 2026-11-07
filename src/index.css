@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+@theme {
+  --color-pensi-yellow: #f4b400;
+  --color-pensi-yellow-hover: #e0a300;
+  --color-pensi-yellow-light: #fff8e1;
+  --color-pensi-dark: #212121;
+  --color-pensi-line: #e3e3e3;
+  --color-pensi-bg: #f6f6f4;
+  --color-pensi-text: #2c2c2c;
+  --color-pensi-muted: #707070;
+  --color-pensi-success: #2e7d32;
+  --color-pensi-danger: #c62828;
+
+  --font-sans: "Arial", "Helvetica", sans-serif;
+}
+
+@layer base {
+  html, body, #root {
+    min-height: 100%;
+  }
+  body {
+    background-color: var(--color-pensi-bg);
+    color: var(--color-pensi-text);
+    font-family: var(--font-sans);
+  }
+  button {
+    font-family: inherit;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center gap-2 bg-pensi-yellow text-pensi-dark border border-pensi-yellow font-bold text-sm px-6 py-3 rounded-lg cursor-pointer transition hover:bg-pensi-yellow-hover;
+  }
+  .btn-outline-dark {
+    @apply inline-flex items-center gap-2 bg-transparent text-white border border-gray-500 font-semibold text-xs px-3.5 py-2 rounded-md cursor-pointer transition hover:border-pensi-yellow hover:text-pensi-yellow;
+  }
+  .btn-back {
+    @apply inline-flex items-center gap-2 bg-white text-pensi-dark border border-pensi-line font-semibold text-xs px-3.5 py-2 rounded-md cursor-pointer mb-4 hover:border-pensi-yellow hover:bg-pensi-yellow-light;
+  }
+  .form-control {
+    @apply w-full px-2.5 py-2.5 border border-pensi-line rounded-md text-sm bg-gray-50 focus:outline-none focus:border-pensi-yellow focus:bg-white;
+  }
+  .form-label {
+    @apply block text-xs font-bold mb-1.5 text-pensi-dark;
+  }
+  .card {
+    @apply bg-white border border-pensi-line rounded-xl p-4;
+  }
+  .stat-card {
+    @apply bg-white border border-pensi-line rounded-xl p-4;
+  }
+  .rel-table {
+    @apply w-full text-xs border-collapse;
+  }
+  .rel-table th {
+    @apply bg-pensi-dark text-white text-left px-2.5 py-2 text-[11px] whitespace-nowrap;
+  }
+  .rel-table td {
+    @apply px-2.5 py-2 border-b border-pensi-line align-top;
+  }
+  .rel-table tr:nth-child(even) td {
+    @apply bg-gray-50;
+  }
+  .pill {
+    @apply inline-block px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap;
+  }
+  .pill-ok   { @apply bg-green-100 text-pensi-success; }
+  .pill-zero { @apply bg-red-100 text-pensi-danger; }
+  .spinner {
+    @apply w-9 h-9 border-4 border-pensi-line border-t-pensi-yellow rounded-full animate-spin;
+  }
+}
+
