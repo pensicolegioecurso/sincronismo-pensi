@@ -28,8 +28,8 @@ import TeacherProfileModal from "./TeacherProfileModal";
 const MOCK_USERS = [
   {
     id: 1,
-    nome: "Ana Silva",
-    email: "ana@pensi.com.br",
+    nome: "Teste 1",
+    email: "teste1.com.br",
     cargos: ["professor"],
     unidade: "Icaraí 1",
     telefone: "(21) 99999-1111",
@@ -37,8 +37,8 @@ const MOCK_USERS = [
   },
   {
     id: 2,
-    nome: "Carlos Souza",
-    email: "carlos@pensi.com.br",
+    nome: "teste 2",
+    email: "teste2@gmail.com.br",
     cargos: ["direcao", "professor"],
     unidade: "Flamengo",
     telefone: "(21) 99999-2222",
@@ -46,8 +46,8 @@ const MOCK_USERS = [
   },
   {
     id: 3,
-    nome: "Beatriz Lima",
-    email: "beatriz@pensi.com.br",
+    nome: "Teste 3",
+    email: "teste3@pensi.com.br",
     cargos: ["admin", "nucleo"],
     unidade: "Matriz",
     telefone: "(21) 99999-3333",
@@ -55,8 +55,8 @@ const MOCK_USERS = [
   },
   {
     id: 4,
-    nome: "João Pereira",
-    email: "joao@pensi.com.br",
+    nome: "teste 4",
+    email: "teste4@pensi.com.br",
     cargos: ["professor"],
     unidade: "Tijuca 1",
     telefone: "(21) 99999-4444",
@@ -64,8 +64,8 @@ const MOCK_USERS = [
   },
   {
     id: 5,
-    nome: "Marcos Paulo",
-    email: "marcos@pensi.com.br",
+    nome: "teste 5",
+    email: "teste5.com.br",
     cargos: ["professor"],
     unidade: "Icaraí 1",
     telefone: "(21) 98888-5555",
@@ -238,7 +238,7 @@ export default function AdminUsers({ unidadeFoco }) {
               <div className="flex items-center gap-2 mb-2">
                 <span className="w-1.5 h-1.5 bg-pensi-yellow border border-black rounded-full" />
                 <span className="text-[9px] font-black uppercase tracking-[0.22em] text-gray-500">
-                  Administração / Gestão de acessos
+                  Gestão de acessos
                 </span>
               </div>
 
