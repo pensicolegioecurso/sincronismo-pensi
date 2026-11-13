@@ -1,23 +1,24 @@
 import { useState } from "react";
-import { COLUNAS_DIAS, extrairAulas, resolverReferencia, pad2, extrairCapitulos, chaveCheck } from "../utils/formatters";
-import { X, CheckCircle2, MessageSquare, AlertCircle } from "lucide-react";
+import { createPortal } from "react-dom";
+import { COLUNAS_DIAS, extrairAulas, resolverReferencia, pad2, extrairCapitulos } from "../utils/formatters";
+import { gerarIdCheck } from "../services/firestoreChecks";
+import { X, CheckCircle2, MessageSquare, AlertCircle, Lock } from "lucide-react";
 
 export default function DetailPanel({
   semData, diaIdx, currentModelo, currentAulas, currentCaps, currentSemanas, currentAulaIdx,
-  checksSet, onCheck, disciplinaAtualKey, currentSheetName, weekIdx,
+  checksSet, onCheck, disciplinaAtualKey, currentSheetName, turmasDoProfessor, weekIdx,
+  unidadeSelecionada // <-- AQUI
 }) {
-  // Estados do Modal de Ação (Aula / Justificativa)
   const [modalAberto, setModalAberto] = useState(false);
-  const [tipoAcao, setTipoAcao] = useState(null); // 'aula' ou 'justificativa'
+  const [tipoAcao, setTipoAcao] = useState(null);
   const [aulaSelecionada, setAulaSelecionada] = useState(null);
   
-  // Estados dos formulários do modal
   const [textoJustificativa, setTextoJustificativa] = useState("");
   const [aplicarTodasTurmas, setAplicarTodasTurmas] = useState(true);
   const [obsAula, setObsAula] = useState("");
   const [erroModal, setErroModal] = useState("");
 
-  if (!semData) {
+  if (!semData || diaIdx == null) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center p-10 bg-transparent min-h-[400px]">
         <div className="w-14 h-14 bg-pensi-yellow border-[2px] border-black rounded-xl shadow-[3px_3px_0px_0px_#000] flex items-center justify-center mb-4 -rotate-3">
@@ -34,16 +35,32 @@ export default function DetailPanel({
   const d = semData.datas ? semData.datas[diaIdx] : null;
   const dataTxt = d ? `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear()}` : "";
 
+  let dataReal = "";
+  if (d) {
+    const dataCerta = new Date(d);
+    dataCerta.setHours(12, 0, 0, 0); 
+    const y = dataCerta.getFullYear();
+    const m = String(dataCerta.getMonth() + 1).padStart(2, "0");
+    const dd = String(dataCerta.getDate()).padStart(2, "0");
+    dataReal = `${y}-${m}-${dd}`;
+  }
+
   const jaTemCheck = (aulaKey) => {
-    const chave = chaveCheck({
-      disciplina: disciplinaAtualKey, serie: currentSheetName,
-      semana: semData.key, dia: diaNome, aulaIndex: aulaKey,
+    const id = gerarIdCheck({ 
+      disciplina: disciplinaAtualKey, 
+      serie: currentSheetName, 
+      semanaIdx: dataReal,
+      diaNome: diaNome, 
+      aulaIndex: aulaKey 
     });
-    return checksSet.has(chave);
+    return checksSet.has(id);
   };
 
   const abrirModal = (tipo, aulaKey) => {
-    if (jaTemCheck(aulaKey)) return;
+    if (jaTemCheck(aulaKey)) {
+      alert("Ação bloqueada: Esta aula já foi registrada!");
+      return;
+    }
     setAulaSelecionada(aulaKey);
     setTipoAcao(tipo);
     setModalAberto(true);
@@ -61,23 +78,22 @@ export default function DetailPanel({
 
   const handleConfirmarAcao = () => {
     setErroModal("");
-    
     if (tipoAcao === "justificativa" && !textoJustificativa.trim()) {
       return setErroModal("Por favor, escreva o motivo da justificativa.");
     }
 
-    // Aqui você conecta com a sua função de salvar no banco de dados.
-    // Estou passando os dados extras (justificativa, obs, aplicarTodasTurmas) no console para simulação.
-    console.log("Ação Confirmada:", {
-      tipo: tipoAcao,
-      aulaKey: aulaSelecionada,
-      justificativa: textoJustificativa,
-      observacao: obsAula,
-      todasAsTurmas: tipoAcao === "aula" ? aplicarTodasTurmas : true,
-    });
+    const turmasParaAplicar = (tipoAcao === "aula" && aplicarTodasTurmas) ? turmasDoProfessor : [currentSheetName];
 
-    // Executa a função de check original
-    onCheck({ semana: semData.key, dia: diaNome, aulaIndex: aulaSelecionada });
+    onCheck({
+      semanaIdx: dataReal,
+      diaNome: diaNome,
+      aulaIndex: aulaSelecionada,
+      tipo: tipoAcao,
+      justificativa: tipoAcao === "justificativa" ? textoJustificativa : "",
+      observacao: tipoAcao === "aula" ? obsAula : "",
+      turmasParaAplicar,
+      unidade: unidadeSelecionada, // <-- ENVIANDO A UNIDADE
+    });
     
     fecharModal();
   };
@@ -86,181 +102,100 @@ export default function DetailPanel({
     const feito = jaTemCheck(aulaKey);
     if (feito) {
       return (
-        <div className="flex items-center gap-1.5 text-green-700 bg-green-100 px-3 py-1.5 rounded-lg border border-green-700 text-xs font-bold uppercase">
-          <CheckCircle2 className="w-4 h-4" /> Concluído
+        <div className="flex items-center gap-1.5 text-green-900 bg-green-300 px-3 py-1.5 rounded-lg border-[2px] border-black shadow-[2px_2px_0px_0px_#000] text-xs font-black uppercase tracking-wide cursor-not-allowed opacity-90">
+          <Lock className="w-3.5 h-3.5" strokeWidth={2.5} /> Registrado
         </div>
       );
     }
 
     return (
       <div className="flex items-center gap-2">
-        <button
-          onClick={() => abrirModal("aula", aulaKey)}
-          className="text-[11px] font-bold uppercase tracking-wide px-3 py-1.5 bg-white text-black border border-black rounded-lg shadow-[2px_2px_0px_0px_#000] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_#000] transition-all flex items-center gap-1.5"
-        >
+        <button onClick={() => abrirModal("aula", aulaKey)} className="text-[11px] font-bold uppercase tracking-wide px-3 py-1.5 bg-white text-black border-[2px] border-black rounded-lg shadow-[2px_2px_0px_0px_#000] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_#000] transition-all flex items-center gap-1.5">
           <CheckCircle2 className="w-3.5 h-3.5" /> Dar Aula
         </button>
-        <button
-          onClick={() => abrirModal("justificativa", aulaKey)}
-          className="text-[11px] font-bold uppercase tracking-wide px-3 py-1.5 bg-gray-100 text-gray-700 border border-black rounded-lg shadow-[2px_2px_0px_0px_#000] hover:bg-gray-200 hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_#000] transition-all flex items-center gap-1.5"
-        >
+        <button onClick={() => abrirModal("justificativa", aulaKey)} className="text-[11px] font-bold uppercase tracking-wide px-3 py-1.5 bg-gray-100 text-gray-700 border-[2px] border-black rounded-lg shadow-[2px_2px_0px_0px_#000] hover:bg-gray-200 hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_#000] transition-all flex items-center gap-1.5">
           <MessageSquare className="w-3.5 h-3.5" /> Justificar
         </button>
       </div>
     );
   };
 
+  const modalContent = (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
+      <div className="bg-white border-[3px] border-black rounded-2xl shadow-[8px_8px_0px_0px_#000] w-full max-w-md overflow-hidden animate-scale-in">
+        <div className="flex items-center justify-between p-5 border-b-[2px] border-black bg-gray-50">
+          <div className="flex items-center gap-2">
+            {tipoAcao === "aula" ? <CheckCircle2 className="w-5 h-5 text-green-600" /> : <AlertCircle className="w-5 h-5 text-amber-500" />}
+            <h3 className="text-lg font-bold text-gray-900">{tipoAcao === "aula" ? "Registrar Aula" : "Justificar Aula"}</h3>
+          </div>
+          <button onClick={fecharModal} className="p-1.5 bg-white border-[1.5px] border-black rounded-lg hover:bg-gray-100 transition-colors">
+            <X className="w-4 h-4 text-black" />
+          </button>
+        </div>
+        <div className="p-5 space-y-4">
+          {erroModal && <div className="bg-red-50 border-[1.5px] border-red-600 text-red-700 text-xs font-bold px-3 py-2 rounded-lg">{erroModal}</div>}
+          {tipoAcao === "justificativa" && (
+            <div>
+              <label className="block text-xs font-bold text-gray-700 mb-1.5">Motivo da Justificativa <span className="text-red-500">*</span></label>
+              <textarea value={textoJustificativa} onChange={(e) => setTextoJustificativa(e.target.value)} placeholder="Descreva o motivo..." rows={4} className="w-full bg-white border-[2px] border-gray-300 rounded-xl p-3 text-sm text-gray-900 outline-none focus:border-black focus:shadow-[3px_3px_0px_0px_#F5C518] transition-all resize-none" />
+            </div>
+          )}
+          {tipoAcao === "aula" && (
+            <>
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-2">Esta aula foi dada para:</label>
+                <div className="flex flex-col gap-2">
+                  <label className="flex items-center gap-2 p-2.5 border-[1.5px] border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                    <input type="radio" name="turmas" checked={aplicarTodasTurmas} onChange={() => setAplicarTodasTurmas(true)} className="accent-black w-4 h-4" />
+                    <span className="text-sm font-medium text-gray-800">Todas as minhas turmas ({turmasDoProfessor.length})</span>
+                  </label>
+                  <label className="flex items-center gap-2 p-2.5 border-[1.5px] border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                    <input type="radio" name="turmas" checked={!aplicarTodasTurmas} onChange={() => setAplicarTodasTurmas(false)} className="accent-black w-4 h-4" />
+                    <span className="text-sm font-medium text-gray-800">Apenas esta turma ({currentSheetName})</span>
+                  </label>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1.5">Observações (Opcional)</label>
+                <textarea value={obsAula} onChange={(e) => setObsAula(e.target.value)} placeholder="Algum detalhe extra?" rows={3} className="w-full bg-white border-[2px] border-gray-300 rounded-xl p-3 text-sm text-gray-900 outline-none focus:border-black focus:shadow-[3px_3px_0px_0px_#F5C518] transition-all resize-none" />
+              </div>
+            </>
+          )}
+        </div>
+        <div className="p-5 border-t-[2px] border-black bg-gray-50 flex justify-end gap-2">
+          <button onClick={fecharModal} className="px-4 py-2.5 text-sm font-bold text-gray-600 hover:text-black transition-colors">Cancelar</button>
+          <button onClick={handleConfirmarAcao} className="px-5 py-2.5 bg-pensi-yellow text-black text-sm font-bold border-[2px] border-black rounded-xl shadow-[2px_2px_0px_0px_#000] hover:bg-[#ffdb4d] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_#000] active:shadow-none active:translate-x-[3px] active:translate-y-[3px] transition-all">Confirmar</button>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <>
       <div className="bg-transparent relative">
         <div className="border-b border-gray-200 p-5">
           <div className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider">
-            {semData.periodo || `Semana ${weekIdx + 1}`} ({diaNome}{dataTxt ? `, ${dataTxt}` : ""})
+            {semData.periodo || `Semana ${(weekIdx ?? 0) + 1}`} ({diaNome}{dataTxt ? `, ${dataTxt}` : ""})
           </div>
-          <h2 className="text-xl font-semibold text-gray-900 mt-1 uppercase">
-            {tagDia || "Sem atividade especificada"}
-          </h2>
+          <h2 className="text-xl font-semibold text-gray-900 mt-1 uppercase">{tagDia || "Sem atividade especificada"}</h2>
           {semData.ementas && (
             <div className="mt-3 p-3 bg-yellow-50 border-l-[3px] border-pensi-yellow text-xs text-gray-800 rounded-r-md">
               <strong className="block text-[10px] font-semibold uppercase mb-0.5">Ementa</strong> {semData.ementas}
             </div>
           )}
-          {semData.obs && (
-            <div className="mt-2 p-3 bg-gray-50 border-l-[3px] border-gray-400 text-xs text-gray-800 rounded-r-md">
-              <strong className="block text-[10px] font-semibold uppercase mb-0.5">Observação</strong> {semData.obs}
-            </div>
-          )}
         </div>
-
         <div className="p-5">
           {currentModelo === "semana"
             ? renderDetalheSemana(tagDia, currentSemanas, currentAulaIdx, renderizarAcoes)
             : renderDetalheAula(tagDia, currentAulas, currentCaps, renderizarAcoes, semData, currentCaps)}
         </div>
       </div>
-
-      {/* MODAL DE AÇÃO (Aula / Justificativa) */}
-      {modalAberto && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white/95 backdrop-blur-2xl border-[2px] border-black rounded-2xl shadow-[8px_8px_0px_0px_#000] w-full max-w-md overflow-hidden animate-scale-in">
-            
-            {/* Header do Modal */}
-            <div className="flex items-center justify-between p-5 border-b-[2px] border-black bg-gray-50">
-              <div className="flex items-center gap-2">
-                {tipoAcao === "aula" ? (
-                  <CheckCircle2 className="w-5 h-5 text-green-600" />
-                ) : (
-                  <AlertCircle className="w-5 h-5 text-amber-500" />
-                )}
-                <h3 className="text-lg font-bold text-gray-900">
-                  {tipoAcao === "aula" ? "Registrar Aula" : "Justificar Aula"}
-                </h3>
-              </div>
-              <button 
-                onClick={fecharModal}
-                className="p-1.5 bg-white border-[1.5px] border-black rounded-lg hover:bg-gray-100 transition-colors"
-              >
-                <X className="w-4 h-4 text-black" />
-              </button>
-            </div>
-
-            {/* Corpo do Modal */}
-            <div className="p-5 space-y-4">
-              
-              {erroModal && (
-                <div className="bg-red-50 border-[1.5px] border-red-600 text-red-700 text-xs font-bold px-3 py-2 rounded-lg">
-                  {erroModal}
-                </div>
-              )}
-
-              {/* Formulário: JUSTIFICATIVA */}
-              {tipoAcao === "justificativa" && (
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                    Motivo da Justificativa <span className="text-red-500">*</span>
-                  </label>
-                  <textarea
-                    value={textoJustificativa}
-                    onChange={(e) => setTextoJustificativa(e.target.value)}
-                    placeholder="Descreva o motivo pelo qual a aula não foi ministrada..."
-                    rows={4}
-                    className="w-full bg-white border-[2px] border-gray-300 rounded-xl p-3 text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:border-black focus:shadow-[3px_3px_0px_0px_#F5C518] transition-all resize-none"
-                  />
-                </div>
-              )}
-
-              {/* Formulário: AULA */}
-              {tipoAcao === "aula" && (
-                <>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-2">
-                      Esta aula foi dada para:
-                    </label>
-                    <div className="flex flex-col gap-2">
-                      <label className="flex items-center gap-2 p-2.5 border-[1.5px] border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
-                        <input 
-                          type="radio" 
-                          name="turmas" 
-                          checked={aplicarTodasTurmas} 
-                          onChange={() => setAplicarTodasTurmas(true)}
-                          className="accent-black w-4 h-4"
-                        />
-                        <span className="text-sm font-medium text-gray-800">Todas as minhas turmas</span>
-                      </label>
-                      <label className="flex items-center gap-2 p-2.5 border-[1.5px] border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
-                        <input 
-                          type="radio" 
-                          name="turmas" 
-                          checked={!aplicarTodasTurmas} 
-                          onChange={() => setAplicarTodasTurmas(false)}
-                          className="accent-black w-4 h-4"
-                        />
-                        <span className="text-sm font-medium text-gray-800">Apenas esta turma ({currentSheetName})</span>
-                      </label>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                      Observações (Opcional)
-                    </label>
-                    <textarea
-                      value={obsAula}
-                      onChange={(e) => setObsAula(e.target.value)}
-                      placeholder="Algum detalhe extra sobre a aula?"
-                      rows={3}
-                      className="w-full bg-white border-[2px] border-gray-300 rounded-xl p-3 text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:border-black focus:shadow-[3px_3px_0px_0px_#F5C518] transition-all resize-none"
-                    />
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* Footer do Modal */}
-            <div className="p-5 border-t-[2px] border-black bg-gray-50 flex justify-end gap-2">
-              <button
-                onClick={fecharModal}
-                className="px-4 py-2.5 text-sm font-bold text-gray-600 hover:text-black transition-colors"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleConfirmarAcao}
-                className="px-5 py-2.5 bg-pensi-yellow text-black text-sm font-bold border-[2px] border-black rounded-xl shadow-[2px_2px_0px_0px_#000] hover:bg-[#ffdb4d] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_#000] active:shadow-none active:translate-x-[3px] active:translate-y-[3px] transition-all"
-              >
-                Confirmar
-              </button>
-            </div>
-
-          </div>
-        </div>
-      )}
+      {modalAberto && createPortal(modalContent, document.body)}
     </>
   );
 }
 
-// --- SUBCOMPONENTES ---
-
+// ... (Mantenha as funções renderDetalheAula, renderDetalheSemana, BlocoTemas, etc. exatamente como estavam)
 function renderDetalheAula(tagDia, currentAulas, currentCaps, renderizarAcoes, semData, capsGerais) {
   const aulasDoDia = extrairAulas(tagDia);
   const blocos = [];

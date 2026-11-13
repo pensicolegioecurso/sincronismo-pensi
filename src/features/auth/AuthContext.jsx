@@ -1,139 +1,146 @@
-import { createContext, useState } from "react";
-import { loginRequest, registerRequest, getChecks } from "../../services/api";
-import { normalizarProfessor, chaveCheck } from "../../utils/formatters";
+import { createContext, useState, useEffect, useCallback } from "react";
+import {
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut,
+  sendPasswordResetEmail,
+  updateProfile,
+} from "firebase/auth";
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { auth, db } from "../../services/firebase";
+import { ouvirChecksDoProfessor } from "../../services/firestoreChecks";
 
 export const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
-    const storedUser = localStorage.getItem("pensi_user");
-    return storedUser ? JSON.parse(storedUser) : null;
-  });
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [checksSet, setChecksSet] = useState(new Set());
-  const [loading, setLoading] = useState(false);
 
-  async function login(email, senha) {
-    setLoading(true);
-    
-    // ==========================================
-    // LÓGICA DE TESTE (MOCK)
-    // ==========================================
-    if (email === "teste1@gmail.com" && senha === "123456") {
-      const fakeUserProf = {
-        nome: "Professor Teste",
-        email: email,
-        cargos: ["professor"],
-        unidades: ["Icaraí 1"],
-        disciplinas: ["matematica", "fisica"] 
-      };
-      setUser(fakeUserProf);
-      localStorage.setItem("pensi_user", JSON.stringify(fakeUserProf));
-      setLoading(false);
-      return { ok: true, user: fakeUserProf };
-    }
-
-    if (email === "teste2@gmail.com" && senha === "123456") {
-      const fakeUserAdmin = {
-        nome: "Admin Teste",
-        email: email,
-        cargos: ["admin"],
-        unidades: ["Matriz"],
-        disciplinas: []
-      };
-      setUser(fakeUserAdmin);
-      localStorage.setItem("pensi_user", JSON.stringify(fakeUserAdmin));
-      setLoading(false);
-      return { ok: true, user: fakeUserAdmin };
-    }
-
-    if (email === "teste3@gmail.com" && senha === "123456") {
-      const fakeUserDirecao = {
-        nome: "Direção Teste",
-        email: email,
-        cargos: ["direcao"],
-        unidades: ["Icaraí 1"], // Unidade focada
-        disciplinas: []
-      };
-      setUser(fakeUserDirecao);
-      localStorage.setItem("pensi_user", JSON.stringify(fakeUserDirecao));
-      setLoading(false);
-      return { ok: true, user: fakeUserDirecao };
-    }
-    // ==========================================
-    // FIM DO MOCK
-    // ==========================================
-
-    try {
-      const json = await loginRequest(email, senha);
-      if (json?.status === "success") {
-        const prof = normalizarProfessor(json.professor);
-        setUser(prof);
-        localStorage.setItem("pensi_user", JSON.stringify(prof));
-        
-        const checks = await getChecks(prof.email);
-        const set = new Set();
-        (Array.isArray(checks) ? checks : []).map(normalizarCheckSafe).forEach((c) => {
-          if (c.professorEmail === prof.email) set.add(chaveCheck(c));
-        });
-        setChecksSet(set);
-        return { ok: true, user: prof };
-      }
-      return { ok: false, message: json?.message || "E-mail ou senha inválidos." };
-    } catch (error) {
-      console.error("Erro no login:", error);
-      return { ok: false, message: "Erro de conexão com o servidor." };
-    } finally { 
-      setLoading(false); 
-    }
-  }
-
-  async function register(payload) {
-    setLoading(true);
-    try {
-      const json = await registerRequest(payload);
-      if (json?.status === "success") {
-        const prof = normalizarProfessor(json.professor);
-        setUser(prof);
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (!firebaseUser) {
+        setUser(null);
         setChecksSet(new Set());
-        return { ok: true, user: prof };
+        setLoading(false);
+        return;
       }
-      return { ok: false, message: json?.message || "Erro ao cadastrar." };
-    } finally { 
-      setLoading(false); 
+
+      try {
+        const userRef = doc(db, "users", firebaseUser.uid);
+        const snap = await getDoc(userRef);
+
+        if (snap.exists()) {
+          setUser({ uid: firebaseUser.uid, email: firebaseUser.email, ...snap.data() });
+        } else {
+          setUser({
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            nome: firebaseUser.displayName || "",
+            cargos: [],
+            perfilIncompleto: true,
+          });
+        }
+      } catch (err) {
+        console.error("Erro ao buscar dados do usuário:", err);
+        setUser({ uid: firebaseUser.uid, email: firebaseUser.email, perfilIncompleto: true });
+      } finally {
+        setLoading(false);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // OUVINTE EM TEMPO REAL DOS CHECKS
+  useEffect(() => {
+    if (!user?.uid) {
+      setChecksSet(new Set());
+      return;
     }
-  }
+    
+    const unsubscribe = ouvirChecksDoProfessor(user.uid, (checks) => {
+      setChecksSet(checks);
+    });
 
-  function logout() {
-    setUser(null);
-    setChecksSet(new Set());
-    localStorage.removeItem("pensi_user");
-  }
+    return () => unsubscribe();
+  }, [user?.uid]);
 
-  return (
-    <AuthContext.Provider value={{ user, checksSet, setChecksSet, loading, login, register, logout }}>
-      {children}
-    </AuthContext.Provider>
-  );
-}
+  const register = useCallback(async ({ nome, email, senha, disciplinas, unidade, series, turmas }) => {
+    try {
+      const cred = await createUserWithEmailAndPassword(auth, email, senha);
+      const firebaseUser = cred.user;
+      if (nome) await updateProfile(firebaseUser, { displayName: nome });
 
-function normalizarCheckSafe(c) {
-  const pick = (obj, ...nomes) => {
-    const mapa = {};
-    Object.keys(obj || {}).forEach((k) => { mapa[k.toLowerCase().replace(/[^a-z0-9]/g, "")] = obj[k]; });
-    for (const n of nomes) {
-      const v = mapa[n];
-      if (v !== undefined && v !== null && String(v).trim() !== "") return String(v).trim();
+      const userData = {
+        uid: firebaseUser.uid, nome: nome || "", email: email,
+        disciplinas: disciplinas || [], unidade: unidade || "",
+        series: series || "", turmas: turmas || "",
+        cargos: ["professor"], criadoEm: serverTimestamp(),
+      };
+
+      await setDoc(doc(db, "users", firebaseUser.uid), userData);
+      return { ok: true, user: firebaseUser };
+    } catch (err) {
+      console.error("Erro no register:", err);
+      return { ok: false, message: "Não foi possível criar a conta." };
     }
-    return "";
+  }, []);
+
+  const atualizarPerfil = useCallback(async (dados) => {
+    try {
+      if (!auth.currentUser) throw new Error("Sem usuário autenticado");
+      const uid = auth.currentUser.uid;
+
+      const userRef = doc(db, "users", uid);
+      const userData = {
+        uid, email: auth.currentUser.email,
+        nome: dados.nome || auth.currentUser.displayName || "",
+        disciplinas: dados.disciplinas || [], unidade: dados.unidade || "",
+        series: dados.series || "", turmas: dados.turmas || "",
+        cargos: dados.cargos || ["professor"], criadoEm: serverTimestamp(),
+      };
+
+      await setDoc(userRef, userData, { merge: true });
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, message: "Não foi possível salvar os dados." };
+    }
+  }, []);
+
+  const login = useCallback(async (email, senha) => {
+    try {
+      await signInWithEmailAndPassword(auth, email, senha);
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, message: "E-mail ou senha incorretos." };
+    }
+  }, []);
+
+  const logout = useCallback(async () => {
+    try {
+      await signOut(auth);
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, message: "Erro ao sair." };
+    }
+  }, []);
+
+  const redefine = useCallback(async (email) => {
+    try {
+      await sendPasswordResetEmail(auth, email);
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, message: "Não foi possível enviar o e-mail." };
+    }
+  }, []);
+
+  const value = {
+    user, loading, checksSet, setChecksSet,
+    register, atualizarPerfil, login, logout, redefine,
+    isAuthenticated: !!user, perfilIncompleto: !!user?.perfilIncompleto,
   };
-  return {
-    professorEmail: pick(c, "professoremail", "email").toLowerCase(),
-    disciplina: pick(c, "disciplinakey", "disciplina"),
-    serie: pick(c, "serie"),
-    semana: pick(c, "semana"),
-    dia: pick(c, "dia"),
-    aulaIndex: pick(c, "aulaindex"),
-    status: pick(c, "status"),
-    dataHora: pick(c, "datahora"),
-  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

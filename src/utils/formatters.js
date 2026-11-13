@@ -64,8 +64,22 @@ export function resolverReferencia(texto) {
 }
 
 export const extrairAulas = (texto) => {
-  const r = resolverReferencia(texto);
-  return r.tipo === "semana" ? [] : r.nums;
+  const str = String(texto || "").trim();
+  if (!str) return [];
+  
+  const n = nh(str);
+  // Se for evento/recesso/prova, ignora contagem de aula
+  if (/prova|feriado|recesso|revisao|avaliacao|simulado/i.test(n)) return [];
+
+  // Pega todos os números. Ex: "Aula 1 e 2" vira [1, 2]
+  const matches = str.match(/\d+/g);
+  if (matches) {
+    const nums = matches.map(num => parseInt(num, 10)).filter(num => num > 0 && num < 100);
+    if (nums.length > 0) return [...new Set(nums)];
+  }
+  
+  // Se tem texto mas não tem número (ex: "Prática"), conta como 1 aula
+  return [1]; 
 };
 
 export function extrairCapitulos(texto) {
@@ -81,7 +95,7 @@ export function extrairCapitulos(texto) {
 }
 
 export function chaveCheck(c) {
-  return [c.disciplina, c.serie, c.semana, c.dia, c.aulaIndex].join("|");
+  return [c.disciplina, c.serie, c.dataReal, c.dia, c.aulaIndex].join("|");
 }
 
 export function normalizarCheck(c) {

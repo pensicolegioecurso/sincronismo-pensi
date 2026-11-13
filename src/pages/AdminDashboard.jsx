@@ -4,33 +4,50 @@ import DashboardNavbar from "../components/dashboard/DashboardNavbar";
 import ProfileModal from "../components/ProfileModal";
 import AdminOverview from "../components/admin/AdminOverview";
 import AdminUsers from "../components/admin/AdminUsers";
-import FeedTab from "../components/dashboard/FeedTab"; // Importação do Feed
+import TurmasAdmin from "../components/admin/TurmasAdmin";
+import CalendarioAdmin from "../components/admin/CalendarioAdmin"; // NOVO IMPORT
+import FeedTab from "../components/dashboard/FeedTab";
 
-export default function AdminDashboard({ onNavigate }) {
+export default function AdminDashboard({ onNavigate, perfilAtivo }) {
   const { user, logout } = useAuth();
-  const [activeTab, setActiveTab] = useState("dashboard"); 
+  const [activeTab, setActiveTab] = useState("dashboard");
   const [profileOpen, setProfileOpen] = useState(false);
+
+  const isRegional = perfilAtivo === "regional";
+  const isNucleo = perfilAtivo === "nucleo";
+  const isAdmin = perfilAtivo === "admin";
+
+  const unidadesEscopo = isRegional ? (user?.unidadesComando || []) : null;
 
   return (
     <div className="min-h-screen bg-[#f3f4f6] flex flex-col font-sans text-gray-800 relative pb-28">
-      
-      {/* ÁREA PRINCIPAL */}
       <main className="relative z-10 flex-1 w-full mx-auto pt-10">
-        {activeTab === "dashboard" && <AdminOverview />}
-        {activeTab === "usuarios" && <AdminUsers />}
+        {activeTab === "dashboard" && <AdminOverview unidadesEscopo={unidadesEscopo} />}
+        {activeTab === "usuarios" && (
+          <AdminUsers
+            unidadesEscopo={unidadesEscopo}
+            perfilAtivo={perfilAtivo}
+            currentUser={user}
+          />
+        )}
+        {activeTab === "turmas" && <TurmasAdmin perfilAtivo={perfilAtivo} />}
+        
+        {/* NOVA ABA AQUI */}
+        {activeTab === "calendario" && <CalendarioAdmin perfilAtivo={perfilAtivo} />}
+        
         {activeTab === "feed" && <FeedTab user={user} />}
       </main>
 
-      {/* NAVBAR INFERIOR */}
-      <DashboardNavbar 
-        activeTab={activeTab} 
-        setActiveTab={setActiveTab} 
-        onProfileOpen={() => setProfileOpen(true)} 
+      <DashboardNavbar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        onProfileOpen={() => setProfileOpen(true)}
         logout={logout}
-        isAdmin={true} 
+        isAdmin={isAdmin}
+        isNucleo={isNucleo}
+        isDirecao={isRegional}
       />
 
-      {/* MODAL DE PERFIL */}
       <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />
     </div>
   );

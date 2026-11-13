@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { useAuth } from "../hooks/useAuth";
-import logoPensi from "../assets/logoPensi.png";
+import { useAuth } from "../../hooks/useAuth";
+import logoPensi from "../../assets/logoPensi.png";
 import { Menu, X } from "lucide-react";
 
 export default function Header({ onReports, onAdmin, onProfile }) {

@@ -1,6 +1,14 @@
 import { COLUNAS_DIAS, pad2 } from "../utils/formatters";
 
-export default function Calendar({ weeks, mesSelecionado, onDayClick, diaSelecionado }) {
+export default function Calendar({ 
+  weeks, 
+  mesSelecionado, 
+  onDayClick, 
+  diaSelecionado,
+  isDiaLetivo, // <-- NOVA PROP
+  turmaSelecionada, // <-- NOVA PROP (pra saber qual turma passar pro check)
+  serie // <-- NOVA PROP (pra saber qual série passar pro check)
+}) {
   if (!weeks.length) {
     return <div className="text-center text-black font-bold py-8 bg-white border-[2px] border-black rounded-xl shadow-[3px_3px_0px_0px_#000]">Nenhum dado encontrado nesta aba.</div>;
   }
@@ -37,16 +45,21 @@ export default function Calendar({ weeks, mesSelecionado, onDayClick, diaSelecio
                 const dataTxt = d ? (fora ? `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}` : pad2(d.getDate())) : "";
                 const isSelected = diaSelecionado?.weekIdx === originalIdx && diaSelecionado?.diaIdx === k;
                 
+                // VERIFICA SE O DIA É LETIVO
+                const letivo = d && isDiaLetivo ? isDiaLetivo(d, turmaSelecionada, serie) : true;
+
                 return (
                   <button
                     key={nomeDia}
-                    onClick={() => onDayClick(originalIdx, k)}
+                    onClick={() => letivo ? onDayClick(originalIdx, k) : null}
+                    disabled={!letivo}
                     className={`
                       relative min-h-[85px] p-2 border-r-[2px] last:border-r-0 border-black text-left transition-colors duration-150
                       ${isSelected ? "bg-black text-pensi-yellow" : "bg-white"}
                       ${!isSelected && fora ? "bg-gray-100 opacity-60" : ""}
                       ${!isSelected && ehHoje ? "bg-green-50" : ""}
-                      ${!isSelected && !fora ? "hover:bg-yellow-50" : ""}
+                      ${!isSelected && !fora && letivo ? "hover:bg-yellow-50" : ""}
+                      ${!letivo ? "bg-gray-200 opacity-50 cursor-not-allowed" : ""}
                     `}
                   >
                     {/* Topo: Abreviação e Data */}
@@ -60,7 +73,7 @@ export default function Calendar({ weeks, mesSelecionado, onDayClick, diaSelecio
 
                       {/* Data */}
                       {dataTxt && (
-                        <span className={`px-1 rounded ${!isSelected && ehHoje ? "bg-black text-white" : ""}`}>
+                        <span className={`px-1 rounded ${!isSelected && ehHoje ? "bg-black text-white" : ""} ${!letivo ? "text-gray-400" : ""}`}>
                           {dataTxt}
                         </span>
                       )}
@@ -68,8 +81,8 @@ export default function Calendar({ weeks, mesSelecionado, onDayClick, diaSelecio
 
                     {/* Conteúdo */}
                     <div className={`text-[10px] mt-1.5 font-bold leading-tight break-words
-                      ${isSelected ? "text-pensi-yellow" : "text-gray-800"}`}>
-                      {sem.dias[nomeDia] || "—"}
+                      ${isSelected ? "text-pensi-yellow" : letivo ? "text-gray-800" : "text-gray-400"}`}>
+                      {letivo ? (sem.dias[nomeDia] || "—") : "Feriado / Recesso"}
                     </div>
                     
                     {/* Indicador de seleção */}
