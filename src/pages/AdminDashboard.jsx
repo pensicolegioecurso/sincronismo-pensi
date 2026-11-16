@@ -1,3 +1,4 @@
+// src/pages/AdminDashboard.jsx
 import { useState } from "react";
 import { useAuth } from "../hooks/useAuth";
 import DashboardNavbar from "../components/dashboard/DashboardNavbar";
@@ -5,7 +6,6 @@ import ProfileModal from "../components/ProfileModal";
 import AdminOverview from "../components/admin/AdminOverview";
 import AdminUsers from "../components/admin/AdminUsers";
 import TurmasAdmin from "../components/admin/TurmasAdmin";
-import CalendarioAdmin from "../components/admin/CalendarioAdmin"; // NOVO IMPORT
 import FeedTab from "../components/dashboard/FeedTab";
 
 export default function AdminDashboard({ onNavigate, perfilAtivo }) {
@@ -31,10 +31,6 @@ export default function AdminDashboard({ onNavigate, perfilAtivo }) {
           />
         )}
         {activeTab === "turmas" && <TurmasAdmin perfilAtivo={perfilAtivo} />}
-        
-        {/* NOVA ABA AQUI */}
-        {activeTab === "calendario" && <CalendarioAdmin perfilAtivo={perfilAtivo} />}
-        
         {activeTab === "feed" && <FeedTab user={user} />}
       </main>
 
