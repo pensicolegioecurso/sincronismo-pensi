@@ -1,11 +1,12 @@
 import { useState, useMemo, useEffect } from "react";
-import { collection, getDocs, query, limit } from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
 import { db } from "../../services/firebase";
 import { UNIDADES, getRegionalDaUnidade } from "../../data/unidades";
 import {
-  Filter, CheckCircle2, Clock, MapPin, TrendingUp, ChevronDown, ChevronUp,
+  CheckCircle2, Clock, MapPin, TrendingUp, ChevronDown, ChevronUp,
   Building2, History, Activity, BarChart3, AlertCircle, X, Loader2,
 } from "lucide-react";
+import { parseTurmasPorUnidade, chaveTurma } from "../../utils/turmas";
 
 const REGIONAIS_LIST = ["Todas", "Beatriz", "Débora", "Paula"];
 const PERIODOS_LIST = [
@@ -14,6 +15,24 @@ const PERIODOS_LIST = [
   { id: "hoje", label: "Hoje" },
 ];
 
+function normalizarTexto(t) {
+  return String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+}
+
+function gerarDiasUteis(dataInicio, dataFim) {
+  const dias = [];
+  let atual = new Date(dataInicio);
+  while (atual <= dataFim) {
+    const diaSemana = atual.getDay();
+    if (diaSemana !== 0 && diaSemana !== 6) {
+      const strData = new Date(atual.getTime() - (atual.getTimezoneOffset() * 60000)).toISOString().split("T")[0];
+      dias.push(strData);
+    }
+    atual.setDate(atual.getDate() + 1);
+  }
+  return dias;
+}
+
 export default function AdminOverview({ unidadeFoco, unidadesEscopo }) {
   const [filtroRegional, setFiltroRegional] = useState("Todas");
   const [filtroUnidade, setFiltroUnidade] = useState("Todas");
@@ -21,36 +40,70 @@ export default function AdminOverview({ unidadeFoco, unidadesEscopo }) {
   const [mostrarEstatisticas, setMostrarEstatisticas] = useState(false);
   const [cardExpandido, setCardExpandido] = useState(null);
 
-  // [MUDOU] estado de dados reais
   const [checks, setChecks] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [calendarios, setCalendarios] = useState([]);
   const [carregando, setCarregando] = useState(true);
 
   const isDiretor = Boolean(unidadeFoco);
-  // [MUDOU] regional = escopo por array
   const isRegional = Array.isArray(unidadesEscopo) && unidadesEscopo.length > 0;
 
-  // [MUDOU] busca checks do Firestore
   useEffect(() => {
     let cancelado = false;
     async function carregar() {
       try {
-        const snap = await getDocs(query(collection(db, "checks"), limit(500)));
+        const [snapChecks, snapUsers, snapCal] = await Promise.all([
+          getDocs(collection(db, "checks")),
+          getDocs(collection(db, "users")),
+          getDocs(collection(db, "calendarios"))
+        ]);
+        
         if (cancelado) return;
-        const lista = [];
-        snap.forEach((d) => {
+
+        // 1. Carrega os Checks
+        const listaChecks = [];
+        snapChecks.forEach((d) => {
           const data = d.data();
-          const dataHora = data.dataHora ? new Date(data.dataHora) : (data.criadoEm?.toDate?.() || null);
-          lista.push({
+          listaChecks.push({
             id: d.id,
-            tipo: data.tipo || "aula",
-            status: data.status || "pendente",
-            unidade: data.unidade || "",
-            dataHora,
+            tipo: normalizarTexto(data.tipo) || "aula",
+            status: normalizarTexto(data.status), 
+            unidade: data.unidade || "Sem unidade",
+            dataReal: data.dataReal || "",
+            professorUid: data.professorUid || "",
+            serie: normalizarTexto(data.serie || data.turma),
           });
         });
-        setChecks(lista);
+        setChecks(listaChecks);
+
+        // 2. Carrega os Usuários (se ele foi deletado, não vem aqui)
+        const listaUsers = [];
+        snapUsers.forEach((d) => {
+          const data = d.data();
+          let dtCriacao = new Date(0);
+          if (data.criadoEm) {
+            dtCriacao = data.criadoEm.toDate ? data.criadoEm.toDate() : new Date(data.criadoEm);
+          }
+          listaUsers.push({
+            uid: d.id,
+            nome: data.nome || "",
+            unidade: data.unidade || "",
+            criadoEm: dtCriacao,
+            turmas: data.turmas || "",
+            disciplinas: data.disciplinas || [],
+            unidadesInativas: data.unidadesInativas || [],
+            turmasInativas: data.turmasInativas || []
+          });
+        });
+        setUsers(listaUsers);
+
+        // 3. Carrega o Calendário
+        const listaCal = [];
+        snapCal.forEach((d) => listaCal.push(d.data()));
+        setCalendarios(listaCal);
+
       } catch (e) {
-        console.error("Erro ao carregar checks:", e);
+        console.error("Erro ao carregar dados:", e);
       } finally {
         if (!cancelado) setCarregando(false);
       }
@@ -59,70 +112,127 @@ export default function AdminOverview({ unidadeFoco, unidadesEscopo }) {
     return () => { cancelado = true; };
   }, []);
 
-  // [MUDOU] agregação dos dados reais no formato que o layout espera
   const dadosFiltrados = useMemo(() => {
-    let unidadesAlvo = UNIDADES.slice(1);
-
-    if (isDiretor) {
-      unidadesAlvo = unidadesAlvo.filter((u) => u === unidadeFoco);
-    } else if (isRegional) {
-      unidadesAlvo = unidadesAlvo.filter((u) => unidadesEscopo.includes(u));
-    } else {
-      if (filtroRegional !== "Todas") {
-        unidadesAlvo = unidadesAlvo.filter((u) => getRegionalDaUnidade(u) === filtroRegional);
-      }
-      if (filtroUnidade !== "Todas") {
-        unidadesAlvo = unidadesAlvo.filter((u) => u === filtroUnidade);
-      }
-    }
+    if (carregando) return { total: { concluidas: 0, pendentes: 0, justificadas: 0 }, porUnidade: [] };
 
     const agora = new Date();
     agora.setHours(0, 0, 0, 0);
     const inicioMes = new Date(agora.getFullYear(), agora.getMonth(), 1);
 
-    function dentroDoPeriodo(d) {
-      if (!d) return false;
-      if (filtroPeriodo === "hoje") return d >= agora;
-      if (filtroPeriodo === "mes") return d >= inicioMes;
-      return true;
-    }
-
     const total = { concluidas: 0, pendentes: 0, justificadas: 0 };
     const porUnidade = [];
-
-    unidadesAlvo.forEach((u) => {
-      const checksDaUnidade = checks.filter(
-        (c) => c.unidade === u && dentroDoPeriodo(c.dataHora)
-      );
-      const c = checksDaUnidade.filter((x) => x.status === "realizado" || x.tipo === "aula").length;
-      const p = checksDaUnidade.filter((x) => x.status === "pendente").length;
-      const j = checksDaUnidade.filter((x) => x.tipo === "justificativa").length;
-
-      total.concluidas += c;
-      total.pendentes += p;
-      total.justificadas += j;
-
-      if (c > 0 || p > 0 || j > 0) {
-        porUnidade.push({ nome: u, regional: getRegionalDaUnidade(u), c, p, j });
+    
+    // Filtra os usuários que podem aparecer com base nas permissões de quem tá vendo
+    let usersVisiveis = users.filter(u => (u.disciplinas || []).length > 0);
+    
+    if (isDiretor) {
+      usersVisiveis = usersVisiveis.filter(u => normalizarTexto(u.unidade).includes(normalizarTexto(unidadeFoco)));
+    } else if (isRegional) {
+      const escopoNorm = unidadesEscopo.map(normalizarTexto);
+      usersVisiveis = usersVisiveis.filter(u => escopoNorm.some(esc => normalizarTexto(u.unidade).includes(esc)));
+    } else {
+      if (filtroRegional !== "Todas") {
+        usersVisiveis = usersVisiveis.filter(u => normalizarTexto(u.unidade).split(",").some(uni => getRegionalDaUnidade(uni.trim()) === filtroRegional));
       }
+      if (filtroUnidade !== "Todas") {
+        usersVisiveis = usersVisiveis.filter(u => normalizarTexto(u.unidade).includes(normalizarTexto(filtroUnidade)));
+      }
+    }
+
+    const calAtivo = calendarios[0];
+    let diasUteisAno = [];
+    if (calAtivo && calAtivo.inicio && calAtivo.fim) {
+      diasUteisAno = gerarDiasUteis(new Date(calAtivo.inicio + "T12:00:00"), new Date(calAtivo.fim + "T12:00:00"));
+    }
+
+    const mapaUnidades = {};
+
+    usersVisiveis.forEach(prof => {
+      const mapaTurmasProf = parseTurmasPorUnidade(prof.turmas);
+      const inativasU = new Set(prof.unidadesInativas || []);
+      const inativasT = new Set(prof.turmasInativas || []);
+
+      const checksDoProf = checks.filter(c => c.professorUid === prof.uid);
+
+      Object.keys(mapaTurmasProf).forEach(uni => {
+        // Se a unidade está inativa pra ele, não gera pendência
+        if (inativasU.has(uni)) return;
+
+        // Filtra as turmas válidas (descontando as inativas)
+        const turmasAtivas = mapaTurmasProf[uni].filter(t => !inativasT.has(chaveTurma(uni, t)));
+        if (turmasAtivas.length === 0) return; // Se todas as turmas estão inativas, ignora
+
+        const uniNorm = normalizarTexto(uni);
+        
+        if (!mapaUnidades[uni]) {
+          mapaUnidades[uni] = { nome: uni, regional: getRegionalDaUnidade(uni), c: 0, p: 0, j: 0 };
+        }
+
+        const checksUni = checksDoProf.filter(c => normalizarTexto(c.unidade) === uniNorm || uniNorm.includes(normalizarTexto(c.unidade)) || normalizarTexto(c.unidade).includes(uniNorm));
+        const turmasUniNorm = turmasAtivas.map(normalizarTexto);
+
+        // Contabiliza Realizadas e Justificadas
+        checksUni.forEach(c => {
+          if (!c.dataReal) return;
+          const dt = new Date(`${c.dataReal}T12:00:00`);
+          if (filtroPeriodo === "hoje" && dt.getTime() !== agora.getTime()) return;
+          if (filtroPeriodo === "mes" && dt < inicioMes) return;
+          
+          // Se o check for de uma turma inativa, ainda conta o histórico dele.
+          if (c.status === "justificado" || c.tipo === "justificativa") {
+            total.justificadas++;
+            mapaUnidades[uni].j++;
+          } else {
+            total.concluidas++;
+            mapaUnidades[uni].c++;
+          }
+        });
+
+        // Contabiliza Pendentes
+        diasUteisAno.forEach(diaStr => {
+          const dt = new Date(diaStr + "T12:00:00");
+          
+          // REGRA: O dia precisa ser depois do cadastro do professor e antes (ou igual) a hoje.
+          if (dt < prof.criadoEm || dt > agora) return;
+          
+          if (filtroPeriodo === "hoje" && dt.getTime() !== agora.getTime()) return;
+          if (filtroPeriodo === "mes" && dt < inicioMes) return;
+
+          let isFeriado = false;
+          if (calAtivo?.excecoes) {
+            isFeriado = calAtivo.excecoes.some(exc => {
+              const fim = exc.dataFim || exc.dataInicio;
+              if (diaStr >= exc.dataInicio && diaStr <= fim) {
+                if (exc.tipo === "todas") return true;
+                if (exc.tipo === "turma" && turmasUniNorm.includes(normalizarTexto(exc.turma))) return true;
+              }
+              return false;
+            });
+          }
+          if (isFeriado) return;
+
+          // O cálculo do pendente
+          turmasUniNorm.forEach(turma => {
+             const temCheck = checksUni.some(c => c.dataReal === diaStr && (c.serie.includes(turma) || turma.includes(c.serie)));
+             if (!temCheck) {
+               total.pendentes++;
+               mapaUnidades[uni].p++;
+             }
+          });
+        });
+      });
+    });
+
+    Object.values(mapaUnidades).forEach(u => {
+      if (u.c > 0 || u.p > 0 || u.j > 0) porUnidade.push(u);
     });
 
     return { total, porUnidade };
-  }, [checks, filtroRegional, filtroUnidade, filtroPeriodo, isDiretor, isRegional, unidadeFoco, unidadesEscopo]);
+  }, [checks, users, calendarios, filtroRegional, filtroUnidade, filtroPeriodo, isDiretor, isRegional, unidadeFoco, unidadesEscopo, carregando]);
 
-  const totalGeral =
-    dadosFiltrados.total.concluidas +
-    dadosFiltrados.total.pendentes +
-    dadosFiltrados.total.justificadas;
-
-  const percentualConcluidas =
-    totalGeral > 0
-      ? Math.round((dadosFiltrados.total.concluidas / totalGeral) * 100)
-      : 0;
-
-  const temFiltrosAtivos =
-    !isDiretor && !isRegional &&
-    (filtroRegional !== "Todas" || filtroUnidade !== "Todas" || filtroPeriodo !== "geral");
+  const totalGeral = dadosFiltrados.total.concluidas + dadosFiltrados.total.pendentes + dadosFiltrados.total.justificadas;
+  const percentualConcluidas = totalGeral > 0 ? Math.round((dadosFiltrados.total.concluidas / totalGeral) * 100) : 0;
+  const temFiltrosAtivos = !isDiretor && !isRegional && (filtroRegional !== "Todas" || filtroUnidade !== "Todas" || filtroPeriodo !== "geral");
 
   if (carregando) {
     return (
@@ -136,79 +246,54 @@ export default function AdminOverview({ unidadeFoco, unidadesEscopo }) {
   return (
     <div className="w-full min-w-0 pb-10 animate-fade-in">
       <div className="max-w-5xl mx-auto px-1">
-
-        {/* CABEÇALHO */}
         <section className="mb-5">
           <div>
             <div className="flex items-center gap-2 mb-2">
               <span className="w-1.5 h-1.5 bg-pensi-yellow border border-black rounded-full" />
               <span className="text-[10px] font-black uppercase tracking-[0.22em] text-gray-500">
-                {isDiretor
-                  ? "Direção / Visão da unidade"
-                  : isRegional
-                  ? "Regional / Visão das unidades"
-                  : "Administração / Visão geral"}
+                {isDiretor ? "Direção / Visão da unidade" : isRegional ? "Regional / Visão das unidades" : "Administração / Visão geral"}
               </span>
             </div>
-
             <h1 className="text-3xl sm:text-4xl font-black text-black tracking-tight leading-none">
               {isDiretor ? unidadeFoco : isRegional ? "Painel regional" : "Painel geral"}
               <span className="text-pensi-yellow">.</span>
             </h1>
-
             <p className="text-sm text-gray-500 mt-2 max-w-xl leading-relaxed">
-              {isDiretor
-                ? `Acompanhe os indicadores de aulas da unidade ${unidadeFoco}.`
-                : isRegional
-                ? `Indicadores das unidades: ${unidadesEscopo.join(", ")}.`
-                : "Acompanhamento de aulas e desempenho das unidades."}
+              {isDiretor ? `Acompanhe os indicadores da unidade ${unidadeFoco}.` : isRegional ? `Indicadores das unidades: ${unidadesEscopo.join(", ")}.` : "Acompanhamento de aulas e desempenho das unidades."}
             </p>
           </div>
         </section>
 
-        {/* FILTROS */}
         <section className="bg-white border-2 border-black rounded-xl shadow-[3px_3px_0px_#000] p-3 mb-5">
           <div className="flex flex-col xl:flex-row gap-3 items-stretch xl:items-center justify-between">
             <div className="flex flex-col sm:flex-row gap-2.5 flex-1 items-stretch sm:items-center">
               {!isDiretor && !isRegional && (
                 <>
                   <div className="relative flex-1 min-w-[160px]">
-                    <select value={filtroRegional}
-                      onChange={(e) => { setFiltroRegional(e.target.value); setFiltroUnidade("Todas"); }}
-                      className="w-full h-[38px] bg-gray-50 border-2 border-black rounded-xl px-3 text-[11px] font-bold text-black outline-none focus:bg-pensi-yellow transition-colors cursor-pointer shadow-[2px_2px_0px_#000]">
-                      {REGIONAIS_LIST.map((r) => (
-                        <option key={r} value={r}>{r === "Todas" ? "Todas as regionais" : `Regional ${r}`}</option>
-                      ))}
+                    <select value={filtroRegional} onChange={(e) => { setFiltroRegional(e.target.value); setFiltroUnidade("Todas"); }} className="w-full h-[38px] bg-gray-50 border-2 border-black rounded-xl px-3 text-[11px] font-bold text-black outline-none focus:bg-pensi-yellow shadow-[2px_2px_0px_#000]">
+                      {REGIONAIS_LIST.map((r) => <option key={r} value={r}>{r === "Todas" ? "Todas as regionais" : `Regional ${r}`}</option>)}
                     </select>
                   </div>
                   <div className="relative flex-1 min-w-[160px]">
-                    <select value={filtroUnidade} onChange={(e) => setFiltroUnidade(e.target.value)}
-                      className="w-full h-[38px] bg-gray-50 border-2 border-black rounded-xl px-3 text-[11px] font-bold text-black outline-none focus:bg-pensi-yellow transition-colors cursor-pointer shadow-[2px_2px_0px_#000]">
+                    <select value={filtroUnidade} onChange={(e) => setFiltroUnidade(e.target.value)} className="w-full h-[38px] bg-gray-50 border-2 border-black rounded-xl px-3 text-[11px] font-bold text-black outline-none focus:bg-pensi-yellow shadow-[2px_2px_0px_#000]">
                       <option value="Todas">Todas as unidades</option>
-                      {UNIDADES.slice(1)
-                        .filter((u) => filtroRegional === "Todas" || getRegionalDaUnidade(u) === filtroRegional)
-                        .map((u) => <option key={u} value={u}>{u}</option>)}
+                      {UNIDADES.slice(1).filter((u) => filtroRegional === "Todas" || getRegionalDaUnidade(u) === filtroRegional).map((u) => <option key={u} value={u}>{u}</option>)}
                     </select>
                   </div>
                 </>
               )}
-
               {(isDiretor || isRegional) && (
                 <div className="flex items-center gap-1.5 h-[38px] bg-gray-50 border-2 border-black rounded-xl px-3 shadow-[2px_2px_0px_#000] shrink-0">
                   <MapPin className="w-4 h-4 text-black shrink-0" />
-                  <span className="text-[11px] font-black uppercase tracking-wider text-black">
-                    {isDiretor ? unidadeFoco : `${unidadesEscopo.length} unidade(s)`}
-                  </span>
+                  <span className="text-[11px] font-black uppercase tracking-wider text-black">{isDiretor ? unidadeFoco : `${unidadesEscopo.length} unidade(s)`}</span>
                 </div>
               )}
             </div>
-
             <div className="flex items-center gap-3 h-[38px] bg-gray-50 border-2 border-black rounded-xl px-3 shadow-[2px_2px_0px_#000] shrink-0">
               {PERIODOS_LIST.map((p) => {
                 const ativo = filtroPeriodo === p.id;
                 return (
-                  <button key={p.id} onClick={() => setFiltroPeriodo(p.id)}
-                    className="flex items-center gap-1.5 group h-full" aria-pressed={ativo}>
+                  <button key={p.id} onClick={() => setFiltroPeriodo(p.id)} className="flex items-center gap-1.5 group h-full" aria-pressed={ativo}>
                     <span className={`w-3 h-3 rounded-full border-2 border-black transition-all ${ativo ? "bg-pensi-yellow shadow-[1px_1px_0px_#000] scale-110" : "bg-white group-hover:bg-pensi-yellow/40"}`} />
                     <span className={`text-[10px] font-black uppercase tracking-wider ${ativo ? "text-black" : "text-gray-400"}`}>{p.label}</span>
                   </button>
@@ -216,18 +301,15 @@ export default function AdminOverview({ unidadeFoco, unidadesEscopo }) {
               })}
             </div>
           </div>
-
           {temFiltrosAtivos && (
             <div className="flex justify-end mt-3 pt-3 border-t-2 border-dashed border-gray-200">
-              <button onClick={() => { setFiltroRegional("Todas"); setFiltroUnidade("Todas"); setFiltroPeriodo("geral"); }}
-                className="text-[10px] font-black uppercase tracking-wider text-gray-500 hover:text-black flex items-center gap-1">
+              <button onClick={() => { setFiltroRegional("Todas"); setFiltroUnidade("Todas"); setFiltroPeriodo("geral"); }} className="text-[10px] font-black uppercase tracking-wider text-gray-500 hover:text-black flex items-center gap-1">
                 <X className="w-3.5 h-3.5" /> Limpar filtros ativos
               </button>
             </div>
           )}
         </section>
 
-        {/* INDICADORES PRINCIPAIS */}
         <section className="mb-5">
           <div className="flex items-center gap-1.5 mb-2.5">
             <BarChart3 className="w-4 h-4" />
@@ -249,7 +331,6 @@ export default function AdminOverview({ unidadeFoco, unidadesEscopo }) {
                     <BarChart3 className="w-5 h-5" />
                   </div>
                 </div>
-
                 <div className="mt-4 pt-3 border-t-2 border-dashed border-gray-200">
                   <div className="flex justify-between items-center mb-1.5">
                     <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Taxa de conclusão</span>
@@ -260,7 +341,6 @@ export default function AdminOverview({ unidadeFoco, unidadesEscopo }) {
                   </div>
                 </div>
               </div>
-
               <div className="bg-gray-50 border-t-2 border-black px-4 py-2.5 flex items-center justify-between gap-2">
                 <span className="text-[9px] font-black uppercase tracking-widest text-gray-500">Indicadores consolidados</span>
                 <span className="flex items-center gap-1 text-[9px] font-black uppercase text-green-700">
@@ -274,9 +354,7 @@ export default function AdminOverview({ unidadeFoco, unidadesEscopo }) {
                 <div className="flex-1 flex">
                   <div className="flex-1 bg-green-100 p-3 flex flex-col justify-between">
                     <div className="flex justify-between items-start">
-                      <div className="w-8 h-8 bg-white border-2 border-black rounded-lg flex items-center justify-center">
-                        <CheckCircle2 className="w-4 h-4 text-green-700" />
-                      </div>
+                      <div className="w-8 h-8 bg-white border-2 border-black rounded-lg flex items-center justify-center"><CheckCircle2 className="w-4 h-4 text-green-700" /></div>
                       <span className="text-[8px] font-black uppercase tracking-wider bg-white border border-black rounded-lg px-1.5 py-0.5">Realizadas</span>
                     </div>
                     <div>
@@ -284,14 +362,10 @@ export default function AdminOverview({ unidadeFoco, unidadesEscopo }) {
                       <p className="text-[9px] font-bold uppercase text-green-800 mt-0.5">Aulas realizadas</p>
                     </div>
                   </div>
-
                   <div className="w-0.5 bg-black" />
-
                   <div className="flex-1 bg-yellow-100 p-3 flex flex-col justify-between">
                     <div className="flex justify-between items-start">
-                      <div className="w-8 h-8 bg-white border-2 border-black rounded-lg flex items-center justify-center">
-                        <AlertCircle className="w-4 h-4 text-yellow-700" />
-                      </div>
+                      <div className="w-8 h-8 bg-white border-2 border-black rounded-lg flex items-center justify-center"><AlertCircle className="w-4 h-4 text-yellow-700" /></div>
                       <span className="text-[8px] font-black uppercase tracking-wider bg-white border border-black rounded-lg px-1.5 py-0.5">Justificadas</span>
                     </div>
                     <div>
@@ -304,9 +378,7 @@ export default function AdminOverview({ unidadeFoco, unidadesEscopo }) {
 
               <div className="bg-red-100 border-2 border-black rounded-xl shadow-[3px_3px_0px_#000] p-3 flex flex-col justify-between min-h-[120px]">
                 <div className="flex justify-between items-start">
-                  <div className="w-9 h-9 bg-white border-2 border-black rounded-lg flex items-center justify-center">
-                    <Clock className="w-4.5 h-4.5 text-red-700" />
-                  </div>
+                  <div className="w-9 h-9 bg-white border-2 border-black rounded-lg flex items-center justify-center"><Clock className="w-4.5 h-4.5 text-red-700" /></div>
                   <span className="text-[8px] font-black uppercase tracking-wider bg-white border border-black rounded-lg px-1.5 py-0.5">Pendentes</span>
                 </div>
                 <div>
@@ -318,7 +390,6 @@ export default function AdminOverview({ unidadeFoco, unidadesEscopo }) {
           </div>
         </section>
 
-        {/* DESEMPENHO POR UNIDADE */}
         {!isDiretor && (
           <section>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-3">
@@ -329,9 +400,7 @@ export default function AdminOverview({ unidadeFoco, unidadesEscopo }) {
                 </div>
                 <p className="text-[11px] text-gray-500 font-medium mt-0.5">Consulte os indicadores individuais de cada unidade.</p>
               </div>
-
-              <button onClick={() => { setMostrarEstatisticas(!mostrarEstatisticas); if (mostrarEstatisticas) setCardExpandido(null); }}
-                className={`flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl border-2 border-black text-[11px] font-black uppercase tracking-wider shadow-[2px_2px_0px_#000] transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none ${mostrarEstatisticas ? "bg-pensi-yellow text-black" : "bg-white text-black"}`}>
+              <button onClick={() => { setMostrarEstatisticas(!mostrarEstatisticas); if (mostrarEstatisticas) setCardExpandido(null); }} className={`flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl border-2 border-black text-[11px] font-black uppercase tracking-wider shadow-[2px_2px_0px_#000] transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none ${mostrarEstatisticas ? "bg-pensi-yellow text-black" : "bg-white text-black"}`}>
                 <Building2 className="w-4 h-4" />
                 {mostrarEstatisticas ? "Ocultar unidades" : "Ver estatísticas"}
               </button>
@@ -359,11 +428,8 @@ export default function AdminOverview({ unidadeFoco, unidadesEscopo }) {
                       const isExpanded = cardExpandido === u.nome;
                       const temPendencia = u.p > 0;
                       return (
-                        <div key={u.nome}
-                          className={`bg-white border-2 border-black rounded-xl shadow-[2px_2px_0px_#000] overflow-hidden transition-all duration-200 ${isExpanded ? "md:col-span-2 xl:col-span-3" : "hover:shadow-[4px_4px_0px_#000]"}`}>
-                          <button type="button" onClick={() => setCardExpandido(isExpanded ? null : u.nome)}
-                            aria-expanded={isExpanded}
-                            className="w-full text-left p-3.5 hover:bg-gray-50 transition-colors">
+                        <div key={u.nome} className={`bg-white border-2 border-black rounded-xl shadow-[2px_2px_0px_#000] overflow-hidden transition-all duration-200 ${isExpanded ? "md:col-span-2 xl:col-span-3" : "hover:shadow-[4px_4px_0px_#000]"}`}>
+                          <button type="button" onClick={() => setCardExpandido(isExpanded ? null : u.nome)} aria-expanded={isExpanded} className="w-full text-left p-3.5 hover:bg-gray-50 transition-colors">
                             <div className="flex items-center gap-3">
                               <div className="relative w-10 h-10 shrink-0 bg-pensi-yellow border-2 border-black rounded-lg flex items-center justify-center shadow-[2px_2px_0px_#000]">
                                 <Building2 className="w-5 h-5 text-black" />
@@ -388,12 +454,10 @@ export default function AdminOverview({ unidadeFoco, unidadesEscopo }) {
                                   <span className="text-[9px] font-black uppercase tracking-widest text-gray-500">Detalhamento</span>
                                   <h3 className="text-sm font-black uppercase mt-0.5">{u.nome}</h3>
                                 </div>
-                                <button onClick={() => setCardExpandido(null)}
-                                  className="flex items-center gap-1.5 bg-white border-2 border-black rounded-xl px-3 py-2 text-[10px] font-black uppercase shadow-[2px_2px_0px_#000] hover:bg-gray-100">
+                                <button onClick={() => setCardExpandido(null)} className="flex items-center gap-1.5 bg-white border-2 border-black rounded-xl px-3 py-2 text-[10px] font-black uppercase shadow-[2px_2px_0px_#000] hover:bg-gray-100">
                                   <X className="w-3.5 h-3.5" /> Fechar
                                 </button>
                               </div>
-
                               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
                                 <div className="bg-green-100 border-2 border-black rounded-xl p-4 shadow-[2px_2px_0px_#000]">
                                   <div className="flex items-center justify-between">
@@ -417,7 +481,6 @@ export default function AdminOverview({ unidadeFoco, unidadesEscopo }) {
                                   <p className="text-3xl font-black mt-2">{u.p}</p>
                                 </div>
                               </div>
-
                               <div className="bg-white border-2 border-black rounded-xl overflow-hidden">
                                 <div className="flex items-center gap-2 px-4 py-3 bg-gray-100 border-b-2 border-black">
                                   <History className="w-4 h-4" />
