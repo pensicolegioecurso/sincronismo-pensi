@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, MessageSquare, LogOut, User, Home, GraduationCap, CalendarDays } from "lucide-react";
+import { LayoutDashboard, Users, MessageSquare, LogOut, User, Home, Settings } from "lucide-react";
 
 export default function DashboardNavbar({
   activeTab, setActiveTab, onProfileOpen, logout,
@@ -8,8 +8,9 @@ export default function DashboardNavbar({
   if (isAdmin || isDirecao || isNucleo) {
     itens.push({ key: "dashboard", icon: LayoutDashboard, title: "Visão Geral" });
     itens.push({ key: "usuarios", icon: Users, title: "Usuários" });
-    itens.push({ key: "turmas", icon: GraduationCap, title: "Turmas e Séries" });
-    itens.push({ key: "calendario", icon: CalendarDays, title: "Calendário Letivo" }); // NOVO
+    // O ícone de engrenagem (Settings) ou de prédio (Building2) fica mais elegante 
+    // para a tela unificada de Turmas/Calendário/Regionais.
+    itens.push({ key: "turmas", icon: Settings, title: "Configurações e Cadastros" }); 
     itens.push({ key: "feed", icon: MessageSquare, title: "Feed" });
   } else {
     itens.push({ key: "inicio", icon: Home, title: "Início" });

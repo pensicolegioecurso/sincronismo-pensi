@@ -1,6 +1,8 @@
-import { useState, useEffect } from "react";
-import { collection, query, where, getDocs, limit } from "firebase/firestore";
+import { useState, useEffect, useMemo } from "react";
+import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "../../services/firebase";
+import { useCalendario } from "../../hooks/useCalendario";
+import { parseTurmasPorUnidade, chaveTurma } from "../../utils/turmas";
 import {
   X, CheckCircle2, Clock, AlertCircle, MapPin, Mail, Phone, History,
   BellRing, BookOpen, CalendarDays, UserRound, ChevronRight, GraduationCap,
@@ -13,34 +15,73 @@ const ABAS_BASE = [
   { id: "justificado", label: "Justificadas", descricao: "Ocorrências justificadas", icon: AlertCircle, cor: "bg-yellow-300", indicador: "bg-yellow-400" },
 ];
 
+function normalizarTexto(t) {
+  return String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+}
+
+function gerarDiasUteis(dataInicio, dataFim) {
+  const dias = [];
+  let atual = new Date(dataInicio);
+  while (atual <= dataFim) {
+    const diaSemana = atual.getDay();
+    if (diaSemana !== 0 && diaSemana !== 6) {
+      const strData = new Date(atual.getTime() - (atual.getTimezoneOffset() * 60000)).toISOString().split("T")[0];
+      dias.push(strData);
+    }
+    atual.setDate(atual.getDate() + 1);
+  }
+  return dias;
+}
+
 export default function TeacherProfileModal({ user, onClose }) {
+  const { isDiaLetivo, calendarios } = useCalendario();
+  
   const [abaAtiva, setAbaAtiva] = useState("pendente");
-  // [MUDOU] dados reais
-  const [checks, setChecks] = useState([]);
+  const [checksReais, setChecksReais] = useState([]);
+  const [pendentesGerados, setPendentesGerados] = useState([]);
   const [carregando, setCarregando] = useState(true);
 
+  // Trava o scroll do body
   useEffect(() => {
     const original = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => { document.body.style.overflow = original; };
   }, []);
 
-  // [MUDOU] busca checks do Firestore
+  // Turmas ativas do professor
+  const turmasAtivasPorUnidade = useMemo(() => {
+    if (!user) return {};
+    const mapa = parseTurmasPorUnidade(user.turmas || "");
+    const inativasU = new Set(user.unidadesInativas || []);
+    const inativasT = new Set(user.turmasInativas || []);
+    const resultado = {};
+    Object.entries(mapa).forEach(([uni, turmas]) => {
+      if (inativasU.has(uni)) return;
+      const ativas = turmas.filter((t) => !inativasT.has(chaveTurma(uni, t)));
+      if (ativas.length > 0) resultado[uni] = ativas;
+    });
+    return resultado;
+  }, [user]);
+
+  // BUSCA OS DADOS E CALCULA OS PENDENTES REAIS
   useEffect(() => {
+    if (!user?.id || !calendarios.length) return;
+
     let cancelado = false;
     async function carregar() {
+      setCarregando(true);
       try {
         const snap = await getDocs(query(
           collection(db, "checks"),
-          where("professorUid", "==", user.id),
-          limit(300)
+          where("professorUid", "==", user.id)
         ));
         if (cancelado) return;
-        const lista = [];
+        
+        const listaChecks = [];
         snap.forEach((d) => {
           const data = d.data();
           const dataHora = data.dataHora ? new Date(data.dataHora) : null;
-          lista.push({
+          listaChecks.push({
             id: d.id,
             tipo: data.tipo || "aula",
             status: data.status || "pendente",
@@ -55,23 +96,79 @@ export default function TeacherProfileModal({ user, onClose }) {
             dataHora,
           });
         });
-        lista.sort((a, b) => (b.dataHora?.getTime() || 0) - (a.dataHora?.getTime() || 0));
-        setChecks(lista);
+        listaChecks.sort((a, b) => (b.dataHora?.getTime() || 0) - (a.dataHora?.getTime() || 0));
+        setChecksReais(listaChecks);
+
+        // --- AQUI ESTÁ A CORREÇÃO DA DATA DE CORTE ---
+        const agora = new Date();
+        agora.setHours(0, 0, 0, 0);
+
+        let dataCadastro = new Date(0);
+        if (user.criadoEm) {
+          // Verifica se é um Timestamp do Firestore ou uma string
+          dataCadastro = user.criadoEm.toDate ? user.criadoEm.toDate() : new Date(user.criadoEm);
+        }
+        dataCadastro.setHours(0, 0, 0, 0);
+
+        const calAtivo = calendarios[0];
+        const listaPendentes = [];
+
+        if (calAtivo && calAtivo.inicio && calAtivo.fim) {
+          const diasUteis = gerarDiasUteis(new Date(calAtivo.inicio + "T12:00:00"), new Date(calAtivo.fim + "T12:00:00"));
+
+          diasUteis.forEach(diaStr => {
+            const dataObj = new Date(diaStr + "T12:00:00");
+            
+            // AQUI FILTRA: O dia precisa ser maior ou igual ao dia de cadastro
+            if (dataObj < dataCadastro || dataObj > agora) return;
+
+            const diaLetivo = isDiaLetivo(dataObj, "", "");
+            if (!diaLetivo) return;
+
+            Object.entries(turmasAtivasPorUnidade).forEach(([uni, turmas]) => {
+              turmas.forEach(turma => {
+                const checkDoDia = listaChecks.find(c => 
+                  c.dataReal === diaStr && 
+                  (normalizarTexto(c.serie) === normalizarTexto(turma) || normalizarTexto(c.serie).includes(normalizarTexto(turma)) || normalizarTexto(turma).includes(normalizarTexto(c.serie)))
+                );
+
+                if (!checkDoDia) {
+                  listaPendentes.push({
+                    id: `pendente_${diaStr}_${turma}`,
+                    tipo: "pendente",
+                    status: "pendente",
+                    disciplina: "Aula não registrada",
+                    serie: turma,
+                    unidade: uni,
+                    dataReal: diaStr,
+                    dataHora: dataObj,
+                  });
+                }
+              });
+            });
+          });
+        }
+
+        listaPendentes.sort((a, b) => (b.dataHora?.getTime() || 0) - (a.dataHora?.getTime() || 0));
+        if (!cancelado) setPendentesGerados(listaPendentes);
+
       } catch (e) {
         console.error(e);
       } finally {
         if (!cancelado) setCarregando(false);
       }
     }
-    if (user?.id) carregar();
+    carregar();
     return () => { cancelado = true; };
-  }, [user?.id]);
+  }, [user?.id, user?.criadoEm, calendarios, isDiaLetivo, turmasAtivasPorUnidade]);
 
-  // [MUDOU] stats reais + atividades por aba
+  const checksFeitos = checksReais.filter((c) => c.tipo === "aula" || c.status === "realizado");
+  const checksJustificados = checksReais.filter((c) => c.tipo === "justificativa" || c.status === "justificado");
+  
   const stats = {
-    feitos: checks.filter((c) => c.tipo === "aula" || c.status === "realizado").length,
-    pendentes: checks.filter((c) => c.status === "pendente").length,
-    justificados: checks.filter((c) => c.tipo === "justificativa").length,
+    feitos: checksFeitos.length,
+    pendentes: pendentesGerados.length,
+    justificados: checksJustificados.length,
   };
 
   const ABAS = ABAS_BASE.map((aba) => ({
@@ -79,11 +176,11 @@ export default function TeacherProfileModal({ user, onClose }) {
     valor: aba.id === "feito" ? stats.feitos : aba.id === "pendente" ? stats.pendentes : stats.justificados,
   }));
 
-  const atividadesFiltradas = checks.filter((c) => {
-    if (abaAtiva === "feito") return c.tipo === "aula" || c.status === "realizado";
-    if (abaAtiva === "pendente") return c.status === "pendente";
-    return c.tipo === "justificativa";
-  });
+  const atividadesFiltradas = (() => {
+    if (abaAtiva === "feito") return checksFeitos;
+    if (abaAtiva === "justificado") return checksJustificados;
+    return pendentesGerados;
+  })();
 
   const totalAtividades = stats.feitos + stats.pendentes + stats.justificados;
   const percentualConcluido = totalAtividades > 0 ? Math.round((stats.feitos / totalAtividades) * 100) : 0;
@@ -100,6 +197,7 @@ export default function TeacherProfileModal({ user, onClose }) {
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-5 bg-black/70 backdrop-blur-sm animate-fade-in">
       <div className="relative bg-[#f5f5f2] border-2 border-black rounded-md shadow-[6px_6px_0px_#000] w-full max-w-2xl max-h-[92vh] flex flex-col overflow-hidden">
+        
         {/* CABEÇALHO */}
         <div className="relative bg-[#171717] text-white border-b-2 border-black rounded-t-md shrink-0">
           <div className="relative flex items-center justify-between px-4 sm:px-5 py-3">
@@ -155,7 +253,6 @@ export default function TeacherProfileModal({ user, onClose }) {
             </div>
           </div>
 
-          {/* [NOVO] resumo de cargos/unidades/séries */}
           <div className="mt-3 pt-3 border-t border-dashed border-gray-200 flex flex-wrap gap-2">
             {(user.cargos || []).map((c) => (
               <span key={c} className="text-[8px] font-black uppercase px-1.5 py-0.5 bg-gray-100 border border-black rounded">{c}</span>
@@ -264,7 +361,9 @@ export default function TeacherProfileModal({ user, onClose }) {
                     justificado: { cor: "bg-yellow-300", texto: "Justificada", icon: AlertCircle },
                   }[abaAtiva];
                   const Icon = config.icon;
+                  
                   const dataFmt = formatarData(ativ.dataHora);
+
                   return (
                     <article key={ativ.id} className="bg-white border-2 border-black rounded-md shadow-[2px_2px_0px_#000] hover:shadow-[3px_3px_0px_#000] transition-all overflow-hidden">
                       <div className="flex items-stretch">
@@ -273,7 +372,7 @@ export default function TeacherProfileModal({ user, onClose }) {
                           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
                             <div className="min-w-0">
                               <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                                <span className="text-[8px] font-black uppercase tracking-wider text-gray-400">Atividade #{String(ativ.id).slice(-4)}</span>
+                                <span className="text-[8px] font-black uppercase tracking-wider text-gray-400">Aula</span>
                                 <span className={`flex items-center gap-1 px-1.5 py-0.5 border border-black rounded-md text-[7px] font-black uppercase tracking-wider ${config.cor}`}>
                                   <Icon className="w-2.5 h-2.5" /> {config.texto}
                                 </span>

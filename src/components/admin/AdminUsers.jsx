@@ -3,7 +3,7 @@ import {
   Search, ShieldCheck, Trash2, X, AlertCircle, MapPin,
   Download, Power, PowerOff, SlidersHorizontal, Eye,
   ChevronLeft, ChevronRight, Filter, Mail, Building2,
-  RotateCcw, FileText, FileSpreadsheet, Loader2, UserPlus, GraduationCap,
+  RotateCcw, FileText, FileSpreadsheet, Loader2, UserPlus, GraduationCap, Plus
 } from "lucide-react";
 import { collection, getDocs, doc, updateDoc, deleteDoc } from "firebase/firestore";
 import { db } from "../../services/firebase";
@@ -11,19 +11,31 @@ import { getRegionalDaUnidade } from "../../data/unidades";
 import TeacherProfileModal from "./TeacherProfileModal";
 import CadastrarUsuario from "./CadastrarUsuario";
 import { parseTurmasPorUnidade, chaveTurma } from "../../utils/turmas";
+import { useTurmas } from "../../hooks/useTurmas";
+import { useUnidades } from "../../hooks/useUnidades";
 
+// Cargos atribuíveis NESTE painel. Regional NÃO entra — é definido só nas Configurações.
 const CARGOS_ATRIBUIVEIS = [
   { id: "diretor", label: "Diretor", cor: "bg-purple-300 text-black" },
   { id: "coordenador", label: "Coordenador", cor: "bg-indigo-300 text-black" },
   { id: "nucleo", label: "Núcleo", cor: "bg-blue-300 text-black" },
-  { id: "regional", label: "Regional", cor: "bg-orange-300 text-black" },
   { id: "professor", label: "Professor", cor: "bg-green-300 text-black" },
+];
+
+// Todos os cargos, só para exibir badges (regional/admin não são atribuíveis aqui)
+const CARGOS_EXIBICAO = [
+  ...CARGOS_ATRIBUIVEIS,
+  { id: "regional", label: "Regional", cor: "bg-orange-300 text-black" },
+  { id: "admin", label: "Admin", cor: "bg-red-300 text-black" },
 ];
 
 const REGIONAIS_LIST = ["Todas", "Beatriz", "Débora", "Paula"];
 const POR_PAGINA = 10;
 
 export default function AdminUsers({ unidadesEscopo, perfilAtivo, currentUser }) {
+  const { todas: todasTurmasDb } = useTurmas();
+  const { todasUnidades } = useUnidades();
+
   const [users, setUsers] = useState([]);
   const [carregando, setCarregando] = useState(true);
   const [processando, setProcessando] = useState(false);
@@ -46,10 +58,22 @@ export default function AdminUsers({ unidadesEscopo, perfilAtivo, currentUser })
   const [turmasInativasTemp, setTurmasInativasTemp] = useState([]);
   const [perfilProfessor, setPerfilProfessor] = useState(null);
 
+  const [unidadeParaAdicionar, setUnidadeParaAdicionar] = useState("");
+  const [turmaParaAdicionar, setTurmaParaAdicionar] = useState("");
+  const [unidadeDaTurmaNova, setUnidadeDaTurmaNova] = useState("");
+
+  // ---- REGRAS DE PERMISSÃO ----
   const podeGerenciar = ["admin", "nucleo", "regional"].includes(perfilAtivo);
   const ehRegional = perfilAtivo === "regional";
+  const ehDirecao = ["diretor", "coordenador"].includes(perfilAtivo);
 
-  // -------- CARREGAR USUÁRIOS --------
+  // Modal de status:
+  // - admin/nucleo: adiciona unidade E turma
+  // - direcao: SÓ adiciona unidade (turmas vêm sozinhas)
+  // - regional: NÃO adiciona nada — só ativa/desativa
+  const podeAdicionarUnidade = ["admin", "nucleo", "diretor", "coordenador"].includes(perfilAtivo);
+  const podeAdicionarTurma = ["admin", "nucleo"].includes(perfilAtivo);
+
   async function carregarUsers() {
     try {
       const snap = await getDocs(collection(db, "users"));
@@ -61,7 +85,7 @@ export default function AdminUsers({ unidadesEscopo, perfilAtivo, currentUser })
           nome: data.nome || "Sem nome",
           email: data.email || "Sem e-mail",
           cargos: data.cargos || ["professor"],
-          unidade: data.unidade || "Não informada",
+          unidade: data.unidade || "",
           unidadesComando: data.unidadesComando || [],
           unidadesInativas: data.unidadesInativas || [],
           turmasInativas: data.turmasInativas || [],
@@ -69,6 +93,7 @@ export default function AdminUsers({ unidadesEscopo, perfilAtivo, currentUser })
           disciplinas: data.disciplinas || [],
           series: data.series || "",
           status: data.status || "Ativo",
+          criadoEm: data.criadoEm,
         });
       });
       setUsers(lista);
@@ -83,20 +108,28 @@ export default function AdminUsers({ unidadesEscopo, perfilAtivo, currentUser })
     carregarUsers();
   }, []);
 
-  // -------- ESCOPO / FILTRO BASE --------
+  // ---- FILTRO DE SEGURANÇA (QUEM CADA UM PODE VER) ----
   const usersVisiveis = useMemo(() => {
     return users.filter((u) => {
       if (u.cargos.includes("admin")) return false;
       if (currentUser && u.id === currentUser.uid) return false;
+
+      if (ehDirecao) {
+        if (!u.cargos.includes("professor")) return false;
+        const unidadesDoUser = (u.unidade || "").split(",").map((s) => s.trim());
+        const cobre = unidadesDoUser.some((uni) => (unidadesEscopo || []).includes(uni));
+        if (!cobre) return false;
+      }
 
       if (ehRegional) {
         const unidadesDoUser = (u.unidade || "").split(",").map((s) => s.trim());
         const cobre = unidadesDoUser.some((uni) => (unidadesEscopo || []).includes(uni));
         if (!cobre) return false;
       }
+
       return true;
     });
-  }, [users, ehRegional, unidadesEscopo, currentUser]);
+  }, [users, ehRegional, ehDirecao, unidadesEscopo, currentUser]);
 
   const unidadesUnicas = useMemo(() => {
     const todas = usersVisiveis.flatMap((u) => u.unidade.split(",").map((s) => s.trim())).filter(Boolean);
@@ -141,11 +174,13 @@ export default function AdminUsers({ unidadesEscopo, perfilAtivo, currentUser })
     return !todas.some((uni) => !inativas.includes(uni));
   }).length;
 
-  // -------- AÇÕES --------
   const abrirStatus = (u) => {
     setModalStatus(u);
     setUnidadesInativasTemp([...(u.unidadesInativas || [])]);
     setTurmasInativasTemp([...(u.turmasInativas || [])]);
+    setUnidadeParaAdicionar("");
+    setTurmaParaAdicionar("");
+    setUnidadeDaTurmaNova("");
   };
 
   const confirmarMudancaStatus = async () => {
@@ -183,9 +218,14 @@ export default function AdminUsers({ unidadesEscopo, perfilAtivo, currentUser })
     setProcessando(true);
     try {
       const ref = doc(db, "users", modalPermissoes.id);
-      await updateDoc(ref, { cargos: cargosTemp });
+      // Preserva cargos não editáveis aqui (regional, admin)
+      const naoEditaveis = (modalPermissoes.cargos || []).filter(
+        (c) => !CARGOS_ATRIBUIVEIS.some((x) => x.id === c)
+      );
+      const cargosFinais = [...new Set([...naoEditaveis, ...cargosTemp])];
+      await updateDoc(ref, { cargos: cargosFinais });
       setUsers((prev) =>
-        prev.map((u) => (u.id === modalPermissoes.id ? { ...u, cargos: cargosTemp } : u))
+        prev.map((u) => (u.id === modalPermissoes.id ? { ...u, cargos: cargosFinais } : u))
       );
       setModalPermissoes(null);
     } catch {
@@ -208,13 +248,44 @@ export default function AdminUsers({ unidadesEscopo, perfilAtivo, currentUser })
     }
   };
 
+  // Adiciona unidade E já preenche as turmas dela (vindas do banco) — para direção
+  const adicionarUnidadeAoUsuario = async () => {
+    if (!unidadeParaAdicionar) return;
+    const unidadesDoUser = (modalStatus.unidade || "").split(",").map((s) => s.trim()).filter(Boolean);
+    const novasUnidades = [...unidadesDoUser, unidadeParaAdicionar].join(",");
+
+    const turmasDaNovaUnidade = todasTurmasDb
+      .filter((t) => t.unidade === unidadeParaAdicionar)
+      .map((t) => t.turma);
+
+    const mapaAtual = parseTurmasPorUnidade(modalStatus.turmas);
+    mapaAtual[unidadeParaAdicionar] = [
+      ...new Set([...(mapaAtual[unidadeParaAdicionar] || []), ...turmasDaNovaUnidade]),
+    ];
+    const novaStringTurmas = Object.entries(mapaAtual)
+      .map(([u, ts]) => `${u}: ${ts.join(", ")}`)
+      .join(" | ");
+
+    try {
+      await updateDoc(doc(db, "users", modalStatus.id), {
+        unidade: novasUnidades,
+        turmas: novaStringTurmas,
+      });
+      setModalStatus({ ...modalStatus, unidade: novasUnidades, turmas: novaStringTurmas });
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === modalStatus.id ? { ...u, unidade: novasUnidades, turmas: novaStringTurmas } : u
+        )
+      );
+      setUnidadeParaAdicionar("");
+    } catch {
+      alert("Erro ao adicionar unidade.");
+    }
+  };
+
   const handleExportar = (formato) => {
     const dadosExport = usersFiltrados.map((u) => ({
-      Nome: u.nome,
-      Email: u.email,
-      Unidade: u.unidade,
-      Cargos: u.cargos.join(", "),
-      Status: u.status,
+      Nome: u.nome, Email: u.email, Unidade: u.unidade, Cargos: u.cargos.join(", "), Status: u.status,
     }));
     console.table(dadosExport);
     alert(`Exportando ${usersFiltrados.length} usuários para ${formato.toUpperCase()}.`);
@@ -222,19 +293,10 @@ export default function AdminUsers({ unidadesEscopo, perfilAtivo, currentUser })
   };
 
   const limparFiltros = () => {
-    setBusca("");
-    setFiltroCargo("todos");
-    setFiltroUnidade("Todas");
-    setFiltroStatus("todos");
-    setFiltroRegional("Todas");
+    setBusca(""); setFiltroCargo("todos"); setFiltroUnidade("Todas"); setFiltroStatus("todos"); setFiltroRegional("Todas");
   };
 
-  const temFiltrosAtivos =
-    busca !== "" ||
-    filtroCargo !== "todos" ||
-    filtroUnidade !== "Todas" ||
-    filtroStatus !== "todos" ||
-    filtroRegional !== "Todas";
+  const temFiltrosAtivos = busca !== "" || filtroCargo !== "todos" || filtroUnidade !== "Todas" || filtroStatus !== "todos" || filtroRegional !== "Todas";
 
   if (carregando) {
     return (
@@ -254,7 +316,7 @@ export default function AdminUsers({ unidadesEscopo, perfilAtivo, currentUser })
               <div className="flex items-center gap-2 mb-2">
                 <span className="w-1.5 h-1.5 bg-pensi-yellow border border-black rounded-full" />
                 <span className="text-[9px] font-black uppercase tracking-[0.22em] text-gray-500">
-                  {ehRegional ? "Gestão regional" : "Gestão de acessos"}
+                  {ehRegional ? "Gestão regional" : ehDirecao ? "Gestão da unidade" : "Gestão de acessos"}
                 </span>
               </div>
               <h1 className="text-2xl sm:text-3xl font-black text-black tracking-tight leading-none">
@@ -298,7 +360,7 @@ export default function AdminUsers({ unidadesEscopo, perfilAtivo, currentUser })
               </div>
             </div>
             <div className="p-3 space-y-4">
-              {!ehRegional && (
+              {!ehRegional && !ehDirecao && (
                 <>
                   <div>
                     <label className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-gray-500 mb-1.5">
@@ -310,9 +372,7 @@ export default function AdminUsers({ unidadesEscopo, perfilAtivo, currentUser })
                       className="w-full bg-gray-50 border-2 border-black rounded-md px-2.5 py-2 text-[11px] font-bold outline-none cursor-pointer"
                     >
                       {REGIONAIS_LIST.map((r) => (
-                        <option key={r} value={r}>
-                          {r === "Todas" ? "Todas as Regionais" : `Reg. ${r}`}
-                        </option>
+                        <option key={r} value={r}>{r === "Todas" ? "Todas as Regionais" : `Reg. ${r}`}</option>
                       ))}
                     </select>
                   </div>
@@ -330,19 +390,23 @@ export default function AdminUsers({ unidadesEscopo, perfilAtivo, currentUser })
                   </div>
                 </>
               )}
-              <div>
-                <label className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-gray-500 mb-1.5">
-                  <ShieldCheck className="w-3 h-3" /> Cargo
-                </label>
-                <select
-                  value={filtroCargo}
-                  onChange={(e) => setFiltroCargo(e.target.value)}
-                  className="w-full bg-gray-50 border-2 border-black rounded-md px-2.5 py-2 text-[11px] font-bold outline-none cursor-pointer"
-                >
-                  <option value="todos">Todos os cargos</option>
-                  {CARGOS_ATRIBUIVEIS.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
-                </select>
-              </div>
+
+              {!ehDirecao && (
+                <div>
+                  <label className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-gray-500 mb-1.5">
+                    <ShieldCheck className="w-3 h-3" /> Cargo
+                  </label>
+                  <select
+                    value={filtroCargo}
+                    onChange={(e) => setFiltroCargo(e.target.value)}
+                    className="w-full bg-gray-50 border-2 border-black rounded-md px-2.5 py-2 text-[11px] font-bold outline-none cursor-pointer"
+                  >
+                    <option value="todos">Todos os cargos</option>
+                    {CARGOS_ATRIBUIVEIS.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+                  </select>
+                </div>
+              )}
+
               <div>
                 <label className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-gray-500 mb-1.5">
                   <Power className="w-3 h-3" /> Status
@@ -449,7 +513,7 @@ export default function AdminUsers({ unidadesEscopo, perfilAtivo, currentUser })
                             <span className="text-[8px] font-black uppercase text-gray-400">Cargos</span>
                             <div className="flex flex-wrap gap-1">
                               {u.cargos.map((c) => {
-                                const info = CARGOS_ATRIBUIVEIS.find((cd) => cd.id === c);
+                                const info = CARGOS_EXIBICAO.find((cd) => cd.id === c);
                                 return (
                                   <span key={c} className={`px-1.5 py-0.5 border border-black rounded-md text-[8px] font-black uppercase ${info?.cor || "bg-gray-200"}`}>
                                     {info?.label || c}
@@ -466,28 +530,35 @@ export default function AdminUsers({ unidadesEscopo, perfilAtivo, currentUser })
                                 {uni}
                               </span>
                             ))}
+                            {todasUnidades.length === 0 && <span className="text-[8px] text-gray-400 italic">Sem unidade</span>}
                           </div>
                         </div>
                       </div>
 
                       <div className="md:w-[160px] shrink-0 bg-gray-50 border-t-2 md:border-t-0 md:border-l-2 border-black p-2.5 flex md:flex-col justify-between gap-2">
                         <div className="hidden md:block">
-                          <span className="text-[8px] font-black uppercase tracking-widest text-gray-400">Gerenciar</span>
+                          <span className="text-[8px] font-black uppercase tracking-widest text-gray-400">Ações</span>
                         </div>
                         <div className="flex items-center md:items-stretch gap-1.5 md:flex-col">
-                          <button
-                            onClick={() => abrirStatus(u)}
-                            className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 border-2 border-black rounded-md text-[8px] font-black uppercase shadow-[2px_2px_0px_#000] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] transition-all ${!temInativa ? "bg-red-200" : "bg-green-300"}`}
-                          >
-                            {!temInativa ? <PowerOff className="w-3 h-3" /> : <Power className="w-3 h-3" />}
-                            Status
-                          </button>
-                          <button
-                            onClick={() => setPerfilProfessor(u)}
-                            className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 bg-blue-100 text-black border-2 border-black rounded-md text-[8px] font-black uppercase shadow-[2px_2px_0px_#000] hover:bg-blue-200 hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] transition-all"
-                          >
-                            <Eye className="w-3 h-3" /> Perfil
-                          </button>
+                          {!ehDirecao && (
+                            <button
+                              onClick={() => abrirStatus(u)}
+                              className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 border-2 border-black rounded-md text-[8px] font-black uppercase shadow-[2px_2px_0px_#000] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] transition-all ${!temInativa ? "bg-red-200" : "bg-green-300"}`}
+                            >
+                              {!temInativa ? <PowerOff className="w-3 h-3" /> : <Power className="w-3 h-3" />}
+                              Status
+                            </button>
+                          )}
+
+                          {u.cargos.includes("professor") && (
+                            <button
+                              onClick={() => setPerfilProfessor(u)}
+                              className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 bg-blue-100 text-black border-2 border-black rounded-md text-[8px] font-black uppercase shadow-[2px_2px_0px_#000] hover:bg-blue-200 hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] transition-all"
+                            >
+                              <Eye className="w-3 h-3" /> Perfil
+                            </button>
+                          )}
+
                           {podeGerenciar && (
                             <>
                               <button
@@ -544,21 +615,41 @@ export default function AdminUsers({ unidadesEscopo, perfilAtivo, currentUser })
         </div>
       </div>
 
-      {/* ===================== MODAL STATUS (UNIDADES + TURMAS) ===================== */}
+      {/* ===================== MODAIS ===================== */}
+
       {modalStatus && (() => {
-        const turmasPorUnidade = parseTurmasPorUnidade(modalStatus.turmas);
+        const turmasDoUsuario = parseTurmasPorUnidade(modalStatus.turmas);
         const unidadesDoUser = (modalStatus.unidade || "").split(",").map((s) => s.trim()).filter(Boolean);
         const unidadesVisiveis = unidadesDoUser.filter((uni) => {
           if (ehRegional) return (unidadesEscopo || []).includes(uni);
           return true;
         });
 
+        // Turmas por unidade: une as já atribuídas com as que existem no banco
+        const turmasPorUnidade = {};
+        unidadesVisiveis.forEach((uni) => {
+          const jaAtribuidas = turmasDoUsuario[uni] || [];
+          const doBanco = todasTurmasDb
+            .filter((t) => t.unidade === uni)
+            .map((t) => t.turma);
+          turmasPorUnidade[uni] = [...new Set([...jaAtribuidas, ...doBanco])];
+        });
+
+        const unidadesDisponiveisParaAdicionar = todasUnidades.filter(
+          (u) => !unidadesDoUser.includes(u)
+        );
+        const turmasDisponiveisParaAdicionar = todasTurmasDb.filter(
+          (t) => t.unidade === unidadeDaTurmaNova
+        );
+
         return (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
             <div className="bg-white border-2 border-black rounded-md shadow-[6px_6px_0px_#000] w-full max-w-lg max-h-[88vh] flex flex-col">
               <div className="bg-[#171717] text-white px-4 py-3 border-b-2 border-black flex items-center justify-between rounded-t-md shrink-0">
                 <div>
-                  <span className="text-[9px] font-black uppercase tracking-widest">Status do usuário</span>
+                  <span className="text-[9px] font-black uppercase tracking-widest">
+                    {ehRegional ? "Gerenciar Status" : "Gerenciar Acesso e Turmas"}
+                  </span>
                   <p className="text-[10px] text-gray-400 mt-0.5">{modalStatus.nome}</p>
                 </div>
                 <button onClick={() => setModalStatus(null)} className="text-white hover:text-pensi-yellow">
@@ -567,13 +658,84 @@ export default function AdminUsers({ unidadesEscopo, perfilAtivo, currentUser })
               </div>
 
               <div className="p-4 overflow-y-auto flex-1">
-                <p className="text-[11px] text-gray-500 mb-3 leading-relaxed">
+                {/* Bloco de adicionar unidade: admin, núcleo, direção. NÃO regional. */}
+                {podeAdicionarUnidade && unidadesDisponiveisParaAdicionar.length > 0 && (
+                  <div className="mb-4 bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-3">
+                    <label className="text-[9px] font-black uppercase text-gray-500 mb-2 block">Adicionar nova unidade</label>
+                    <div className="flex gap-2">
+                      <select
+                        value={unidadeParaAdicionar}
+                        onChange={(e) => setUnidadeParaAdicionar(e.target.value)}
+                        className="flex-1 bg-white border-2 border-black rounded-md px-2 py-1.5 text-[11px] font-bold outline-none cursor-pointer"
+                      >
+                        <option value="">Selecione uma unidade...</option>
+                        {unidadesDisponiveisParaAdicionar.map(u => <option key={u} value={u}>{u}</option>)}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={adicionarUnidadeAoUsuario}
+                        className="px-3 py-1.5 bg-pensi-yellow border-2 border-black rounded-md text-[9px] font-black uppercase shadow-[2px_2px_0px_#000] active:shadow-none active:translate-y-[2px]"
+                      >
+                        <Plus className="w-3 h-3" /> Add
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Bloco de adicionar turma: SÓ admin/núcleo. NÃO direção, NÃO regional. */}
+                {podeAdicionarTurma && (
+                  <div className="mb-4 bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-3">
+                    <label className="text-[9px] font-black uppercase text-gray-500 mb-2 block">Adicionar nova turma</label>
+                    <div className="flex flex-col gap-2">
+                      <select
+                        value={unidadeDaTurmaNova}
+                        onChange={(e) => { setUnidadeDaTurmaNova(e.target.value); setTurmaParaAdicionar(""); }}
+                        className="w-full bg-white border-2 border-black rounded-md px-2 py-1.5 text-[11px] font-bold outline-none cursor-pointer"
+                      >
+                        <option value="">Selecione a unidade da turma...</option>
+                        {unidadesDoUser.map(u => <option key={u} value={u}>{u}</option>)}
+                      </select>
+                      {unidadeDaTurmaNova && (
+                        <div className="flex gap-2">
+                          <select
+                            value={turmaParaAdicionar}
+                            onChange={(e) => setTurmaParaAdicionar(e.target.value)}
+                            className="flex-1 bg-white border-2 border-black rounded-md px-2 py-1.5 text-[11px] font-bold outline-none cursor-pointer"
+                          >
+                            <option value="">Selecione a turma...</option>
+                            {turmasDisponiveisParaAdicionar.map(t => <option key={t.id} value={t.turma}>{t.turma}</option>)}
+                          </select>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!turmaParaAdicionar) return;
+                              const mapaAtual = parseTurmasPorUnidade(modalStatus.turmas);
+                              if (!mapaAtual[unidadeDaTurmaNova]) mapaAtual[unidadeDaTurmaNova] = [];
+                              if (!mapaAtual[unidadeDaTurmaNova].includes(turmaParaAdicionar)) {
+                                mapaAtual[unidadeDaTurmaNova].push(turmaParaAdicionar);
+                              }
+                              const novaString = Object.entries(mapaAtual).map(([u, ts]) => `${u}: ${ts.join(", ")}`).join(" | ");
+                              updateDoc(doc(db, "users", modalStatus.id), { turmas: novaString });
+                              setModalStatus({ ...modalStatus, turmas: novaString });
+                              setTurmaParaAdicionar("");
+                            }}
+                            className="px-3 py-1.5 bg-pensi-yellow border-2 border-black rounded-md text-[9px] font-black uppercase shadow-[2px_2px_0px_#000] active:shadow-none active:translate-y-[2px]"
+                          >
+                            <Plus className="w-3 h-3" /> Add
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                <p className="text-[11px] text-gray-500 mb-3 leading-relaxed border-t-2 border-gray-200 pt-3">
                   Desmarque unidades ou turmas específicas em que <strong className="text-black">{modalStatus.nome}</strong> não deve ter acesso.
                 </p>
 
                 {unidadesVisiveis.length === 0 && (
                   <div className="text-center py-6 text-[11px] text-gray-500 italic">
-                    Nenhuma unidade disponível para gerenciar.
+                    Nenhuma unidade cadastrada para gerenciar.
                   </div>
                 )}
 
@@ -708,7 +870,6 @@ export default function AdminUsers({ unidadesEscopo, perfilAtivo, currentUser })
         );
       })()}
 
-      {/* ===================== MODAL PERMISSÕES ===================== */}
       {modalPermissoes && podeGerenciar && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
           <div className="bg-white border-2 border-black rounded-md shadow-[6px_6px_0px_#000] w-full max-w-sm">
@@ -719,6 +880,9 @@ export default function AdminUsers({ unidadesEscopo, perfilAtivo, currentUser })
               </button>
             </div>
             <div className="p-4">
+              <p className="text-[10px] text-gray-500 mb-3 leading-relaxed">
+                O cargo <strong className="text-black">Regional</strong> é definido apenas nas Configurações.
+              </p>
               <div className="mb-4 space-y-1.5">
                 {CARGOS_ATRIBUIVEIS.map((cargo) => (
                   <label
@@ -753,7 +917,6 @@ export default function AdminUsers({ unidadesEscopo, perfilAtivo, currentUser })
         </div>
       )}
 
-      {/* ===================== MODAL EXCLUIR ===================== */}
       {deleteUser && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
           <div className="bg-white border-2 border-black rounded-md shadow-[6px_6px_0px_#000] w-full max-w-xs overflow-hidden">

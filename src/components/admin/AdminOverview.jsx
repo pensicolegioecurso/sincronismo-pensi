@@ -48,19 +48,21 @@ export default function AdminOverview({ unidadeFoco, unidadesEscopo }) {
   const isDiretor = Boolean(unidadeFoco);
   const isRegional = Array.isArray(unidadesEscopo) && unidadesEscopo.length > 0;
 
+  // Carrega os dados (com Try/Catch separados para não quebrar se der erro de permissão em um)
   useEffect(() => {
     let cancelado = false;
     async function carregar() {
       try {
-        const [snapChecks, snapUsers, snapCal] = await Promise.all([
-          getDocs(collection(db, "checks")),
-          getDocs(collection(db, "users")),
-          getDocs(collection(db, "calendarios"))
-        ]);
+        let snapChecks = { forEach: () => {} };
+        let snapUsers = { forEach: () => {} };
+        let snapCal = { forEach: () => {} };
+
+        try { snapChecks = await getDocs(collection(db, "checks")); } catch (err) { console.warn("Sem permissão: checks"); }
+        try { snapUsers = await getDocs(collection(db, "users")); } catch (err) { console.warn("Sem permissão: users"); }
+        try { snapCal = await getDocs(collection(db, "calendarios")); } catch (err) { console.warn("Sem permissão: calendarios"); }
         
         if (cancelado) return;
 
-        // 1. Carrega os Checks
         const listaChecks = [];
         snapChecks.forEach((d) => {
           const data = d.data();
@@ -76,7 +78,6 @@ export default function AdminOverview({ unidadeFoco, unidadesEscopo }) {
         });
         setChecks(listaChecks);
 
-        // 2. Carrega os Usuários (se ele foi deletado, não vem aqui)
         const listaUsers = [];
         snapUsers.forEach((d) => {
           const data = d.data();
@@ -97,7 +98,6 @@ export default function AdminOverview({ unidadeFoco, unidadesEscopo }) {
         });
         setUsers(listaUsers);
 
-        // 3. Carrega o Calendário
         const listaCal = [];
         snapCal.forEach((d) => listaCal.push(d.data()));
         setCalendarios(listaCal);
@@ -122,7 +122,7 @@ export default function AdminOverview({ unidadeFoco, unidadesEscopo }) {
     const total = { concluidas: 0, pendentes: 0, justificadas: 0 };
     const porUnidade = [];
     
-    // Filtra os usuários que podem aparecer com base nas permissões de quem tá vendo
+    // Filtro de permissões
     let usersVisiveis = users.filter(u => (u.disciplinas || []).length > 0);
     
     if (isDiretor) {
@@ -155,12 +155,11 @@ export default function AdminOverview({ unidadeFoco, unidadesEscopo }) {
       const checksDoProf = checks.filter(c => c.professorUid === prof.uid);
 
       Object.keys(mapaTurmasProf).forEach(uni => {
-        // Se a unidade está inativa pra ele, não gera pendência
         if (inativasU.has(uni)) return;
+        if (isRegional && !unidadesEscopo.includes(uni)) return; // Garante o filtro regional
 
-        // Filtra as turmas válidas (descontando as inativas)
         const turmasAtivas = mapaTurmasProf[uni].filter(t => !inativasT.has(chaveTurma(uni, t)));
-        if (turmasAtivas.length === 0) return; // Se todas as turmas estão inativas, ignora
+        if (turmasAtivas.length === 0) return; 
 
         const uniNorm = normalizarTexto(uni);
         
@@ -171,14 +170,12 @@ export default function AdminOverview({ unidadeFoco, unidadesEscopo }) {
         const checksUni = checksDoProf.filter(c => normalizarTexto(c.unidade) === uniNorm || uniNorm.includes(normalizarTexto(c.unidade)) || normalizarTexto(c.unidade).includes(uniNorm));
         const turmasUniNorm = turmasAtivas.map(normalizarTexto);
 
-        // Contabiliza Realizadas e Justificadas
         checksUni.forEach(c => {
           if (!c.dataReal) return;
           const dt = new Date(`${c.dataReal}T12:00:00`);
           if (filtroPeriodo === "hoje" && dt.getTime() !== agora.getTime()) return;
           if (filtroPeriodo === "mes" && dt < inicioMes) return;
           
-          // Se o check for de uma turma inativa, ainda conta o histórico dele.
           if (c.status === "justificado" || c.tipo === "justificativa") {
             total.justificadas++;
             mapaUnidades[uni].j++;
@@ -188,13 +185,9 @@ export default function AdminOverview({ unidadeFoco, unidadesEscopo }) {
           }
         });
 
-        // Contabiliza Pendentes
         diasUteisAno.forEach(diaStr => {
           const dt = new Date(diaStr + "T12:00:00");
-          
-          // REGRA: O dia precisa ser depois do cadastro do professor e antes (ou igual) a hoje.
           if (dt < prof.criadoEm || dt > agora) return;
-          
           if (filtroPeriodo === "hoje" && dt.getTime() !== agora.getTime()) return;
           if (filtroPeriodo === "mes" && dt < inicioMes) return;
 
@@ -211,7 +204,6 @@ export default function AdminOverview({ unidadeFoco, unidadesEscopo }) {
           }
           if (isFeriado) return;
 
-          // O cálculo do pendente
           turmasUniNorm.forEach(turma => {
              const temCheck = checksUni.some(c => c.dataReal === diaStr && (c.serie.includes(turma) || turma.includes(c.serie)));
              if (!temCheck) {
@@ -267,7 +259,7 @@ export default function AdminOverview({ unidadeFoco, unidadesEscopo }) {
         <section className="bg-white border-2 border-black rounded-xl shadow-[3px_3px_0px_#000] p-3 mb-5">
           <div className="flex flex-col xl:flex-row gap-3 items-stretch xl:items-center justify-between">
             <div className="flex flex-col sm:flex-row gap-2.5 flex-1 items-stretch sm:items-center">
-              {!isDiretor && !isRegional && (
+              {!isDiretor && !isRegional ? (
                 <>
                   <div className="relative flex-1 min-w-[160px]">
                     <select value={filtroRegional} onChange={(e) => { setFiltroRegional(e.target.value); setFiltroUnidade("Todas"); }} className="w-full h-[38px] bg-gray-50 border-2 border-black rounded-xl px-3 text-[11px] font-bold text-black outline-none focus:bg-pensi-yellow shadow-[2px_2px_0px_#000]">
@@ -281,11 +273,12 @@ export default function AdminOverview({ unidadeFoco, unidadesEscopo }) {
                     </select>
                   </div>
                 </>
-              )}
-              {(isDiretor || isRegional) && (
+              ) : (
                 <div className="flex items-center gap-1.5 h-[38px] bg-gray-50 border-2 border-black rounded-xl px-3 shadow-[2px_2px_0px_#000] shrink-0">
                   <MapPin className="w-4 h-4 text-black shrink-0" />
-                  <span className="text-[11px] font-black uppercase tracking-wider text-black">{isDiretor ? unidadeFoco : `${unidadesEscopo.length} unidade(s)`}</span>
+                  <span className="text-[11px] font-black uppercase tracking-wider text-black">
+                    {isDiretor ? unidadeFoco : `${unidadesEscopo.length} unidade(s)`}
+                  </span>
                 </div>
               )}
             </div>
