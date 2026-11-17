@@ -1,3 +1,4 @@
+// src/App.jsx
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "./hooks/useAuth";
 import Home from "./pages/Home";
@@ -5,12 +6,10 @@ import CalendarPage from "./pages/Calendar";
 import Reports from "./pages/Reports";
 import Header from "./components/home/Header";
 import ProfileModal from "./components/ProfileModal";
-import AdminDashboard from "./pages/AdminDashboard";
-import DirectionDashboard from "./pages/DirectionDashboard";
+import DashboardPage from "./pages/DashboardPage";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Redefine from "./pages/Redefine";
-import ProfessorDashboard from "./pages/ProfessorDashboard";
 import SeletorCargo from "./components/SeletorCargo";
 import { parseTurmasPorUnidade, chaveTurma } from "./utils/turmas";
 
@@ -178,7 +177,7 @@ export default function App() {
           <Home onNavigate={navigate} onLogin={() => navigate("login")} onRegister={() => navigate("register")} />
         )}
         {screen === "professor" && isProfessor() && (
-          <ProfessorDashboard onNavigate={navigate} perfilAtivo={perfilAtivo} />
+          <DashboardPage onNavigate={navigate} perfilAtivo={perfilAtivo} />
         )}
         {screen === "login" && <Login onNavigate={navigate} />}
         {screen === "register" && <Register onNavigate={navigate} />}
@@ -194,10 +193,10 @@ export default function App() {
         )}
         {screen === "reports" && <Reports onBack={() => navigate("home")} />}
         {screen === "admin" && isGestorAdmin() && (
-          <AdminDashboard onNavigate={navigate} perfilAtivo={perfilAtivo} />
+          <DashboardPage onNavigate={navigate} perfilAtivo={perfilAtivo} />
         )}
         {screen === "direcao" && isDirecao() && (
-          <DirectionDashboard onNavigate={navigate} perfilAtivo={perfilAtivo} />
+          <DashboardPage onNavigate={navigate} perfilAtivo={perfilAtivo} />
         )}
         {screen === "admin" && !isGestorAdmin() && <AcessoNegado onVoltar={() => navigate("home")} />}
         {screen === "direcao" && !isDirecao() && <AcessoNegado onVoltar={() => navigate("home")} />}

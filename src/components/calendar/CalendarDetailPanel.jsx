@@ -1,18 +1,19 @@
+// src/components/calendar/CalendarDetailPanel.jsx
 import { useState } from "react";
 import { createPortal } from "react-dom";
-import { COLUNAS_DIAS, extrairAulas, resolverReferencia, pad2, extrairCapitulos } from "../utils/formatters";
-import { gerarIdCheck } from "../services/firestoreChecks";
+import { COLUNAS_DIAS, extrairAulas, resolverReferencia, pad2, extrairCapitulos } from "../../utils/formatters";
+import { gerarIdCheck } from "../../services/firestoreChecks";
 import { X, CheckCircle2, MessageSquare, AlertCircle, Lock } from "lucide-react";
 
-export default function DetailPanel({
+export default function CalendarDetailPanel({
   semData, diaIdx, currentModelo, currentAulas, currentCaps, currentSemanas, currentAulaIdx,
   checksSet, onCheck, disciplinaAtualKey, currentSheetName, turmasDoProfessor, weekIdx,
-  unidadeSelecionada // <-- AQUI
+  unidadeSelecionada,
 }) {
   const [modalAberto, setModalAberto] = useState(false);
   const [tipoAcao, setTipoAcao] = useState(null);
   const [aulaSelecionada, setAulaSelecionada] = useState(null);
-  
+
   const [textoJustificativa, setTextoJustificativa] = useState("");
   const [aplicarTodasTurmas, setAplicarTodasTurmas] = useState(true);
   const [obsAula, setObsAula] = useState("");
@@ -38,7 +39,7 @@ export default function DetailPanel({
   let dataReal = "";
   if (d) {
     const dataCerta = new Date(d);
-    dataCerta.setHours(12, 0, 0, 0); 
+    dataCerta.setHours(12, 0, 0, 0);
     const y = dataCerta.getFullYear();
     const m = String(dataCerta.getMonth() + 1).padStart(2, "0");
     const dd = String(dataCerta.getDate()).padStart(2, "0");
@@ -46,12 +47,12 @@ export default function DetailPanel({
   }
 
   const jaTemCheck = (aulaKey) => {
-    const id = gerarIdCheck({ 
-      disciplina: disciplinaAtualKey, 
-      serie: currentSheetName, 
+    const id = gerarIdCheck({
+      disciplina: disciplinaAtualKey,
+      serie: currentSheetName,
       semanaIdx: dataReal,
-      diaNome: diaNome, 
-      aulaIndex: aulaKey 
+      diaNome: diaNome,
+      aulaIndex: aulaKey
     });
     return checksSet.has(id);
   };
@@ -92,9 +93,9 @@ export default function DetailPanel({
       justificativa: tipoAcao === "justificativa" ? textoJustificativa : "",
       observacao: tipoAcao === "aula" ? obsAula : "",
       turmasParaAplicar,
-      unidade: unidadeSelecionada, // <-- ENVIANDO A UNIDADE
+      unidade: unidadeSelecionada,
     });
-    
+
     fecharModal();
   };
 
@@ -195,7 +196,6 @@ export default function DetailPanel({
   );
 }
 
-// ... (Mantenha as funções renderDetalheAula, renderDetalheSemana, BlocoTemas, etc. exatamente como estavam)
 function renderDetalheAula(tagDia, currentAulas, currentCaps, renderizarAcoes, semData, capsGerais) {
   const aulasDoDia = extrairAulas(tagDia);
   const blocos = [];
@@ -212,7 +212,7 @@ function renderDetalheAula(tagDia, currentAulas, currentCaps, renderizarAcoes, s
             <h3 className="text-sm font-semibold text-gray-900 bg-pensi-yellow border border-black px-2 py-0.5 rounded shadow-sm">{titulo}</h3>
             {renderizarAcoes("A" + n)}
           </div>
-          
+
           <div className="pl-1 space-y-4">
             {!linhas.length ? (
               <p className="text-sm font-medium text-gray-500 italic">Esta aula ainda não tem conteúdo cadastrado na planilha.</p>
@@ -232,7 +232,7 @@ function renderDetalheAula(tagDia, currentAulas, currentCaps, renderizarAcoes, s
     const isProva = /prova|avaliação|simulado|recuperação/i.test(tagDia);
     const capsEmenta = extrairCapitulos(semData.ementas);
     const capsGeral = Object.keys(capsGerais || {}).map(Number).filter(Boolean);
-    const todosCaps = [...new Set([...capsEmenta, ...capsGeral])].sort((a,b) => a - b);
+    const todosCaps = [...new Set([...capsEmenta, ...capsGeral])].sort((a, b) => a - b);
 
     blocos.push(
       <div key="nf" className="bg-gray-50 border border-gray-200 border-dashed p-4 rounded-xl text-center mb-6">
@@ -241,7 +241,7 @@ function renderDetalheAula(tagDia, currentAulas, currentCaps, renderizarAcoes, s
         </p>
       </div>
     );
-    
+
     if ((isProva || todosCaps.length > 0) && semData.ementas) {
       blocos.push(
         <div key="prova" className="bg-white border border-gray-300 p-5 rounded-xl shadow-sm">
@@ -249,13 +249,13 @@ function renderDetalheAula(tagDia, currentAulas, currentCaps, renderizarAcoes, s
             Conteúdo da Ementa {todosCaps.length > 0 && `(Capítulos ${todosCaps.join(", ")})`}
           </h4>
           <p className="text-sm font-medium text-gray-800 whitespace-pre-wrap mb-4">{semData.ementas}</p>
-          
+
           {todosCaps.length > 0 && currentCaps && (
             <div className="space-y-5 mt-5 border-t border-gray-200 pt-4">
               {todosCaps.map(capNum => {
                 const linhasCap = currentCaps[capNum] || [];
                 if (!linhasCap.length) return null;
-                
+
                 return (
                   <div key={capNum} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                     <h5 className="text-xs font-semibold uppercase text-gray-900 mb-2 bg-white border border-black inline-block px-2 py-0.5 rounded">Capítulo {capNum}</h5>
@@ -305,9 +305,9 @@ function renderDetalheSemana(tagDia, currentSemanas, currentAulaIdx, renderizarA
         <h3 className="text-sm font-semibold text-gray-900 bg-pensi-yellow border border-black px-2 py-0.5 rounded inline-block mb-3 shadow-sm">
           Semana {s}{d.modulo ? ` — ${d.modulo}` : ""}
         </h3>
-        
+
         {d.tema && <p className="text-sm mb-2 font-medium"><strong className="text-gray-600 text-[10px] uppercase block">Tema</strong> {d.tema}</p>}
-        
+
         <div className="space-y-4 mb-4">
           {aulas.map((a, i) => (
             <div key={i} className="flex flex-col gap-2 pb-3 border-b border-gray-100 last:border-0 last:pb-0">
@@ -316,7 +316,7 @@ function renderDetalheSemana(tagDia, currentSemanas, currentAulaIdx, renderizarA
             </div>
           ))}
         </div>
-        
+
         <div className="space-y-3">
           <BlocoTexto titulo="Objetivos de aprendizagem" texto={d.objetivos} />
           <BlocoTexto titulo="Exercícios de sala" texto={d.sala} />

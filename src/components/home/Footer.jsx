@@ -1,6 +1,6 @@
 
-import { useAuth } from "../hooks/useAuth";
-import logoPensi from "../assets/logoPensi.png";
+import { useAuth } from "../../hooks/useAuth";
+import logoPensi from "../../assets/logoPensi.png";
 import {
   ArrowUpRight,
   LogIn,

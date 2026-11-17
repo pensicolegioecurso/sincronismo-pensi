@@ -1,0 +1,680 @@
+
+import { useState, useMemo } from "react";
+import { doc, setDoc } from "firebase/firestore";
+import { db } from "../../../services/firebase";
+import { criarUsuarioSecundario } from "../../../services/criarUsuarioSecundario";
+import { DISCIPLINAS_POR_ANO } from "../../../data/disciplinas";
+import { useTurmas } from "../../../hooks/useTurmas";
+import { useUnidades } from "../../../hooks/useUnidades";
+import {
+  Mail,
+  Lock,
+  User,
+  MapPin,
+  CreditCard,
+  CheckCircle2,
+} from "lucide-react";
+
+const CARGOS_ATRIBUIVEIS = [
+  { id: "diretor", label: "Diretor" },
+  { id: "coordenador", label: "Coordenador" },
+  { id: "nucleo", label: "Núcleo" },
+  { id: "regional", label: "Regional" },
+  { id: "professor", label: "Professor" },
+];
+
+const DOMINIO_PERMITIDO =
+  import.meta.env.VITE_DOMINIO_PERMITIDO || "@pensi.com.br";
+
+function validarEmail(email) {
+  const dominio = DOMINIO_PERMITIDO.replace(/^@/, "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`^[^\\s@]+@${dominio}$`, "i").test(email.trim());
+}
+
+function validarCPF(valor) {
+  const cpf = valor.replace(/\D/g, "");
+
+  if (cpf.length !== 11 || /^(\d)\1{10}$/.test(cpf)) return false;
+
+  let soma = 0;
+
+  for (let i = 0; i < 9; i++) {
+    soma += Number(cpf[i]) * (10 - i);
+  }
+
+  let digito = (soma * 10) % 11;
+  if (digito === 10) digito = 0;
+  if (digito !== Number(cpf[9])) return false;
+
+  soma = 0;
+
+  for (let i = 0; i < 10; i++) {
+    soma += Number(cpf[i]) * (11 - i);
+  }
+
+  digito = (soma * 10) % 11;
+  if (digito === 10) digito = 0;
+
+  return digito === Number(cpf[10]);
+}
+
+function formatarCPF(valor) {
+  return valor
+    .replace(/\D/g, "")
+    .slice(0, 11)
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+}
+
+const inputClass =
+  "w-full rounded-lg border-2 border-black bg-white px-3 py-2.5 text-xs font-semibold text-black outline-none transition-all placeholder:text-gray-400 focus:bg-yellow-50 focus:shadow-[2px_2px_0px_#000]";
+
+const labelClass =
+  "mb-1.5 block text-[9px] font-black uppercase tracking-widest text-gray-600";
+
+const botaoClass =
+  "rounded-lg border-2 border-black px-3 py-2 text-[10px] font-black uppercase transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none";
+
+export default function ManualForm({
+  onClose,
+  onSuccess,
+  perfilAtivo,
+  unidadesEscopo,
+  setErro,
+}) {
+  const { todasUnidades } = useUnidades();
+  const { getSeriesPorUnidades, getTurmasPorUnidadesESeries } = useTurmas({
+    somenteAtivas: true,
+  });
+
+  const [step, setStep] = useState(1);
+  const [nome, setNome] = useState("");
+  const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
+  const [cpf, setCpf] = useState("");
+  const [cargos, setCargos] = useState(["professor"]);
+  const [disciplinas, setDisciplinas] = useState([]);
+  const [unidades, setUnidades] = useState([]);
+  const [selecoesPorPar, setSelecoesPorPar] = useState({});
+  const [loading, setLoading] = useState(false);
+
+  const ehRegionalLogado = perfilAtivo === "regional";
+
+  const unidadesDisponiveis = ehRegionalLogado
+    ? todasUnidades.filter((u) => (unidadesEscopo || []).includes(u))
+    : todasUnidades;
+
+  const disciplinasLista = useMemo(() => {
+    const todas = Object.values(DISCIPLINAS_POR_ANO).reduce((acc, ano) => {
+      Object.entries(ano).forEach(([key, value]) => {
+        acc[key] = value.nome;
+      });
+      return acc;
+    }, {});
+
+    return Object.entries(todas).sort((a, b) =>
+      a[1].localeCompare(b[1], "pt-BR")
+    );
+  }, []);
+
+  const precisaDisciplinas = cargos.includes("professor");
+  const ehRegional = cargos.includes("regional");
+
+  const pares = useMemo(() => {
+    if (!precisaDisciplinas) return [];
+
+    const lista = [];
+
+    disciplinas.forEach((disciplina) => {
+      unidades.forEach((unidade) => {
+        lista.push({ disciplina, unidade });
+      });
+    });
+
+    return lista;
+  }, [disciplinas, unidades, precisaDisciplinas]);
+
+  const toggleItem = (setList, item) => {
+    setList((prev) =>
+      prev.includes(item)
+        ? prev.filter((valor) => valor !== item)
+        : [...prev, item]
+    );
+  };
+
+  const setSelecao = (chave, valor) => {
+    setSelecoesPorPar((prev) => ({ ...prev, [chave]: valor }));
+  };
+
+  const handleSubmitManual = async () => {
+    setLoading(true);
+    setErro("");
+
+    try {
+      const emailNormalizado = email.trim().toLowerCase();
+      const cpfNormalizado = cpf.replace(/\D/g, "");
+
+      const novoUid = await criarUsuarioSecundario(
+        emailNormalizado,
+        senha
+      );
+
+      const turmasPorUnidade = {};
+      const todasSeries = new Set();
+
+      Object.entries(selecoesPorPar).forEach(([chave, selecao]) => {
+        const unidade = chave.split("|")[1];
+
+        if (!turmasPorUnidade[unidade]) {
+          turmasPorUnidade[unidade] = [];
+        }
+
+        (selecao.turmas || []).forEach((turma) => {
+          if (!turmasPorUnidade[unidade].includes(turma)) {
+            turmasPorUnidade[unidade].push(turma);
+          }
+        });
+
+        (selecao.series || []).forEach((serie) => {
+          todasSeries.add(serie);
+        });
+      });
+
+      const turmasString = Object.entries(turmasPorUnidade)
+        .filter(([, turmas]) => turmas.length > 0)
+        .map(([unidade, turmas]) => `${unidade}: ${turmas.join(", ")}`)
+        .join(" | ");
+
+      const payload = {
+        nome: nome.trim(),
+        email: emailNormalizado,
+        cpf: cpfNormalizado,
+        cargos,
+        disciplinas: precisaDisciplinas ? disciplinas : [],
+        unidade: unidades.join(","),
+        series: precisaDisciplinas ? [...todasSeries].join(",") : "",
+        turmas: precisaDisciplinas ? turmasString : "",
+        unidadesComando: ehRegional ? unidades : [],
+        unidadesInativas: [],
+        turmasInativas: [],
+        criadoEm: new Date(),
+        status: "Ativo",
+      };
+
+      await setDoc(doc(db, "users", novoUid), payload);
+      onSuccess?.();
+    } catch (err) {
+      console.error("Erro ao cadastrar usuário:", err);
+
+      if (err.code === "auth/email-already-in-use") {
+        setErro("Este e-mail já está cadastrado.");
+      } else if (err.code === "auth/weak-password") {
+        setErro("A senha deve ter pelo menos 6 caracteres.");
+      } else if (err.code === "permission-denied") {
+        setErro("Você não tem permissão para cadastrar este usuário.");
+      } else {
+        setErro("Não foi possível cadastrar. Verifique os dados e tente novamente.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const avancar = () => {
+    setErro("");
+
+    if (step === 1) {
+      if (!nome.trim() || !email.trim() || !senha || !cpf.trim()) {
+        return setErro("Preencha todos os campos obrigatórios.");
+      }
+
+      if (!validarEmail(email)) {
+        return setErro(`Use um e-mail válido com o domínio ${DOMINIO_PERMITIDO}.`);
+      }
+
+      if (senha.length < 6) {
+        return setErro("A senha deve ter no mínimo 6 caracteres.");
+      }
+
+      if (!validarCPF(cpf)) {
+        return setErro("O CPF informado é inválido. Confira os números.");
+      }
+
+      setStep(2);
+      return;
+    }
+
+    if (step === 2) {
+      if (cargos.length === 0) {
+        return setErro("Selecione ao menos um cargo.");
+      }
+
+      setStep(3);
+      return;
+    }
+
+    if (step === 3) {
+      if (unidades.length === 0) {
+        return setErro("Selecione ao menos uma unidade.");
+      }
+
+      if (precisaDisciplinas) {
+        setStep(4);
+        return;
+      }
+
+      handleSubmitManual();
+      return;
+    }
+
+    if (step === 4) {
+      if (disciplinas.length === 0) {
+        return setErro("Selecione ao menos uma disciplina.");
+      }
+
+      setStep(5);
+      return;
+    }
+
+    if (step === 5) {
+      for (const par of pares) {
+        const chave = `${par.disciplina}|${par.unidade}`;
+        const selecao = selecoesPorPar[chave];
+
+        if (
+          !selecao ||
+          !selecao.series?.length ||
+          !selecao.turmas?.length
+        ) {
+          return setErro(
+            `Preencha séries e turmas de ${par.disciplina} em ${par.unidade}.`
+          );
+        }
+      }
+
+      handleSubmitManual();
+    }
+  };
+
+  const totalEtapas = precisaDisciplinas ? 5 : 3;
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">
+            Etapa {step} de {totalEtapas}
+          </p>
+          <div className="mt-2 flex gap-1">
+            {Array.from({ length: totalEtapas }).map((_, index) => (
+              <span
+                key={index}
+                className={`h-1.5 w-8 rounded-full border border-black ${
+                  index < step ? "bg-pensi-yellow" : "bg-white"
+                }`}
+              />
+            ))}
+          </div>
+        </div>
+
+        <span className="rounded-md border-2 border-black bg-white px-2 py-1 text-[9px] font-black uppercase">
+          Cadastro manual
+        </span>
+      </div>
+
+      {step === 1 && (
+        <div className="animate-fade-in space-y-4">
+          <div>
+            <h3 className="text-sm font-black uppercase text-black">
+              1. Dados pessoais
+            </h3>
+            <p className="mt-1 text-[10px] font-medium text-gray-500">
+              Informe os dados de identificação e acesso do usuário.
+            </p>
+          </div>
+
+          <div>
+            <label className={labelClass}>Nome completo *</label>
+            <div className="relative">
+              <User className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+              <input
+                value={nome}
+                onChange={(e) => setNome(e.target.value)}
+                className={`${inputClass} pl-9`}
+                placeholder="Nome completo do usuário"
+                autoComplete="name"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className={labelClass}>E-mail institucional *</label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className={`${inputClass} pl-9`}
+                placeholder="nome@pensi.com.br"
+                autoComplete="email"
+              />
+            </div>
+            <p className="mt-1 text-[9px] font-semibold text-gray-400">
+              Apenas e-mails institucionais {DOMINIO_PERMITIDO}.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label className={labelClass}>CPF *</label>
+              <div className="relative">
+                <CreditCard className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+                <input
+                  value={cpf}
+                  onChange={(e) => setCpf(formatarCPF(e.target.value))}
+                  className={`${inputClass} pl-9`}
+                  placeholder="000.000.000-00"
+                  inputMode="numeric"
+                  maxLength={14}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className={labelClass}>Senha inicial *</label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+                <input
+                  value={senha}
+                  onChange={(e) => setSenha(e.target.value)}
+                  type="password"
+                  className={`${inputClass} pl-9`}
+                  placeholder="Mínimo 6 caracteres"
+                  autoComplete="new-password"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-lg border-2 border-[#D7E7FF] bg-[#EEF5FF] p-3">
+            <p className="text-[10px] font-bold text-blue-900">
+              <CheckCircle2 className="mr-1 inline h-3.5 w-3.5" />
+              O CPF será validado antes de avançar e salvo no cadastro do usuário.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {step === 2 && (
+        <div className="animate-fade-in space-y-3">
+          <div>
+            <h3 className="text-sm font-black uppercase text-black">
+              2. Cargos e acessos
+            </h3>
+            <p className="mt-1 text-[10px] font-medium text-gray-500">
+              Selecione os cargos que serão atribuídos ao usuário.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {CARGOS_ATRIBUIVEIS.map((cargo) => (
+              <label
+                key={cargo.id}
+                className={`flex cursor-pointer items-center gap-3 rounded-lg border-2 p-3 transition-all ${
+                  cargos.includes(cargo.id)
+                    ? "border-black bg-pensi-yellow shadow-[2px_2px_0px_#000]"
+                    : "border-gray-300 bg-white hover:border-black"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={cargos.includes(cargo.id)}
+                  onChange={() => toggleItem(setCargos, cargo.id)}
+                  className="h-4 w-4 accent-black"
+                />
+                <span className="text-xs font-black uppercase">
+                  {cargo.label}
+                </span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {step === 3 && (
+        <div className="animate-fade-in space-y-3">
+          <div>
+            <h3 className="text-sm font-black uppercase text-black">
+              3. Unidade(s) de atuação
+            </h3>
+            <p className="mt-1 text-[10px] font-medium text-gray-500">
+              Selecione ao menos uma unidade para vincular ao usuário.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {unidadesDisponiveis.map((unidade) => (
+              <label
+                key={unidade}
+                className={`flex cursor-pointer items-center gap-3 rounded-lg border-2 p-3 transition-all ${
+                  unidades.includes(unidade)
+                    ? "border-black bg-pensi-yellow shadow-[2px_2px_0px_#000]"
+                    : "border-gray-300 bg-white hover:border-black"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={unidades.includes(unidade)}
+                  onChange={() => toggleItem(setUnidades, unidade)}
+                  className="h-4 w-4 accent-black"
+                />
+                <MapPin className="h-3.5 w-3.5 shrink-0" />
+                <span className="text-[11px] font-black">{unidade}</span>
+              </label>
+            ))}
+          </div>
+
+          {unidadesDisponiveis.length === 0 && (
+            <p className="rounded-lg border-2 border-red-300 bg-red-50 p-3 text-[10px] font-bold text-red-700">
+              Nenhuma unidade disponível para seleção.
+            </p>
+          )}
+
+          <p className="text-[9px] font-semibold text-gray-400">
+            {unidades.length} unidade(s) selecionada(s).
+          </p>
+        </div>
+      )}
+
+      {step === 4 && (
+        <div className="animate-fade-in space-y-4">
+          <div>
+            <h3 className="text-sm font-black uppercase text-black">
+              4. Disciplinas lecionadas
+            </h3>
+            <p className="mt-1 text-[10px] font-medium text-gray-500">
+              Selecione as disciplinas vinculadas ao professor.
+            </p>
+          </div>
+
+          <div className="grid max-h-[300px] grid-cols-2 gap-2 overflow-y-auto p-1 sm:grid-cols-3">
+            {disciplinasLista.map(([key, nomeDisciplina]) => (
+              <label
+                key={key}
+                className={`flex cursor-pointer items-center gap-2 rounded-lg border-2 p-2 transition-all ${
+                  disciplinas.includes(key)
+                    ? "border-black bg-pensi-yellow"
+                    : "border-gray-300 bg-white hover:border-black"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={disciplinas.includes(key)}
+                  onChange={() => toggleItem(setDisciplinas, key)}
+                  className="h-3.5 w-3.5 accent-black"
+                />
+                <span className="truncate text-[10px] font-bold">
+                  {nomeDisciplina}
+                </span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {step === 5 && (
+        <div className="animate-fade-in space-y-4">
+          <div>
+            <h3 className="text-sm font-black uppercase text-black">
+              5. Séries e turmas
+            </h3>
+            <p className="mt-1 text-[10px] font-medium text-gray-500">
+              Configure as séries e turmas de cada disciplina e unidade.
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            {pares.map(({ disciplina, unidade }) => {
+              const chave = `${disciplina}|${unidade}`;
+              const selecao = selecoesPorPar[chave] || {
+                series: [],
+                turmas: [],
+              };
+
+              const seriesDisponiveis = getSeriesPorUnidades([unidade]);
+              const turmasDisponiveis = getTurmasPorUnidadesESeries(
+                [unidade],
+                selecao.series
+              );
+
+              return (
+                <div
+                  key={chave}
+                  className="rounded-xl border-2 border-black bg-white p-3 shadow-[3px_3px_0px_#000]"
+                >
+                  <div className="mb-3 flex items-center justify-between gap-2">
+                    <div>
+                      <p className="text-[11px] font-black uppercase">
+                        {disciplina}
+                      </p>
+                      <p className="text-[9px] font-bold uppercase text-gray-400">
+                        {unidade}
+                      </p>
+                    </div>
+                    <MapPin className="h-4 w-4 shrink-0 text-gray-400" />
+                  </div>
+
+                  <p className="mb-2 text-[9px] font-black uppercase tracking-wider text-gray-500">
+                    Séries
+                  </p>
+
+                  <div className="mb-4 flex flex-wrap gap-1.5">
+                    {seriesDisponiveis.map((serie) => (
+                      <button
+                        key={serie}
+                        type="button"
+                        onClick={() => {
+                          const novasSeries = selecao.series.includes(serie)
+                            ? selecao.series.filter((item) => item !== serie)
+                            : [...selecao.series, serie];
+
+                          const turmasValidas =
+                            getTurmasPorUnidadesESeries(
+                              [unidade],
+                              novasSeries
+                            ).map((turma) => turma.turma);
+
+                          const novasTurmas = selecao.turmas.filter((turma) =>
+                            turmasValidas.includes(turma)
+                          );
+
+                          setSelecao(chave, {
+                            series: novasSeries,
+                            turmas: novasTurmas,
+                          });
+                        }}
+                        className={`${botaoClass} ${
+                          selecao.series.includes(serie)
+                            ? "bg-pensi-yellow shadow-[2px_2px_0px_#000]"
+                            : "bg-white hover:bg-gray-100"
+                        }`}
+                      >
+                        {serie}
+                      </button>
+                    ))}
+                  </div>
+
+                  <p className="mb-2 text-[9px] font-black uppercase tracking-wider text-gray-500">
+                    Turmas
+                  </p>
+
+                  <div className="flex flex-wrap gap-1.5">
+                    {turmasDisponiveis.length === 0 ? (
+                      <span className="text-[10px] italic text-gray-400">
+                        Selecione as séries primeiro.
+                      </span>
+                    ) : (
+                      turmasDisponiveis.map((turma) => (
+                        <button
+                          key={turma.turma}
+                          type="button"
+                          onClick={() => {
+                            const novasTurmas = selecao.turmas.includes(
+                              turma.turma
+                            )
+                              ? selecao.turmas.filter(
+                                  (item) => item !== turma.turma
+                                )
+                              : [...selecao.turmas, turma.turma];
+
+                            setSelecao(chave, {
+                              ...selecao,
+                              turmas: novasTurmas,
+                            });
+                          }}
+                          className={`${botaoClass} ${
+                            selecao.turmas.includes(turma.turma)
+                              ? "bg-pensi-yellow shadow-[2px_2px_0px_#000]"
+                              : "bg-white hover:bg-gray-100"
+                          }`}
+                        >
+                          {turma.turma}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <div className="flex gap-3 border-t-2 border-gray-200 pt-4">
+        <button
+          type="button"
+          onClick={() => (step > 1 ? setStep(step - 1) : onClose())}
+          disabled={loading}
+          className="flex-1 rounded-lg border-2 border-black bg-white py-3 text-[10px] font-black uppercase shadow-[3px_3px_0px_#000] transition-all hover:bg-gray-100 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none disabled:opacity-50"
+        >
+          {step > 1 ? "Voltar" : "Cancelar"}
+        </button>
+
+        <button
+          type="button"
+          onClick={avancar}
+          disabled={loading}
+          className="flex-1 rounded-lg border-2 border-black bg-pensi-yellow py-3 text-[10px] font-black uppercase shadow-[3px_3px_0px_#000] transition-all hover:brightness-95 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none disabled:opacity-50"
+        >
+          {loading
+            ? "Processando..."
+            : step === totalEtapas
+              ? "Finalizar cadastro"
+              : "Próximo"}
+        </button>
+      </div>
+    </div>
+  );
+}
