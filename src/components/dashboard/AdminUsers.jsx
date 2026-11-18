@@ -9,7 +9,6 @@ import {
 } from "firebase/firestore";
 
 import { db } from "../../services/firebase";
-import { getRegionalDaUnidade } from "../../data/unidades";
 import { useTurmas } from "../../hooks/useTurmas";
 import { useUnidades } from "../../hooks/useUnidades";
 
@@ -27,6 +26,42 @@ import CadastrarUsuario from "./users/CadastrarUsuario";
 import TeacherProfileModal from "./TeacherProfileModal";
 
 const POR_PAGINA = 10;
+
+function normalizarTexto(texto) {
+  return String(texto || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function obterUnidades(usuario) {
+  const unidade = Array.isArray(usuario.unidade)
+    ? usuario.unidade
+    : String(usuario.unidade || "").split(",");
+
+  return [
+    ...new Set([
+      ...unidade,
+      ...(usuario.unidadesComando || []),
+    ].map((u) => String(u).trim()).filter(Boolean)),
+  ];
+}
+
+function obterStatus(usuario) {
+  const cargos = usuario.cargos || [];
+
+  if (cargos.includes("regional") || obterUnidades(usuario).length === 0) {
+    return usuario.status || "Ativo";
+  }
+
+  const unidades = obterUnidades(usuario);
+  const inativas = usuario.unidadesInativas || [];
+
+  return unidades.some((u) => !inativas.includes(u))
+    ? "Ativo"
+    : "Inativo";
+}
 
 export default function AdminUsers({
   unidadesEscopo,
@@ -59,7 +94,6 @@ export default function AdminUsers({
   const ehRegional = perfilAtivo === "regional";
   const ehDirecao = ["diretor", "coordenador"].includes(perfilAtivo);
 
-  // CARREGAR USUÁRIOS
   async function carregarUsers() {
     try {
       const snap = await getDocs(collection(db, "users"));
@@ -72,7 +106,9 @@ export default function AdminUsers({
           id: d.id,
           nome: data.nome || "Sem nome",
           email: data.email || "Sem e-mail",
-          cargos: data.cargos || ["professor"],
+          cargos: Array.isArray(data.cargos)
+            ? data.cargos
+            : ["professor"],
           unidade: data.unidade || "",
           unidadesComando: data.unidadesComando || [],
           unidadesInativas: data.unidadesInativas || [],
@@ -97,11 +133,30 @@ export default function AdminUsers({
     carregarUsers();
   }, []);
 
-  // USUÁRIOS VISÍVEIS
+  const regionaisDisponiveis = useMemo(() => {
+    return users
+      .filter((u) => u.cargos.includes("regional"))
+      .map((u) => ({
+        id: u.id,
+        nome: u.nome,
+        unidades: u.unidadesComando || [],
+      }))
+      .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+  }, [users]);
+
+  const cargosDisponiveis = useMemo(() => {
+    return [
+      ...new Set(
+        users
+          .filter((u) => !u.cargos.includes("admin"))
+          .flatMap((u) => u.cargos || [])
+      ),
+    ].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [users]);
+
   const usersVisiveis = useMemo(() => {
     return users.filter((u) => {
       if (u.cargos.includes("admin")) return false;
-
       if (currentUser && u.id === currentUser.uid) return false;
 
       if (ehDirecao || ehRegional) {
@@ -109,9 +164,7 @@ export default function AdminUsers({
           return false;
         }
 
-        const unidadesDoUser = (u.unidade || "")
-          .split(",")
-          .map((s) => s.trim());
+        const unidadesDoUser = obterUnidades(u);
 
         if (
           !unidadesDoUser.some((uni) =>
@@ -126,65 +179,66 @@ export default function AdminUsers({
     });
   }, [users, ehRegional, ehDirecao, unidadesEscopo, currentUser]);
 
-  // UNIDADES DISPONÍVEIS
   const unidadesUnicas = useMemo(() => {
-    const todas = usersVisiveis
-      .flatMap((u) => u.unidade.split(",").map((s) => s.trim()))
-      .filter(Boolean);
-
-    let base = ["Todas", ...new Set(todas)].sort();
+    let unidades = usersVisiveis.flatMap(obterUnidades);
 
     if (filtroRegional !== "Todas") {
-      base = [
-        "Todas",
-        ...base.slice(1).filter(
-          (u) => getRegionalDaUnidade(u) === filtroRegional
-        ),
-      ];
-    }
-
-    return base;
-  }, [usersVisiveis, filtroRegional]);
-
-  // FILTRAGEM
-  const usersFiltrados = useMemo(() => {
-    const termoBusca = busca.toLowerCase().trim();
-
-    const filtrados = usersVisiveis.filter((u) => {
-      const matchBusca =
-        u.nome.toLowerCase().includes(termoBusca) ||
-        u.email.toLowerCase().includes(termoBusca);
-
-      const matchCargo =
-        filtroCargo === "todos" || u.cargos.includes(filtroCargo);
-
-      const matchUnidade =
-        filtroUnidade === "Todas" || u.unidade.includes(filtroUnidade);
-
-      const todasUnidades = u.unidade
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean);
-
-      const inativas = u.unidadesInativas || [];
-
-      const temUnidadeAtiva = todasUnidades.some(
-        (uni) => !inativas.includes(uni)
+      const regional = regionaisDisponiveis.find(
+        (r) => r.id === filtroRegional
       );
 
-      let matchStatus = true;
+      unidades = unidades.filter((u) =>
+        (regional?.unidades || []).includes(u)
+      );
+    }
 
-      if (filtroStatus === "Ativo") {
-        matchStatus = temUnidadeAtiva;
-      } else if (filtroStatus === "Inativo") {
-        matchStatus = !temUnidadeAtiva;
+    return [
+      "Todas",
+      ...new Set(unidades),
+    ].sort((a, b) => {
+      if (a === "Todas") return -1;
+      if (b === "Todas") return 1;
+      return a.localeCompare(b, "pt-BR");
+    });
+  }, [usersVisiveis, filtroRegional, regionaisDisponiveis]);
+
+  const usersFiltrados = useMemo(() => {
+    const termoBusca = normalizarTexto(busca);
+
+    return usersVisiveis.filter((u) => {
+      const matchBusca =
+        normalizarTexto(u.nome).includes(termoBusca) ||
+        normalizarTexto(u.email).includes(termoBusca);
+
+      const matchCargo =
+        filtroCargo === "todos" ||
+        u.cargos.includes(filtroCargo);
+
+      const unidadesDoUser = obterUnidades(u);
+
+      const matchUnidade =
+        filtroUnidade === "Todas" ||
+        unidadesDoUser.includes(filtroUnidade);
+
+      const matchStatus =
+        filtroStatus === "todos" ||
+        obterStatus(u) === filtroStatus;
+
+      let matchRegional = true;
+
+      if (filtroRegional !== "Todas") {
+        const regional = regionaisDisponiveis.find(
+          (r) => r.id === filtroRegional
+        );
+
+        const unidadesRegionais = regional?.unidades || [];
+
+        matchRegional =
+          u.id === filtroRegional ||
+          unidadesDoUser.some((uni) =>
+            unidadesRegionais.includes(uni)
+          );
       }
-
-      const primeiraUnidade = todasUnidades[0] || "";
-
-      const matchRegional =
-        filtroRegional === "Todas" ||
-        getRegionalDaUnidade(primeiraUnidade) === filtroRegional;
 
       return (
         matchBusca &&
@@ -193,9 +247,7 @@ export default function AdminUsers({
         matchStatus &&
         matchRegional
       );
-    });
-
-    return filtrados.sort((a, b) =>
+    }).sort((a, b) =>
       a.nome.localeCompare(b.nome, "pt-BR")
     );
   }, [
@@ -205,12 +257,21 @@ export default function AdminUsers({
     filtroUnidade,
     filtroStatus,
     filtroRegional,
+    regionaisDisponiveis,
   ]);
 
-  // PAGINAÇÃO
   useEffect(() => {
     setPaginaAtual(1);
   }, [busca, filtroCargo, filtroUnidade, filtroStatus, filtroRegional]);
+
+  useEffect(() => {
+    if (
+      filtroUnidade !== "Todas" &&
+      !unidadesUnicas.includes(filtroUnidade)
+    ) {
+      setFiltroUnidade("Todas");
+    }
+  }, [unidadesUnicas, filtroUnidade]);
 
   const totalPaginas = Math.max(
     1,
@@ -225,19 +286,10 @@ export default function AdminUsers({
     inicio + POR_PAGINA
   );
 
-  // CONTAGEM DE INATIVOS
-  const totalInativos = usersVisiveis.filter((u) => {
-    const todas = u.unidade
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
+  const totalInativos = usersVisiveis.filter(
+    (u) => obterStatus(u) === "Inativo"
+  ).length;
 
-    const inativas = u.unidadesInativas || [];
-
-    return !todas.some((uni) => !inativas.includes(uni));
-  }).length;
-
-  // LIMPAR FILTROS
   const limparFiltros = () => {
     setBusca("");
     setFiltroCargo("todos");
@@ -253,7 +305,6 @@ export default function AdminUsers({
     filtroStatus !== "todos" ||
     filtroRegional !== "Todas";
 
-  // ALTERAR STATUS
   const confirmarMudancaStatus = async (
     unidadesInativas,
     turmasInativas
@@ -282,7 +333,6 @@ export default function AdminUsers({
     }
   };
 
-  // ALTERAR PERMISSÕES
   const confirmarCargos = async (cargosFinais) => {
     setProcessando(true);
 
@@ -307,7 +357,6 @@ export default function AdminUsers({
     }
   };
 
-  // EXCLUIR USUÁRIO
   const confirmarExclusao = async () => {
     setProcessando(true);
 
@@ -326,7 +375,6 @@ export default function AdminUsers({
     }
   };
 
-  // ADICIONAR UNIDADE
   const adicionarUnidade = async (
     userId,
     novasUnidades,
@@ -368,7 +416,6 @@ export default function AdminUsers({
     return (
       <div className="flex flex-col items-center justify-center py-20">
         <Loader2 className="mb-4 h-8 w-8 animate-spin text-gray-400" />
-
         <p className="text-sm font-bold uppercase tracking-wider text-gray-500">
           Carregando usuários...
         </p>
@@ -379,8 +426,6 @@ export default function AdminUsers({
   return (
     <div className="w-full min-w-0 pb-8 animate-fade-in">
       <div className="w-full min-w-0 px-1">
-
-        {/* CABEÇALHO */}
         <UsersHeader
           ehRegional={ehRegional}
           ehDirecao={ehDirecao}
@@ -388,11 +433,8 @@ export default function AdminUsers({
           inativos={totalInativos}
         />
 
-        {/* BUSCA E FILTROS */}
         <section className="mb-6 w-full rounded-lg border-2 border-black bg-white px-4 py-4 shadow-[3px_3px_0px_#000]">
           <div className="flex flex-wrap items-end gap-x-5 gap-y-3">
-
-            {/* BUSCA */}
             <div className="min-w-[200px] flex-[1.2]">
               <label className="mb-1.5 block text-[9px] font-bold uppercase tracking-wide text-gray-500">
                 Buscar usuário
@@ -411,11 +453,14 @@ export default function AdminUsers({
               </div>
 
               <p className="mt-2 text-[9px] font-medium text-gray-400">
-                Exibindo <span className="font-bold text-gray-700">{usersFiltrados.length}</span> de {usersVisiveis.length} usuários
+                Exibindo{" "}
+                <span className="font-bold text-gray-700">
+                  {usersFiltrados.length}
+                </span>{" "}
+                de {usersVisiveis.length} usuários
               </p>
             </div>
 
-            {/* FILTROS */}
             <div className="min-w-0 flex-[2.8]">
               <UsersFilters
                 ehRegional={ehRegional}
@@ -428,20 +473,16 @@ export default function AdminUsers({
                 setFiltroCargo={setFiltroCargo}
                 filtroStatus={filtroStatus}
                 setFiltroStatus={setFiltroStatus}
+                regionaisDisponiveis={regionaisDisponiveis}
+                cargosDisponiveis={cargosDisponiveis}
                 unidadesUnicas={unidadesUnicas}
                 limparFiltros={limparFiltros}
-                temFiltrosAtivos={
-                  filtroCargo !== "todos" ||
-                  filtroUnidade !== "Todas" ||
-                  filtroStatus !== "todos" ||
-                  filtroRegional !== "Todas"
-                }
+                temFiltrosAtivos={temFiltrosAtivos}
               />
             </div>
           </div>
         </section>
 
-        {/* LISTAGEM */}
         <main className="w-full min-w-0">
           <UsersList
             users={usersPaginados}
@@ -463,7 +504,6 @@ export default function AdminUsers({
         </main>
       </div>
 
-      {/* MODAL DE STATUS */}
       {modalStatus && (
         <StatusModal
           user={modalStatus}
@@ -479,7 +519,6 @@ export default function AdminUsers({
         />
       )}
 
-      {/* MODAL DE PERMISSÕES */}
       {modalPermissoes && podeGerenciar && (
         <PermissionsModal
           user={modalPermissoes}
@@ -489,7 +528,6 @@ export default function AdminUsers({
         />
       )}
 
-      {/* MODAL DE EXCLUSÃO */}
       {deleteUser && (
         <DeleteModal
           user={deleteUser}
@@ -499,7 +537,6 @@ export default function AdminUsers({
         />
       )}
 
-      {/* PERFIL DO PROFESSOR */}
       {perfilProfessor && (
         <TeacherProfileModal
           user={perfilProfessor}
@@ -507,7 +544,6 @@ export default function AdminUsers({
         />
       )}
 
-      {/* CADASTRO */}
       {isCadastroOpen && (
         <CadastrarUsuario
           onClose={() => setIsCadastroOpen(false)}

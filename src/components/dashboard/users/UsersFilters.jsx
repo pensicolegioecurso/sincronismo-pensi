@@ -1,138 +1,203 @@
 
-import { RotateCcw } from "lucide-react";
+import {
+  Filter,
+  RotateCcw,
+  MapPin,
+  CalendarDays,
+  Users,
+} from "lucide-react";
 
-const CARGOS = [
-  { id: "diretor", label: "Diretor" },
-  { id: "coordenador", label: "Coordenador" },
-  { id: "nucleo", label: "Núcleo" },
-  { id: "professor", label: "Professor" },
-];
-
-const REGIONAIS = ["Todas", "Beatriz", "Débora", "Paula"];
-
-const campos =
-  "h-9 w-full min-w-0 rounded-md border border-gray-300 bg-white px-3 text-[11px] font-semibold text-gray-700 outline-none transition-colors hover:border-gray-500 focus:border-black focus:bg-[#FFFDF2] focus:ring-1 focus:ring-pensi-yellow";
-
-function FilterField({ label, children, className = "" }) {
-  return (
-    <div className={`flex min-w-0 flex-col gap-1.5 ${className}`}>
-      <label className="text-[9px] font-bold uppercase tracking-wide text-gray-500">
-        {label}
-      </label>
-      {children}
-    </div>
-  );
-}
-
-export default function UsersFilters({
-  ehRegional,
-  ehDirecao,
+export default function OverviewFilters({
+  isDiretor,
+  isRegional,
+  unidadeFoco,
+  unidadesEscopo,
   filtroRegional,
   setFiltroRegional,
   filtroUnidade,
   setFiltroUnidade,
-  filtroCargo,
-  setFiltroCargo,
-  filtroStatus,
-  setFiltroStatus,
-  unidadesUnicas,
-  limparFiltros,
+  filtroPeriodo,
+  setFiltroPeriodo,
   temFiltrosAtivos,
+  regionaisDisponiveis = [],
+  unidadesDisponiveis = [],
 }) {
-  return (
-    <div className="flex w-full min-w-0 flex-wrap items-end gap-3">
+  const limparFiltros = () => {
+    setFiltroRegional("Todas");
+    setFiltroUnidade("Todas");
+    setFiltroPeriodo("geral");
+  };
 
-      {!ehRegional && !ehDirecao && (
-        <>
-          <FilterField
-            label="Regional"
-            className="min-w-[125px] flex-1"
+  // Normaliza regionais: aceita strings ou objetos
+  const regionais = (regionaisDisponiveis || [])
+    .map((regional) => {
+      if (typeof regional === "string") {
+        return {
+          id: regional,
+          nome: regional,
+          unidades: [],
+        };
+      }
+
+      return {
+        id: regional.id,
+        nome: regional.nome,
+        unidades: Array.isArray(regional.unidades)
+          ? regional.unidades
+          : [],
+      };
+    })
+    .filter((regional) => regional.nome);
+
+  // Normaliza unidades: aceita strings ou objetos
+  const unidades = (unidadesDisponiveis || [])
+    .map((unidade) =>
+      typeof unidade === "string"
+        ? unidade
+        : unidade?.nome || unidade?.id || ""
+    )
+    .filter(Boolean);
+
+  // Unidades disponíveis conforme a regional selecionada
+  const regionalSelecionada = regionais.find(
+    (regional) =>
+      regional.id === filtroRegional ||
+      regional.nome === filtroRegional
+  );
+
+  const unidadesFiltradas =
+    filtroRegional === "Todas"
+      ? unidades
+      : regionalSelecionada
+        ? unidades.filter((unidade) =>
+            regionalSelecionada.unidades.some((item) => {
+              const nome =
+                typeof item === "string"
+                  ? item
+                  : item?.nome || item?.id;
+
+              return nome === unidade;
+            })
+          )
+        : unidades;
+
+  const selectClass =
+    "w-full min-w-0 appearance-none rounded-xl border-2 border-black bg-white px-3 py-2.5 text-sm font-bold text-black outline-none transition focus:bg-yellow-50";
+
+  return (
+    <section className="mb-6 rounded-2xl border-2 border-black bg-white p-4 shadow-[4px_4px_0px_#000]">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg border-2 border-black bg-pensi-yellow">
+            <Filter size={17} />
+          </div>
+
+          <div>
+            <h2 className="text-sm font-black uppercase tracking-wide">
+              Filtros
+            </h2>
+            <p className="text-xs font-medium text-gray-500">
+              Refine os indicadores exibidos
+            </p>
+          </div>
+        </div>
+
+        {temFiltrosAtivos && (
+          <button
+            type="button"
+            onClick={limparFiltros}
+            className="flex items-center gap-2 rounded-lg border-2 border-black bg-white px-3 py-2 text-xs font-black uppercase transition hover:bg-gray-100"
           >
+            <RotateCcw size={14} />
+            Limpar filtros
+          </button>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {!isDiretor && !isRegional && (
+          <div className="min-w-0">
+            <label className="mb-1.5 flex items-center gap-2 text-xs font-black uppercase text-gray-600">
+              <Users size={14} />
+              Regional
+            </label>
+
             <select
               value={filtroRegional}
               onChange={(e) => {
                 setFiltroRegional(e.target.value);
                 setFiltroUnidade("Todas");
               }}
-              className={campos}
+              className={selectClass}
             >
-              {REGIONAIS.map((regional) => (
-                <option key={regional} value={regional}>
-                  {regional === "Todas"
-                    ? "Todas as regionais"
-                    : `Regional ${regional}`}
+              <option value="Todas">Todas as regionais</option>
+
+              {regionais.map((regional) => (
+                <option
+                  key={regional.id}
+                  value={regional.nome}
+                >
+                  {regional.nome}
                 </option>
               ))}
             </select>
-          </FilterField>
+          </div>
+        )}
 
-          <FilterField
-            label="Unidade"
-            className="min-w-[135px] flex-1"
-          >
+        {!isDiretor && !isRegional && (
+          <div className="min-w-0">
+            <label className="mb-1.5 flex items-center gap-2 text-xs font-black uppercase text-gray-600">
+              <MapPin size={14} />
+              Unidade
+            </label>
+
             <select
               value={filtroUnidade}
               onChange={(e) => setFiltroUnidade(e.target.value)}
-              className={campos}
+              className={selectClass}
             >
-              {unidadesUnicas.map((unidade) => (
+              <option value="Todas">Todas as unidades</option>
+
+              {unidadesFiltradas.map((unidade) => (
                 <option key={unidade} value={unidade}>
-                  {unidade === "Todas"
-                    ? "Todas as unidades"
-                    : unidade}
+                  {unidade}
                 </option>
               ))}
             </select>
-          </FilterField>
-        </>
-      )}
+          </div>
+        )}
 
-      {!ehDirecao && (
-        <FilterField
-          label="Cargo"
-          className="min-w-[125px] flex-1"
-        >
+        <div className="min-w-0">
+          <label className="mb-1.5 flex items-center gap-2 text-xs font-black uppercase text-gray-600">
+            <CalendarDays size={14} />
+            Período
+          </label>
+
           <select
-            value={filtroCargo}
-            onChange={(e) => setFiltroCargo(e.target.value)}
-            className={campos}
+            value={filtroPeriodo}
+            onChange={(e) => setFiltroPeriodo(e.target.value)}
+            className={selectClass}
           >
-            <option value="todos">Todos os cargos</option>
-
-            {CARGOS.map((cargo) => (
-              <option key={cargo.id} value={cargo.id}>
-                {cargo.label}
-              </option>
-            ))}
+            <option value="geral">Todo o período</option>
+            <option value="mes">Este mês</option>
+            <option value="hoje">Hoje</option>
           </select>
-        </FilterField>
+        </div>
+      </div>
+
+      {isDiretor && (
+        <div className="mt-3 flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 text-xs font-bold text-gray-600">
+          <MapPin size={14} />
+          Unidade: {unidadeFoco}
+        </div>
       )}
 
-      <FilterField
-        label="Status"
-        className="min-w-[120px] flex-1"
-      >
-        <select
-          value={filtroStatus}
-          onChange={(e) => setFiltroStatus(e.target.value)}
-          className={campos}
-        >
-          <option value="todos">Todos os status</option>
-          <option value="Ativo">Ativos</option>
-          <option value="Inativo">Inativos</option>
-        </select>
-      </FilterField>
-
-      {temFiltrosAtivos && (
-        <button
-          type="button"
-          onClick={limparFiltros}
-          className="flex h-9 shrink-0 items-center gap-1.5 px-2 text-[9px] font-bold uppercase text-gray-500 transition-colors hover:text-black"
-        >
-          <RotateCcw size={12} />
-          Limpar
-        </button>
+      {isRegional && (
+        <div className="mt-3 flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 text-xs font-bold text-gray-600">
+          <MapPin size={14} />
+          Unidades sob sua responsabilidade: {(unidadesEscopo || []).length}
+        </div>
       )}
-    </div>
+    </section>
   );
 }

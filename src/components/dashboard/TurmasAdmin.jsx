@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useMemo, useRef } from "react";
 
 import {
@@ -25,23 +24,17 @@ import { db } from "../../services/firebase";
 import { useTurmas } from "../../hooks/useTurmas";
 import { useUnidades } from "../../hooks/useUnidades";
 
-// Seções
 import ConfigHeader from "./config/ConfigHeader";
 import UnitsSection from "./config/UnitsSection";
 import CalendarsSection from "./config/CalendarsSection";
 import RegionalsSection from "./config/RegionalsSection";
 
-// Modais
 import UnitModal from "./config/UnitModal";
 import ClassModal from "./config/ClassModal";
 import ImportClassesModal from "./config/ImportClassesModal";
 import RegionalModal from "./config/RegionalModal";
 import CalendarModal from "./config/CalendarModal";
 import CalendarExceptionsModal from "./config/CalendarExceptionsModal";
-
-// ============================================================
-// CONSTANTES
-// ============================================================
 
 const TURNOS = ["M", "T"];
 
@@ -70,51 +63,109 @@ const inputClass =
 const buttonClass =
   "inline-flex items-center justify-center gap-2 rounded-xl border-2 border-black px-4 py-2.5 text-xs font-black uppercase shadow-[3px_3px_0_#000] transition hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none disabled:cursor-not-allowed disabled:opacity-50";
 
-// ============================================================
-// FUNÇÕES AUXILIARES
-// ============================================================
-
 function normalizarNome(nome) {
   const valor = nome.trim().replace(/\s+/g, " ").toLocaleLowerCase("pt-BR");
   return valor.charAt(0).toLocaleUpperCase("pt-BR") + valor.slice(1);
 }
 
-function calcularDiasLetivos(cal) {
+function normalizarCargos(perfil) {
+  if (!perfil) return [];
+  const cargos = new Set();
+  if (Array.isArray(perfil.cargos)) {
+    perfil.cargos.forEach((c) => c && cargos.add(String(c).toLowerCase()));
+  }
+  if (typeof perfil.cargo === "string") {
+    cargos.add(perfil.cargo.toLowerCase());
+  }
+  return Array.from(cargos);
+}
+
+function normalizarUnidadesComando(perfil) {
+  if (!perfil) return [];
+  const lista = perfil.unidadesComando;
+  if (Array.isArray(lista)) {
+    return lista
+      .flatMap((item) => (typeof item === "string" ? item.split(",") : []))
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+  if (typeof lista === "string") {
+    return lista.split(",").map((item) => item.trim()).filter(Boolean);
+  }
+  return [];
+}
+
+function obterUnidadePerfil(perfil) {
+  if (!perfil) return "";
+  if (typeof perfil.unidade === "string" && perfil.unidade.trim()) {
+    return perfil.unidade.trim().split(",")[0].trim();
+  }
+  if (Array.isArray(perfil.unidade) && perfil.unidade.length) {
+    return String(perfil.unidade[0]).trim();
+  }
+  return "";
+}
+
+function pertenceAoEscopo(unidade, escopo) {
+  if (!unidade) return false;
+  if (!Array.isArray(escopo) || !escopo.length) return true;
+  const alvo = String(unidade).toLocaleLowerCase("pt-BR");
+  return escopo.some(
+    (item) => String(item).toLocaleLowerCase("pt-BR") === alvo
+  );
+}
+
+function unidadeDaExcecao(excecao) {
+  if (!excecao) return null;
+  const valor = excecao.unidade;
+  if (valor === null || valor === undefined || valor === "") return null;
+  return String(valor);
+}
+
+function excecaoContaParaUnidade(excecao, unidade) {
+  const unidadeExcecao = unidadeDaExcecao(excecao);
+  if (unidadeExcecao === null) return true;
+  if (!unidade) return false;
+  return unidadeExcecao === String(unidade);
+}
+
+function calcularDiasLetivos(cal, unidade) {
   if (!cal.inicio || !cal.fim) return 0;
 
   const inicio = new Date(`${cal.inicio}T12:00:00`);
   const fim = new Date(`${cal.fim}T12:00:00`);
+  const datasExcluidas = new Set();
+
+  const excecoes = cal.excecoes || [];
+  const excecoesUnidade = unidade
+    ? excecoes.filter((item) => excecaoContaParaUnidade(item, unidade))
+    : excecoes;
+
+  excecoesUnidade.forEach((item) => {
+    const inicioExcecao = new Date(`${item.dataInicio}T12:00:00`);
+    const fimExcecao = new Date(`${item.dataFim || item.dataInicio}T12:00:00`);
+
+    for (
+      let data = new Date(inicioExcecao);
+      data <= fimExcecao;
+      data.setDate(data.getDate() + 1)
+    ) {
+      if (data.getDay() !== 0 && data.getDay() !== 6) {
+        datasExcluidas.add(data.toISOString().split("T")[0]);
+      }
+    }
+  });
+
   let diasUteis = 0;
 
   for (let data = new Date(inicio); data <= fim; data.setDate(data.getDate() + 1)) {
-    if (data.getDay() !== 0 && data.getDay() !== 6) diasUteis++;
+    if (data.getDay() === 0 || data.getDay() === 6) continue;
+    if (datasExcluidas.has(data.toISOString().split("T")[0])) continue;
+    diasUteis++;
   }
 
-  const datasExcluidas = new Set();
-
-  (cal.excecoes || [])
-    .filter((item) => item.tipo === "todas" && !item.unidade)
-    .forEach((item) => {
-      const inicioExcecao = new Date(`${item.dataInicio}T12:00:00`);
-      const fimExcecao = new Date(`${item.dataFim || item.dataInicio}T12:00:00`);
-
-      for (
-        let data = new Date(inicioExcecao);
-        data <= fimExcecao;
-        data.setDate(data.getDate() + 1)
-      ) {
-        if (data.getDay() !== 0 && data.getDay() !== 6) {
-          datasExcluidas.add(data.toISOString().split("T")[0]);
-        }
-      }
-    });
-
-  return Math.max(0, diasUteis - datasExcluidas.size);
+  return Math.max(0, diasUteis);
 }
-
-// ============================================================
-// COMPONENTE PRINCIPAL
-// ============================================================
 
 export default function TurmasAdmin({
   perfilAtivo,
@@ -129,30 +180,55 @@ export default function TurmasAdmin({
     excluirUnidade,
   } = useUnidades();
 
-  // ============================================================
-  // PERMISSÕES TEMPORARIAMENTE LIBERADAS
-  // ============================================================
+  const cargos = useMemo(() => normalizarCargos(perfilAtivo), [perfilAtivo]);
 
-  const podeGerenciar = true;
-  const ehRegional = false;
-  const ehDirecao = false;
-  const podeVerRegionais = true;
+  const temPerfil = cargos.length > 0;
 
-  // Todas as unidades disponíveis
-  const unidadesPermitidas = todasUnidades;
+  const ehAdmin = cargos.includes("admin") || cargos.includes("administrador");
+  const ehNucleo = cargos.includes("nucleo");
+  const ehRegional = cargos.includes("regional");
+  const ehDirecao =
+    cargos.includes("diretor") ||
+    cargos.includes("direcao") ||
+    cargos.includes("coordenador");
 
-  // ============================================================
-  // ESTADOS GERAIS
-  // ============================================================
+  const podeGerenciar = temPerfil
+    ? ehAdmin || ehNucleo || ehRegional || ehDirecao
+    : true;
 
-  const [secaoUnidadesVisivel, setSecaoUnidadesVisivel] = useState(false);
+  const podeVerRegionais = temPerfil ? ehAdmin || ehNucleo : true;
+
+  const unidadesComando = useMemo(
+    () => normalizarUnidadesComando(perfilAtivo),
+    [perfilAtivo]
+  );
+
+  const unidadePerfil = useMemo(
+    () => obterUnidadePerfil(perfilAtivo),
+    [perfilAtivo]
+  );
+
+  const escopoUnidades = useMemo(() => {
+    if (!temPerfil) return todasUnidades;
+    if (ehAdmin || ehNucleo) return todasUnidades;
+    if (ehRegional) {
+      const base = unidadesComando.length ? unidadesComando : [];
+      if (!base.length) return todasUnidades;
+      return todasUnidades.filter((u) => pertenceAoEscopo(u, base));
+    }
+    if (ehDirecao) {
+      if (!unidadePerfil) return todasUnidades;
+      return todasUnidades.filter((u) => pertenceAoEscopo(u, [unidadePerfil]));
+    }
+    return todasUnidades;
+  }, [todasUnidades, temPerfil, ehAdmin, ehNucleo, ehRegional, ehDirecao, unidadesComando, unidadePerfil]);
+
+  const unidadesPermitidas = escopoUnidades;
+
+  const [secaoUnidadesVisivel, setSecaoUnidadesVisivel] = useState(true);
   const [unidadesAbertas, setUnidadesAbertas] = useState({});
   const [busca, setBusca] = useState("");
   const [filtroUnidade, setFiltroUnidade] = useState("Todas");
-
-  // ============================================================
-  // MODAIS
-  // ============================================================
 
   const [modalUnidade, setModalUnidade] = useState(false);
   const [modalTurma, setModalTurma] = useState(false);
@@ -160,10 +236,6 @@ export default function TurmasAdmin({
   const [modalRegional, setModalRegional] = useState(null);
   const [modalNovoCal, setModalNovoCal] = useState(false);
   const [modalExcecao, setModalExcecao] = useState(null);
-
-  // ============================================================
-  // CADASTROS
-  // ============================================================
 
   const [novaUnidadeNome, setNovaUnidadeNome] = useState("");
 
@@ -178,21 +250,34 @@ export default function TurmasAdmin({
   const [erro, setErro] = useState("");
   const [sucesso, setSucesso] = useState("");
 
-  // ============================================================
-  // IMPORTAÇÃO
-  // ============================================================
-
   const fileInputRef = useRef(null);
   const [csvData, setCsvData] = useState([]);
   const [csvErros, setCsvErros] = useState([]);
 
-  // ============================================================
-  // CALENDÁRIOS
-  // ============================================================
-
   const [calendarios, setCalendarios] = useState([]);
   const [carregandoCal, setCarregandoCal] = useState(true);
-  const [unidadeCalendario, setUnidadeCalendario] = useState("Todas");
+  const [unidadeCalendario, setUnidadeCalendario] = useState(
+    ehDirecao && unidadePerfil ? unidadePerfil : "Todas"
+  );
+
+  useEffect(() => {
+    if (ehDirecao && unidadePerfil) {
+      setUnidadeCalendario(unidadePerfil);
+      return;
+    }
+    if (
+      unidadeCalendario !== "Todas" &&
+      !unidadesPermitidas.some(
+        (u) =>
+          String(u).toLocaleLowerCase("pt-BR") ===
+          String(unidadeCalendario).toLocaleLowerCase("pt-BR")
+      )
+    ) {
+      setUnidadeCalendario(
+        ehRegional ? (unidadesPermitidas[0] || "Todas") : "Todas"
+      );
+    }
+  }, [ehDirecao, ehRegional, unidadePerfil, unidadesPermitidas, unidadeCalendario]);
 
   const [novoCal, setNovoCal] = useState({
     nome: "",
@@ -209,17 +294,9 @@ export default function TurmasAdmin({
     turma: "",
   });
 
-  // ============================================================
-  // REGIONAIS
-  // ============================================================
-
   const [regionais, setRegionais] = useState([]);
   const [carregandoReg, setCarregandoReg] = useState(false);
   const [unidadesTemp, setUnidadesTemp] = useState([]);
-
-  // ============================================================
-  // CARREGAR CALENDÁRIOS
-  // ============================================================
 
   useEffect(() => {
     const unsubscribe = onSnapshot(
@@ -246,11 +323,9 @@ export default function TurmasAdmin({
     return unsubscribe;
   }, []);
 
-  // ============================================================
-  // CARREGAR REGIONAIS
-  // ============================================================
-
   useEffect(() => {
+    if (!podeVerRegionais) return;
+
     async function carregarRegionais() {
       setCarregandoReg(true);
 
@@ -282,16 +357,18 @@ export default function TurmasAdmin({
     }
 
     carregarRegionais();
-  }, []);
+  }, [podeVerRegionais]);
 
-  // ============================================================
-  // FILTRAR TURMAS
-  // ============================================================
+  const turmasPermitidas = useMemo(() => {
+    if (!temPerfil) return turmas;
+    if (ehAdmin || ehNucleo) return turmas;
+    return turmas.filter((item) => pertenceAoEscopo(item.unidade, unidadesPermitidas));
+  }, [turmas, temPerfil, ehAdmin, ehNucleo, unidadesPermitidas]);
 
   const turmasFiltradas = useMemo(() => {
     const termo = busca.trim().toLocaleLowerCase("pt-BR");
 
-    return turmas.filter((item) => {
+    return turmasPermitidas.filter((item) => {
       if (filtroUnidade !== "Todas" && item.unidade !== filtroUnidade) {
         return false;
       }
@@ -306,19 +383,15 @@ export default function TurmasAdmin({
 
       return true;
     });
-  }, [turmas, busca, filtroUnidade]);
+  }, [turmasPermitidas, busca, filtroUnidade]);
 
   const totalTurmas = turmasFiltradas.length;
-
-  // ============================================================
-  // ABRIR MODAIS
-  // ============================================================
 
   const abrirNovaTurma = (unidade = "") => {
     setErro("");
 
     setNovaTurma({
-      unidade: unidade || todasUnidades[0] || "",
+      unidade: unidade || unidadesPermitidas[0] || "",
       serie: "",
       turno: "M",
       turma: "",
@@ -347,10 +420,6 @@ export default function TurmasAdmin({
     setModalRegional(regional);
     setUnidadesTemp([...(regional.unidadesComando || [])]);
   };
-
-  // ============================================================
-  // CADASTRAR UNIDADE
-  // ============================================================
 
   const adicionarUnidade = async (event) => {
     event.preventDefault();
@@ -395,10 +464,6 @@ export default function TurmasAdmin({
     }
   };
 
-  // ============================================================
-  // CADASTRAR TURMA
-  // ============================================================
-
   const adicionarTurma = async (event) => {
     event.preventDefault();
     setErro("");
@@ -408,6 +473,11 @@ export default function TurmasAdmin({
 
     if (!novaTurma.unidade || !novaTurma.serie || !novaTurma.turno || !nomeTurma) {
       setErro("Preencha todos os campos.");
+      return;
+    }
+
+    if (!pertenceAoEscopo(novaTurma.unidade, unidadesPermitidas)) {
+      setErro("Você não tem permissão para cadastrar turmas nessa unidade.");
       return;
     }
 
@@ -446,11 +516,12 @@ export default function TurmasAdmin({
     }
   };
 
-  // ============================================================
-  // EXCLUIR TURMA
-  // ============================================================
-
   const excluirTurma = async (turma) => {
+    if (!pertenceAoEscopo(turma.unidade, unidadesPermitidas)) {
+      setErro("Você não tem permissão para excluir turmas dessa unidade.");
+      return;
+    }
+
     if (!window.confirm(`Excluir a turma "${turma.turma}"?`)) return;
 
     try {
@@ -460,10 +531,6 @@ export default function TurmasAdmin({
       setErro("Não foi possível excluir a turma.");
     }
   };
-
-  // ============================================================
-  // EXCLUIR UNIDADE COMPLETA
-  // ============================================================
 
   const excluirUnidadeCompleta = async (nomeUnidade) => {
     const turmasDaUnidade = turmas.filter((item) => item.unidade === nomeUnidade);
@@ -497,10 +564,6 @@ export default function TurmasAdmin({
       setSalvando(false);
     }
   };
-
-  // ============================================================
-  // IMPORTAR CSV
-  // ============================================================
 
   const handleFileUpload = (event) => {
     const file = event.target.files?.[0];
@@ -554,10 +617,6 @@ export default function TurmasAdmin({
     reader.readAsText(file, "UTF-8");
     event.target.value = "";
   };
-
-  // ============================================================
-  // CONFIRMAR IMPORTAÇÃO
-  // ============================================================
 
   const confirmarImportacao = async () => {
     if (!csvData.length || csvErros.length) return;
@@ -613,10 +672,6 @@ export default function TurmasAdmin({
     }
   };
 
-  // ============================================================
-  // CRIAR CALENDÁRIO
-  // ============================================================
-
   const criarCalendario = async (event) => {
     event.preventDefault();
     setErro("");
@@ -652,10 +707,6 @@ export default function TurmasAdmin({
     }
   };
 
-  // ============================================================
-  // ADICIONAR EXCEÇÃO
-  // ============================================================
-
   const adicionarExcecao = async (event) => {
     event.preventDefault();
     setErro("");
@@ -682,6 +733,24 @@ export default function TurmasAdmin({
       return;
     }
 
+    const unidadeExcecao =
+      unidadeCalendario === "Todas" ? null : unidadeCalendario;
+
+    if (unidadeExcecao && !pertenceAoEscopo(unidadeExcecao, unidadesPermitidas)) {
+      setErro("Você não tem permissão para adicionar exceções nessa unidade.");
+      return;
+    }
+
+    if (ehRegional && !unidadeExcecao) {
+      setErro("Selecione uma unidade específica para adicionar a exceção.");
+      return;
+    }
+
+    if (ehDirecao && (!unidadeExcecao || unidadeExcecao !== unidadePerfil)) {
+      setErro("Você só pode adicionar exceções na sua unidade.");
+      return;
+    }
+
     setSalvando(true);
 
     try {
@@ -693,7 +762,7 @@ export default function TurmasAdmin({
         tipo: excecao.tipo,
         serie: excecao.tipo === "serie" ? excecao.serie : null,
         turma: excecao.tipo === "turma" ? excecao.turma : null,
-        unidade: unidadeCalendario === "Todas" ? null : unidadeCalendario,
+        unidade: unidadeExcecao,
       };
 
       const novasExcecoes = [...(modalExcecao.excecoes || []), novaExcecao];
@@ -720,10 +789,6 @@ export default function TurmasAdmin({
     }
   };
 
-  // ============================================================
-  // REMOVER EXCEÇÃO
-  // ============================================================
-
   const removerExcecao = async (id) => {
     if (!window.confirm("Remover esta exceção?")) return;
 
@@ -742,10 +807,6 @@ export default function TurmasAdmin({
       setErro("Erro ao remover exceção.");
     }
   };
-
-  // ============================================================
-  // SALVAR UNIDADES DO REGIONAL
-  // ============================================================
 
   const salvarUnidadesRegional = async () => {
     if (!modalRegional) return;
@@ -774,30 +835,19 @@ export default function TurmasAdmin({
     }
   };
 
-  // ============================================================
-  // EXCEÇÕES DA UNIDADE
-  // ============================================================
-
   const excecoesDaUnidade = modalExcecao
-    ? (modalExcecao.excecoes || []).filter(
-        (item) =>
-          item.unidade === (unidadeCalendario === "Todas" ? null : unidadeCalendario)
-      )
+    ? (modalExcecao.excecoes || []).filter((item) => {
+        const unidadeExcecao = unidadeDaExcecao(item);
+        if (unidadeCalendario === "Todas") return unidadeExcecao === null;
+        return unidadeExcecao === String(unidadeCalendario);
+      })
     : [];
-
-  // ============================================================
-  // EXCLUIR CALENDÁRIO
-  // ============================================================
 
   const excluirCalendario = (cal) => {
     if (window.confirm("Excluir este calendário?")) {
       deleteDoc(doc(db, "calendarios", cal.id));
     }
   };
-
-  // ============================================================
-  // FECHAR MODAIS
-  // ============================================================
 
   const fecharModalUnidade = () => {
     setModalUnidade(false);
@@ -826,10 +876,6 @@ export default function TurmasAdmin({
     setErro("");
   };
 
-  // ============================================================
-  // CARREGAMENTO
-  // ============================================================
-
   if (carregandoTurmas) {
     return (
       <div className="p-10 text-center text-sm font-bold">
@@ -837,10 +883,6 @@ export default function TurmasAdmin({
       </div>
     );
   }
-
-  // ============================================================
-  // RENDERIZAÇÃO
-  // ============================================================
 
   return (
     <div className="w-full min-w-0 space-y-8 pb-10">
@@ -875,7 +917,6 @@ export default function TurmasAdmin({
 
       <UnitsSection
         unidadesPermitidas={unidadesPermitidas}
-        turmas={turmas}
         turmasFiltradas={turmasFiltradas}
         totalTurmas={totalTurmas}
         busca={busca}
@@ -889,7 +930,6 @@ export default function TurmasAdmin({
         setSecaoUnidadesVisivel={setSecaoUnidadesVisivel}
         unidadesAbertas={unidadesAbertas}
         setUnidadesAbertas={setUnidadesAbertas}
-        abrirNovaTurma={abrirNovaTurma}
         excluirTurma={excluirTurma}
         abrirImportacao={() => setModalImportar(true)}
         inputClass={inputClass}
@@ -898,7 +938,11 @@ export default function TurmasAdmin({
 
       <CalendarsSection
         podeGerenciar={podeGerenciar}
+        podeCriarCalendario={podeGerenciar}
+        podeExcluirCalendario={podeGerenciar}
         ehDirecao={ehDirecao}
+        ehRegional={ehRegional}
+        unidadeAtivaPerfil={unidadePerfil}
         buttonClass={buttonClass}
         unidadeCalendario={unidadeCalendario}
         setUnidadeCalendario={setUnidadeCalendario}
@@ -916,6 +960,7 @@ export default function TurmasAdmin({
           carregandoReg={carregandoReg}
           regionais={regionais}
           abrirModalRegional={abrirModalRegional}
+          buttonClass={buttonClass}
         />
       )}
 
@@ -996,7 +1041,7 @@ export default function TurmasAdmin({
           setExcecao={setExcecao}
           unidadeCalendario={unidadeCalendario}
           SERIES_DISPONIVEIS={SERIES_DISPONIVEIS}
-          turmas={turmas}
+          turmas={turmasPermitidas}
           inputClass={inputClass}
           buttonClass={buttonClass}
           salvando={salvando}
@@ -1004,6 +1049,9 @@ export default function TurmasAdmin({
           excecoesDaUnidade={excecoesDaUnidade}
           removerExcecao={removerExcecao}
           podeGerenciar={podeGerenciar}
+          podeAdicionarGeral={true}
+          ehDirecao={ehDirecao}
+          ehRegional={ehRegional}
         />
       )}
 

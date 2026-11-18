@@ -1,6 +1,4 @@
 
-// src/pages/Calendar.jsx
-
 import { useEffect, useState, useMemo } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { useCalendarData } from "../hooks/useCalendarData";
@@ -17,8 +15,9 @@ import CalendarDetailPanel from "../components/calendar/CalendarDetailPanel";
 
 import {
   parseTurmasPorUnidade,
-  chaveTurma,
   extrairSerieTurma,
+  normalizarTurma,
+  normalizarUnidade,
 } from "../utils/turmas";
 
 function normalizar(s) {
@@ -26,7 +25,8 @@ function normalizar(s) {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
-    .trim();
+    .trim()
+    .replace(/\s+/g, " ");
 }
 
 function extrairBase(serie) {
@@ -75,6 +75,45 @@ function parseData(periodo, ano) {
   return null;
 }
 
+function obterUnidadesUsuario(valor) {
+  if (Array.isArray(valor)) {
+    return valor.map((item) => String(item).trim()).filter(Boolean);
+  }
+
+  return String(valor || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function obterTurmasInativas(unidade, turmasInativas) {
+  const unidadeNormalizada = normalizarUnidade(unidade);
+
+  return new Set(
+    (Array.isArray(turmasInativas) ? turmasInativas : [])
+      .map((item) => {
+        if (typeof item !== "string") return "";
+
+        // Formato: Unidade::Turma
+        if (item.includes("::")) {
+          const [unidadeItem, ...resto] = item.split("::");
+
+          if (
+            normalizarUnidade(unidadeItem) !== unidadeNormalizada
+          ) {
+            return "";
+          }
+
+          return normalizarTurma(resto.join("::"));
+        }
+
+        // Formato antigo: somente o nome da turma.
+        return normalizarTurma(item);
+      })
+      .filter(Boolean)
+  );
+}
+
 export default function CalendarPage({
   disciplinaKey,
   ano,
@@ -108,8 +147,10 @@ export default function CalendarPage({
   const [mesIdx, setMesIdx] = useState(0);
   const [diaSelecionado, setDiaSelecionado] = useState(null);
 
-  // Busca as abas disponíveis da disciplina
+  // Busca as abas disponíveis da disciplina.
   useEffect(() => {
+    let ativo = true;
+
     if (!disc) {
       setError(true);
       setLoading(false);
@@ -121,77 +162,124 @@ export default function CalendarPage({
 
     fetchAbas(disc)
       .then((lista) => {
+        if (!ativo) return;
+
         if (!lista || !lista.length) {
           throw new Error("Sem abas");
         }
 
         setAbas(lista);
       })
-      .catch(() => {
+      .catch((err) => {
+        if (!ativo) return;
+
+        console.error("Erro ao buscar abas:", err);
         setError(true);
         setLoading(false);
       });
-  }, [disciplinaKey, ano]);
 
-  // Identifica dinamicamente as turmas do professor
+    return () => {
+      ativo = false;
+    };
+  }, [disc, fetchAbas]);
+
+  // Identifica dinamicamente as turmas do professor.
   const opcoesProfessor = useMemo(() => {
     if (!user || !abas.length) return [];
 
     const mapa = parseTurmasPorUnidade(user.turmas || "");
 
-    const inativasU = new Set(user.unidadesInativas || []);
-    const inativasT = new Set(user.turmasInativas || []);
+    const unidadesUsuario = obterUnidadesUsuario(user.unidade);
 
-    const turmasPorUnidade = {};
+    const unidadesPermitidas = new Set(
+      unidadesUsuario.map(normalizarUnidade)
+    );
 
-    Object.entries(mapa).forEach(([uni, turmas]) => {
-      if (inativasU.has(uni)) return;
+    const unidadesInativas = new Set(
+      (Array.isArray(user.unidadesInativas)
+        ? user.unidadesInativas
+        : []
+      ).map(normalizarUnidade)
+    );
 
-      const ativas = turmas.filter(
-        (turma) => !inativasT.has(chaveTurma(uni, turma))
+    const resultado = [];
+
+    Object.entries(mapa).forEach(([unidade, turmas]) => {
+      const unidadeNormalizada = normalizarUnidade(unidade);
+
+      // Restringe às unidades cadastradas para o usuário.
+      if (
+        unidadesPermitidas.size > 0 &&
+        !unidadesPermitidas.has(unidadeNormalizada)
+      ) {
+        return;
+      }
+
+      // Uma unidade inativa não afeta as outras unidades.
+      if (unidadesInativas.has(unidadeNormalizada)) {
+        return;
+      }
+
+      const turmasInativas = obterTurmasInativas(
+        unidade,
+        user.turmasInativas
       );
 
-      if (ativas.length > 0) {
-        turmasPorUnidade[uni] = ativas;
-      }
-    });
+      turmas.forEach((nomeTurma) => {
+        if (turmasInativas.has(normalizarTurma(nomeTurma))) {
+          return;
+        }
 
-    let turmasParaExibir;
-
-    if (unidadePreSelecionada) {
-      turmasParaExibir =
-        turmasPorUnidade[unidadePreSelecionada] || [];
-    } else {
-      turmasParaExibir =
-        Object.values(turmasPorUnidade).flat();
-    }
-
-    return turmasParaExibir
-      .map((nomeTurma) => {
         const serieTurma = extrairSerieTurma(nomeTurma);
 
-        if (!serieTurma) return null;
+        if (!serieTurma) {
+          console.warn(
+            "Não foi possível identificar a série da turma:",
+            { unidade, nomeTurma }
+          );
+          return;
+        }
 
         const aba = acharAba(abas, serieTurma);
 
-        return aba
-          ? {
-              turma: nomeTurma,
-              serie: serieTurma,
-              aba,
-            }
-          : null;
-      })
-      .filter(Boolean);
+        if (!aba) {
+          console.warn(
+            "Não foi encontrada uma aba para a série:",
+            { unidade, nomeTurma, serieTurma, abas }
+          );
+          return;
+        }
+
+        // Restringe à unidade solicitada, quando houver.
+        if (
+          unidadePreSelecionada &&
+          unidadeNormalizada !==
+            normalizarUnidade(unidadePreSelecionada)
+        ) {
+          return;
+        }
+
+        resultado.push({
+          unidade,
+          turma: nomeTurma,
+          serie: serieTurma,
+          aba,
+        });
+      });
+    });
+
+    return resultado;
   }, [user, abas, unidadePreSelecionada]);
 
-  // Seleciona automaticamente a turma disponível
+  // Seleciona automaticamente uma turma disponível.
   useEffect(() => {
     if (!abas.length) return;
 
     if (turmaPreSelecionada) {
       const opcao = opcoesProfessor.find(
-        (o) => o.turma === turmaPreSelecionada
+        (o) =>
+          normalizarTurma(o.turma) ===
+          normalizarTurma(turmaPreSelecionada)
       );
 
       if (opcao) {
@@ -201,7 +289,7 @@ export default function CalendarPage({
       }
     }
 
-    if (user && opcoesProfessor.length > 0) {
+    if (opcoesProfessor.length > 0) {
       const primeira = opcoesProfessor[0];
 
       setTurmaSelecionada(primeira.turma);
@@ -209,33 +297,47 @@ export default function CalendarPage({
       return;
     }
 
-    if (opcoesProfessor.length === 0 && abas.length > 0) {
-      setSerie(abas[0]);
-      setTurmaSelecionada("");
-    }
-  }, [abas, opcoesProfessor, user, turmaPreSelecionada]);
+    // Mantém a visualização do calendário mesmo sem turma ativa.
+    setTurmaSelecionada("");
+    setSerie(abas[0]);
+  }, [abas, opcoesProfessor, turmaPreSelecionada]);
 
-  // Carrega os dados da aba selecionada
+  // Carrega os dados da aba selecionada.
   useEffect(() => {
     if (!serie || !disc || error) return;
 
+    let ativo = true;
+
     setLoading(true);
+    setDiaSelecionado(null);
 
     carregarAba(ano, disciplinaKey, serie)
       .then((rows) => {
-        if (!rows) throw new Error("Sem dados");
+        if (!ativo) return;
+
+        if (!rows) {
+          throw new Error("Sem dados");
+        }
+
         processar(rows);
       })
-      .catch(() => {
+      .catch((err) => {
+        if (!ativo) return;
+
+        console.error("Erro ao carregar aba:", err);
         setError(true);
         processar([]);
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (ativo) setLoading(false);
+      });
 
-    setDiaSelecionado(null);
-  }, [serie, ano, disciplinaKey, error]);
+    return () => {
+      ativo = false;
+    };
+  }, [serie, ano, disciplinaKey, disc, carregarAba, processar, error]);
 
-  // Organiza as semanas por mês
+  // Organiza as semanas por mês.
   const meses = useMemo(() => {
     if (!currentWeeks.length) {
       return [{ y: 0, m: -1, rotulo: "Todas" }];
@@ -293,7 +395,7 @@ export default function CalendarPage({
       }));
   }, [currentWeeks, ano]);
 
-  // Abre o mês atual automaticamente
+  // Abre o mês atual automaticamente.
   useEffect(() => {
     if (currentWeeks.length > 0 && meses.length > 0) {
       const hoje = new Date();
@@ -308,9 +410,44 @@ export default function CalendarPage({
         setMesIdx(idxHoje);
       }
     }
-  }, [currentWeeks]);
+  }, [currentWeeks, meses]);
 
-  // Registra os checks
+  // Identifica a opção selecionada e a unidade correspondente.
+  const opcaoSelecionada = useMemo(() => {
+    return (
+      opcoesProfessor.find(
+        (o) =>
+          normalizarTurma(o.turma) ===
+            normalizarTurma(turmaSelecionada) &&
+          o.aba === serie
+      ) ||
+      opcoesProfessor.find((o) => o.aba === serie) ||
+      null
+    );
+  }, [opcoesProfessor, turmaSelecionada, serie]);
+
+  const unidadeAtiva =
+    unidadePreSelecionada ||
+    opcaoSelecionada?.unidade ||
+    "";
+
+  // Lista somente as turmas da unidade atual.
+  const listaTurmasParaCheck = useMemo(() => {
+    return opcoesProfessor
+      .filter(
+        (o) =>
+          !unidadeAtiva ||
+          normalizarUnidade(o.unidade) ===
+            normalizarUnidade(unidadeAtiva)
+      )
+      .map((o) => o.turma);
+  }, [opcoesProfessor, unidadeAtiva]);
+
+  const nomeParaOProperty =
+    turmaSelecionada ||
+    (opcaoSelecionada ? opcaoSelecionada.turma : serie);
+
+  // Registra os checks.
   async function handleCheck({
     semanaIdx,
     diaNome,
@@ -322,16 +459,31 @@ export default function CalendarPage({
   }) {
     if (!user) return;
 
-    const unidadeDoCard =
-      unidadePreSelecionada || "Sem unidade";
+    if (!unidadeAtiva) {
+      alert("Não foi possível identificar a unidade desta turma.");
+      return;
+    }
+
+    const turmasValidas = (turmasParaAplicar || []).filter(
+      (turma) =>
+        listaTurmasParaCheck.some(
+          (item) =>
+            normalizarTurma(item) === normalizarTurma(turma)
+        )
+    );
+
+    if (!turmasValidas.length) {
+      alert("Nenhuma turma ativa disponível para registrar.");
+      return;
+    }
 
     const payload = {
       uid: user.uid,
       email: user.email,
       disciplina: disciplinaKey,
       serie,
-      unidade: unidadeDoCard,
-      turmasParaAplicar,
+      unidade: unidadeAtiva,
+      turmasParaAplicar: turmasValidas,
       semanaIdx,
       diaNome,
       aulaIndex,
@@ -340,7 +492,7 @@ export default function CalendarPage({
       observacao,
     };
 
-    const chavesNovas = turmasParaAplicar.map((turma) =>
+    const chavesNovas = turmasValidas.map((turma) =>
       gerarIdCheck({
         disciplina: disciplinaKey,
         serie: turma,
@@ -362,7 +514,7 @@ export default function CalendarPage({
       setChecksSet((prev) => {
         const novo = new Set(prev);
 
-        chavesNovas.forEach((c) => novo.delete(c));
+        chavesNovas.forEach((chave) => novo.delete(chave));
 
         return novo;
       });
@@ -391,13 +543,6 @@ export default function CalendarPage({
     opcoesProfessor.length === 1
       ? opcoesProfessor[0]
       : null;
-
-  const nomeParaOProperty =
-    turmaSelecionada ||
-    (unicaOpcao ? unicaOpcao.turma : serie);
-
-  const listaTurmasParaCheck =
-    opcoesProfessor.map((o) => o.turma);
 
   return (
     <div className="min-h-screen bg-[#e6e8eb] flex flex-col font-sans relative overflow-hidden">
@@ -455,6 +600,7 @@ export default function CalendarPage({
                 turmaSelecionada || nomeParaOProperty
               }
               serie={serie}
+              unidadeSelecionada={unidadeAtiva}
             />
           </div>
 
@@ -477,7 +623,13 @@ export default function CalendarPage({
               disciplinaAtualKey={disciplinaKey}
               currentSheetName={nomeParaOProperty}
               turmasDoProfessor={listaTurmasParaCheck}
-              unidadeSelecionada={unidadePreSelecionada}
+              unidadeSelecionada={unidadeAtiva}
+              isDiaLetivo={isDiaLetivo}
+              turmaSelecionada={turmaSelecionada || nomeParaOProperty}
+              serie={serie}
+              podeRegistrarChecks={Boolean(
+                user && opcoesProfessor.length > 0
+              )}
             />
           </aside>
         </div>

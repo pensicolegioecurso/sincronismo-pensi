@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import {
   Calendar as CalendarIcon,
@@ -14,7 +13,11 @@ import {
 
 export default function CalendarsSection({
   podeGerenciar,
+  podeCriarCalendario,
+  podeExcluirCalendario,
   ehDirecao,
+  ehRegional,
+  unidadeAtivaPerfil,
   buttonClass,
   unidadeCalendario,
   setUnidadeCalendario,
@@ -28,10 +31,21 @@ export default function CalendarsSection({
 }) {
   const [calendariosVisiveis, setCalendariosVisiveis] = useState(false);
 
+  const unidadeParaContagem =
+    unidadeCalendario === "Todas" ? null : unidadeCalendario;
+
+  const mostrarCriar =
+    typeof podeCriarCalendario === "boolean"
+      ? podeCriarCalendario
+      : podeGerenciar;
+
+  const mostrarExcluir =
+    typeof podeExcluirCalendario === "boolean"
+      ? podeExcluirCalendario
+      : podeGerenciar;
+
   return (
     <section className="space-y-4 pt-7">
-
-      {/* CABEÇALHO */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
@@ -64,7 +78,7 @@ export default function CalendarsSection({
             )}
           </button>
 
-          {podeGerenciar && (
+          {mostrarCriar && (
             <button
               onClick={abrirNovoCalendario}
               className={`${buttonClass} border-2 border-black bg-pensi-yellow shadow-[3px_3px_0_#000] transition-colors hover:bg-yellow-300`}
@@ -76,11 +90,8 @@ export default function CalendarsSection({
         </div>
       </div>
 
-      {/* CONTEÚDO */}
       {calendariosVisiveis && (
         <div className="space-y-5">
-
-          {/* FILTRO DE UNIDADE */}
           <div className="flex flex-wrap items-center gap-3 rounded-xl border-2 border-black bg-white p-3 shadow-[4px_4px_0_#000]">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border-2 border-black bg-pensi-yellow">
               <MapPin size={18} />
@@ -99,7 +110,7 @@ export default function CalendarsSection({
                 disabled={ehDirecao}
                 className="mt-0.5 w-full bg-transparent text-sm font-black text-black outline-none disabled:opacity-60"
               >
-                {!ehDirecao && (
+                {!ehDirecao && !ehRegional && (
                   <option value="Todas">Todas as unidades</option>
                 )}
 
@@ -116,7 +127,6 @@ export default function CalendarsSection({
             </span>
           </div>
 
-          {/* CARREGAMENTO */}
           {carregandoCal ? (
             <div className="rounded-xl border-2 border-black bg-white p-8 text-center shadow-[4px_4px_0_#000]">
               <CalendarIcon
@@ -128,10 +138,7 @@ export default function CalendarsSection({
                 Carregando calendários...
               </p>
             </div>
-
           ) : calendarios.length === 0 ? (
-
-            /* ESTADO VAZIO */
             <div className="rounded-xl border-2 border-dashed border-black bg-white p-8 text-center">
               <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-xl border-2 border-black bg-pensi-yellow shadow-[3px_3px_0_#000]">
                 <CalendarIcon size={26} />
@@ -145,26 +152,29 @@ export default function CalendarsSection({
                 Cadastre um calendário para começar.
               </p>
             </div>
-
           ) : (
-
-            /* CARDS DE CALENDÁRIOS */
             <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
               {calendarios.map((cal) => {
-                const excecoes = (cal.excecoes || []).filter(
-                  (item) =>
-                    item.unidade ===
-                    (unidadeCalendario === "Todas"
+                const excecoes = (cal.excecoes || []).filter((item) => {
+                  const unidadeExcecao =
+                    item.unidade === null ||
+                    item.unidade === undefined ||
+                    item.unidade === ""
                       ? null
-                      : unidadeCalendario)
-                );
+                      : String(item.unidade);
+
+                  if (unidadeCalendario === "Todas") {
+                    return unidadeExcecao === null;
+                  }
+
+                  return unidadeExcecao === String(unidadeCalendario);
+                });
 
                 return (
                   <article
                     key={cal.id}
                     className="overflow-hidden rounded-xl border-[2.5px] border-black bg-white shadow-[5px_5px_0_#000]"
                   >
-                    {/* CABEÇALHO AMARELO */}
                     <div className="flex items-center justify-between gap-3 border-b-[2.5px] border-black bg-pensi-yellow p-4">
                       <div className="flex min-w-0 items-center gap-3">
                         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border-2 border-black bg-white shadow-[2px_2px_0_#000]">
@@ -182,7 +192,7 @@ export default function CalendarsSection({
                         </div>
                       </div>
 
-                      {podeGerenciar && (
+                      {mostrarExcluir && (
                         <button
                           onClick={() => excluirCalendario(cal)}
                           title="Excluir calendário"
@@ -193,10 +203,7 @@ export default function CalendarsSection({
                       )}
                     </div>
 
-                    {/* CONTEÚDO */}
                     <div className="space-y-4 p-4">
-
-                      {/* PERÍODO */}
                       <div>
                         <div className="mb-2 flex items-center gap-2">
                           <span className="h-2 w-2 rounded-full border border-black bg-pensi-yellow" />
@@ -235,7 +242,6 @@ export default function CalendarsSection({
                         </div>
                       </div>
 
-                      {/* DIAS LETIVOS */}
                       <div className="relative flex items-center justify-between gap-3 overflow-hidden rounded-xl border-2 border-black bg-green-200 p-4 shadow-[3px_3px_0_#000]">
                         <div className="flex items-center gap-3">
                           <div className="flex h-11 w-11 items-center justify-center rounded-lg border-2 border-black bg-white shadow-[2px_2px_0_#000]">
@@ -254,11 +260,10 @@ export default function CalendarsSection({
                         </div>
 
                         <span className="text-4xl font-black tabular-nums tracking-tighter">
-                          {calcularDiasLetivos(cal)}
+                          {calcularDiasLetivos(cal, unidadeParaContagem)}
                         </span>
                       </div>
 
-                      {/* RODAPÉ */}
                       <div className="flex flex-wrap items-center justify-between gap-3 border-t-2 border-black pt-3">
                         <div className="flex items-center gap-2">
                           <div className="flex h-8 w-8 items-center justify-center rounded-lg border-2 border-black bg-pensi-yellow">

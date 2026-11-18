@@ -1,4 +1,3 @@
-
 import {
   Building2,
   GraduationCap,
@@ -22,6 +21,8 @@ export default function UnitsSection({
   ehRegional,
   ehDirecao,
   podeGerenciar,
+  podeImportar,
+  podeExcluirTurma,
   secaoUnidadesVisivel,
   setSecaoUnidadesVisivel,
   unidadesAbertas,
@@ -31,9 +32,14 @@ export default function UnitsSection({
   inputClass,
   buttonClass,
 }) {
+  const mostrarImportar =
+    typeof podeImportar === "boolean" ? podeImportar : podeGerenciar;
+
+  const mostrarExcluirTurma =
+    typeof podeExcluirTurma === "boolean" ? podeExcluirTurma : podeGerenciar;
+
   return (
     <section className="space-y-4">
-      {/* CABEÇALHO */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
@@ -52,13 +58,15 @@ export default function UnitsSection({
         <div className="flex flex-wrap gap-2">
           {podeGerenciar && (
             <>
-              <button
-                onClick={abrirImportacao}
-                className={`${buttonClass} bg-blue-200`}
-              >
-                <Upload size={14} />
-                Importar CSV
-              </button>
+              {mostrarImportar && (
+                <button
+                  onClick={abrirImportacao}
+                  className={`${buttonClass} bg-blue-200`}
+                >
+                  <Upload size={14} />
+                  Importar CSV
+                </button>
+              )}
 
               <button
                 onClick={() =>
@@ -81,9 +89,6 @@ export default function UnitsSection({
         </div>
       </div>
 
-      
-
-      {/* UNIDADES EM CAIXAS */}
       {secaoUnidadesVisivel && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {unidadesPermitidas
@@ -106,7 +111,6 @@ export default function UnitsSection({
                   key={unidade}
                   className="min-w-0 overflow-hidden rounded-xl border-2 border-black bg-white shadow-[3px_3px_0_#000]"
                 >
-                  {/* CABEÇALHO DA UNIDADE */}
                   <button
                     onClick={() =>
                       setUnidadesAbertas((atual) => ({
@@ -138,7 +142,6 @@ export default function UnitsSection({
                     )}
                   </button>
 
-                  {/* TURMAS DA UNIDADE */}
                   {aberto && (
                     <div className="border-t-2 border-black bg-gray-50 p-3">
                       {lista.length === 0 ? (
@@ -159,12 +162,10 @@ export default function UnitsSection({
                               key={turma.id}
                               className="flex min-w-0 items-center gap-3 rounded-lg border-2 border-gray-200 bg-white p-3"
                             >
-                              {/* ÍCONE */}
                               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border-2 border-black bg-green-200">
                                 <GraduationCap size={19} />
                               </div>
 
-                              {/* INFORMAÇÕES */}
                               <div className="min-w-0 flex-1">
                                 <p className="truncate text-xs font-black text-gray-900">
                                   {turma.turma}
@@ -183,8 +184,7 @@ export default function UnitsSection({
                                 </div>
                               </div>
 
-                              {/* EXCLUIR */}
-                              {podeGerenciar && (
+                              {mostrarExcluirTurma && (
                                 <button
                                   onClick={() => excluirTurma(turma)}
                                   title="Excluir turma"
@@ -203,7 +203,6 @@ export default function UnitsSection({
               );
             })}
 
-          {/* NENHUMA UNIDADE */}
           {unidadesPermitidas.length === 0 && (
             <div className="col-span-full rounded-xl border-2 border-dashed border-gray-300 bg-white p-8 text-center">
               <Building2

@@ -1,6 +1,5 @@
 
-// src/pages/DashboardPage.jsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "../hooks/useAuth";
 import DashboardNavbar from "../components/dashboard/DashboardNavbar";
 import ProfileModal from "../components/ProfileModal";
@@ -17,8 +16,13 @@ const ADMIN_MANAGER_ROLES = ["admin", "nucleo", "regional"];
 export default function DashboardPage({ onNavigate, perfilAtivo }) {
   const { user, logout } = useAuth();
   const isTeacher = perfilAtivo === "professor";
+
   const [activeTab, setActiveTab] = useState(isTeacher ? "inicio" : "dashboard");
   const [profileOpen, setProfileOpen] = useState(false);
+
+  useEffect(() => {
+    setActiveTab(isTeacher ? "inicio" : "dashboard");
+  }, [perfilAtivo, isTeacher]);
 
   const isAdmin = perfilAtivo === "admin";
   const isNucleo = perfilAtivo === "nucleo";
@@ -70,6 +74,7 @@ export default function DashboardPage({ onNavigate, perfilAtivo }) {
         {activeTab === "feed" && (
           <FeedTab
             user={user}
+            perfilAtivo={perfilAtivo}
             unidadeFoco={unidadeFoco}
             unidadesEscopo={unidadesEscopo}
           />

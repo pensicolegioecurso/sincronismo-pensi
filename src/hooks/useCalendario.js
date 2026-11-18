@@ -1,44 +1,167 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { collection, onSnapshot } from "firebase/firestore";
 import { db } from "../services/firebase";
 
+import {
+  normalizarTurma,
+  normalizarUnidade,
+  extrairSerieTurma,
+} from "../utils/turmas";
+
+function formatarData(data) {
+  const ano = data.getFullYear();
+  const mes = String(data.getMonth() + 1).padStart(2, "0");
+  const dia = String(data.getDate()).padStart(2, "0");
+
+  return `${ano}-${mes}-${dia}`;
+}
+
+function converterData(valor) {
+  if (!valor) return "";
+
+  if (typeof valor === "string") {
+    return valor.slice(0, 10);
+  }
+
+  if (valor instanceof Date) {
+    return formatarData(valor);
+  }
+
+  if (typeof valor.toDate === "function") {
+    return formatarData(valor.toDate());
+  }
+
+  return "";
+}
+
+function normalizarSerie(valor) {
+  return (
+    extrairSerieTurma(valor) ||
+    normalizarTurma(valor)
+  );
+}
+
 export function useCalendario() {
   const [calendarios, setCalendarios] = useState([]);
-  
+
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, "calendarios"), (snap) => {
-      const lista = [];
-      snap.forEach(d => lista.push({ id: d.id, ...d.data() }));
-      setCalendarios(lista);
-    });
-    return unsub;
+    const unsubscribe = onSnapshot(
+      collection(db, "calendarios"),
+      (snapshot) => {
+        setCalendarios(
+          snapshot.docs.map((item) => ({
+            id: item.id,
+            ...item.data(),
+          }))
+        );
+      },
+      (error) => {
+        console.error("Erro ao carregar calendários:", error);
+      }
+    );
+
+    return unsubscribe;
   }, []);
 
-  const isDiaLetivo = useCallback((dataObj, turmaNome, serieNome) => {
-    if (!dataObj) return true;
-    
-    const diaSemana = dataObj.getDay();
-    if (diaSemana === 0 || diaSemana === 6) return false; 
+  const isDiaLetivo = useCallback(
+    (dataObj, turmaNome, serieNome, unidadeNome) => {
+      if (!dataObj) return false;
 
-    const dateStr = dataObj.toISOString().split("T")[0]; 
-    const cal = calendarios.find(c => dateStr >= c.inicio && dateStr <= c.fim);
-    if (!cal) return true; 
+      const dataDate =
+        dataObj instanceof Date
+          ? dataObj
+          : new Date(dataObj);
 
-    const excecoes = cal.excecoes || [];
-    
-    const temExcecao = excecoes.some(exc => {
-      const excFim = exc.dataFim || exc.dataInicio;
-      if (dateStr < exc.dataInicio || dateStr > excFim) return false;
-      
-      if (exc.tipo === "todas") return true;
-      if (exc.tipo === "serie" && exc.serie === serieNome) return true;
-      if (exc.tipo === "turma" && exc.turma === turmaNome) return true;
-      
-      return false;
-    });
+      if (Number.isNaN(dataDate.getTime())) {
+        return false;
+      }
 
-    return !temExcecao;
-  }, [calendarios]); // Só recria se os calendários mudarem
+      const diaSemana = dataDate.getDay();
 
-  return { calendarios, isDiaLetivo };
+      if (diaSemana === 0 || diaSemana === 6) {
+        return false;
+      }
+
+      const data = formatarData(dataDate);
+
+      const unidadeAtual = normalizarUnidade(unidadeNome);
+      const turmaAtual = normalizarTurma(turmaNome);
+      const serieAtual = normalizarSerie(serieNome);
+
+      return !calendarios.some((calendario) => {
+        const inicioCalendario = converterData(calendario.inicio);
+        const fimCalendario = converterData(calendario.fim);
+
+        if (!inicioCalendario || !fimCalendario) {
+          return false;
+        }
+
+        if (
+          data < inicioCalendario ||
+          data > fimCalendario
+        ) {
+          return false;
+        }
+
+        return (calendario.excecoes || []).some((excecao) => {
+          const inicioExcecao = converterData(
+            excecao.dataInicio
+          );
+
+          const fimExcecao =
+            converterData(excecao.dataFim) ||
+            inicioExcecao;
+
+          if (!inicioExcecao) return false;
+
+          if (
+            data < inicioExcecao ||
+            data > fimExcecao
+          ) {
+            return false;
+          }
+
+          // Se a exceção possui unidade, ela só vale
+          // para aquela unidade.
+          if (excecao.unidade) {
+            const unidadeExcecao = normalizarUnidade(
+              excecao.unidade
+            );
+
+            if (unidadeExcecao !== unidadeAtual) {
+              return false;
+            }
+          }
+
+          // Exceção para todas as turmas da unidade.
+          if (excecao.tipo === "todas") {
+            return true;
+          }
+
+          // Exceção para uma série inteira.
+          if (excecao.tipo === "serie") {
+            return (
+              normalizarSerie(excecao.serie) === serieAtual
+            );
+          }
+
+          // Exceção para uma turma específica.
+          if (excecao.tipo === "turma") {
+            return (
+              normalizarTurma(excecao.turma) === turmaAtual
+            );
+          }
+
+          return false;
+        });
+      });
+    },
+    [calendarios]
+  );
+
+  return {
+    calendarios,
+    isDiaLetivo,
+  };
 }

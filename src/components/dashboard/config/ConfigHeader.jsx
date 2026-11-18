@@ -1,4 +1,3 @@
-
 import { Plus, Building2 } from "lucide-react";
 
 export default function ConfigHeader({
@@ -7,7 +6,19 @@ export default function ConfigHeader({
   ehDirecao,
   abrirNovaTurma,
   abrirNovaUnidade,
+  podeCriarTurma,
+  podeCriarUnidade,
 }) {
+  const mostrarNovaTurma =
+    typeof podeCriarTurma === "boolean"
+      ? podeCriarTurma
+      : podeGerenciar || ehDirecao;
+
+  const mostrarNovaUnidade =
+    typeof podeCriarUnidade === "boolean"
+      ? podeCriarUnidade
+      : podeGerenciar;
+
   return (
     <header className="flex flex-col gap-5 pb-6 mt-7 sm:flex-row sm:items-end sm:justify-between mb-7 mt-7 pb-4 border-b-2 border-black/40">
       <div>
@@ -28,7 +39,7 @@ export default function ConfigHeader({
       </div>
 
       <div className="flex flex-wrap items-center gap-2 ">
-        {(podeGerenciar || ehDirecao) && (
+        {mostrarNovaTurma && (
           <button
             onClick={abrirNovaTurma}
             className={`${buttonClass} bg-pensi-yellow`}
@@ -38,7 +49,7 @@ export default function ConfigHeader({
           </button>
         )}
 
-        {podeGerenciar && (
+        {mostrarNovaUnidade && (
           <button
             onClick={abrirNovaUnidade}
             className={`${buttonClass} bg-white`}
