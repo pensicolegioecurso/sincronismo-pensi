@@ -1,17 +1,364 @@
-// src/components/dashboard/feed/FeedList.jsx
+
+import { useState, useEffect } from "react";
 import {
-  MessageSquare, CheckCircle2, Send, Clock, MapPin, BookOpen,
-  User, AlertCircle, CalendarDays, ChevronDown,
+  MessageSquare,
+  CheckCircle2,
+  Send,
+  Clock,
+  MapPin,
+  BookOpen,
+  User,
+  AlertCircle,
+  CalendarDays,
+  ChevronDown,
+  Loader2,
 } from "lucide-react";
+
+import {
+  collection,
+  addDoc,
+  onSnapshot,
+  query,
+  orderBy,
+  serverTimestamp,
+} from "firebase/firestore";
+
+import { db } from "../../../services/firebase";
 
 function getPostStyle(post) {
   if (post.tipo === "justificativa") {
-    return { iconColor: "text-pink-500", icon: MessageSquare, label: "Justificativa registrada" };
+    return {
+      iconColor: "text-pink-500",
+      icon: MessageSquare,
+      label: "Justificativa registrada",
+    };
   }
-  return { iconColor: "text-green-600", icon: CheckCircle2, label: "Check de aula" };
+
+  return {
+    iconColor: "text-green-600",
+    icon: CheckCircle2,
+    label: "Check de aula",
+  };
 }
 
-export default function FeedList({ carregando, posts, comentariosAbertos, toggleComentarios }) {
+function formatarHorario(timestamp) {
+  if (!timestamp) return "Enviando...";
+
+  const data = timestamp.toDate
+    ? timestamp.toDate()
+    : new Date(timestamp);
+
+  if (Number.isNaN(data.getTime())) return "";
+
+  return `${data.toLocaleDateString("pt-BR")} às ${data.toLocaleTimeString(
+    "pt-BR",
+    { hour: "2-digit", minute: "2-digit" }
+  )}`;
+}
+
+function ComentariosPost({ post, aberto, user }) {
+  const [comentarios, setComentarios] = useState([]);
+  const [texto, setTexto] = useState("");
+  const [carregandoComentarios, setCarregandoComentarios] = useState(true);
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState("");
+
+  useEffect(() => {
+    const comentariosRef = collection(
+      db,
+      "checks",
+      post.id,
+      "comentarios"
+    );
+
+    const consulta = query(
+      comentariosRef,
+      orderBy("criadoEm", "asc")
+    );
+
+    const unsubscribe = onSnapshot(
+      consulta,
+      (snapshot) => {
+        setComentarios(
+          snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          }))
+        );
+
+        setCarregandoComentarios(false);
+      },
+      (error) => {
+        console.error("Erro ao carregar comentários:", error);
+        setCarregandoComentarios(false);
+        setErro("Não foi possível carregar os comentários.");
+      }
+    );
+
+    return unsubscribe;
+  }, [post.id]);
+
+  async function enviarComentario(e) {
+    e.preventDefault();
+
+    const mensagem = texto.trim();
+
+    if (!mensagem || enviando) return;
+
+    if (!user?.uid) {
+      setErro("Você precisa estar autenticado para comentar.");
+      return;
+    }
+
+    setEnviando(true);
+    setErro("");
+
+    try {
+      const nome =
+        user.nome ||
+        user.displayName ||
+        user.email?.split("@")[0] ||
+        "Usuário";
+
+      await addDoc(
+        collection(db, "checks", post.id, "comentarios"),
+        {
+          texto: mensagem,
+          autorUid: user.uid,
+          autorNome: nome,
+          criadoEm: serverTimestamp(),
+        }
+      );
+
+      setTexto("");
+    } catch (error) {
+      console.error("Erro ao enviar comentário:", error);
+      setErro("Não foi possível enviar o comentário. Tente novamente.");
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <>
+      <button
+        onClick={() => post.toggleComentarios(post.id)}
+        className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 border-2 border-black rounded-lg text-[10px] font-black uppercase tracking-wider shadow-[2px_2px_0px_#000] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] transition-all ${
+          aberto ? "bg-pensi-yellow" : "bg-white"
+        }`}
+        aria-expanded={aberto}
+      >
+        <MessageSquare className="w-3.5 h-3.5" />
+
+        <span>{comentarios.length}</span>
+
+        <ChevronDown
+          className={`w-3.5 h-3.5 transition-transform ${
+            aberto ? "rotate-180" : ""
+          }`}
+        />
+      </button>
+
+      {aberto && (
+        <div className="border-t-2 border-black bg-gray-50 p-3 animate-fade-in">
+          <div className="space-y-3 mb-4 max-h-72 overflow-y-auto">
+            {carregandoComentarios && (
+              <div className="flex items-center justify-center gap-2 py-4 text-gray-400 text-xs font-bold">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Carregando comentários...
+              </div>
+            )}
+
+            {!carregandoComentarios && comentarios.length === 0 && (
+              <p className="text-[11px] text-gray-400 italic py-2">
+                Nenhum comentário ainda. Seja o primeiro a comentar!
+              </p>
+            )}
+
+            {comentarios.map((comentario) => (
+              <div
+                key={comentario.id}
+                className="bg-white border-2 border-black rounded-xl p-3 shadow-[2px_2px_0px_#000]"
+              >
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-7 h-7 shrink-0 bg-pensi-yellow border border-black rounded-full flex items-center justify-center">
+                      <User className="w-4 h-4" />
+                    </div>
+
+                    <span className="text-xs font-black text-black truncate">
+                      {comentario.autorNome || "Usuário"}
+                    </span>
+                  </div>
+
+                  <span className="text-[9px] text-gray-400 font-medium shrink-0">
+                    {formatarHorario(comentario.criadoEm)}
+                  </span>
+                </div>
+
+                <p className="text-xs text-gray-700 font-medium whitespace-pre-wrap break-words pl-9">
+                  {comentario.texto}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          {erro && (
+            <p className="text-[11px] text-red-600 font-bold mb-2">
+              {erro}
+            </p>
+          )}
+
+          <form
+            onSubmit={enviarComentario}
+            className="flex items-center gap-2"
+          >
+            <div className="relative flex-1">
+              <User className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+
+              <input
+                type="text"
+                value={texto}
+                onChange={(e) => setTexto(e.target.value)}
+                placeholder="Escreva um comentário..."
+                maxLength={1000}
+                disabled={enviando}
+                className="w-full bg-white border-2 border-black rounded-xl pl-9 pr-3 py-2.5 text-xs font-medium focus:outline-none focus:bg-pensi-yellow/20 placeholder:text-gray-400 transition-colors shadow-[2px_2px_0px_#000]"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={!texto.trim() || enviando}
+              className="w-9 h-9 bg-pensi-yellow border-2 border-black rounded-xl shadow-[2px_2px_0px_#000] flex items-center justify-center hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] transition-all shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-label="Enviar comentário"
+            >
+              {enviando ? (
+                <Loader2 size={15} className="animate-spin" />
+              ) : (
+                <Send size={15} className="text-black" />
+              )}
+            </button>
+          </form>
+        </div>
+      )}
+    </>
+  );
+}
+
+function FeedPost({ post, comentariosAbertos, toggleComentarios, user }) {
+  const style = getPostStyle(post);
+  const StatusIcon = style.icon;
+  const aberto = !!comentariosAbertos[post.id];
+
+  return (
+    <article className="bg-white border-2 border-black rounded-xl shadow-[2px_2px_0px_#000] overflow-hidden">
+      <div className="flex flex-col md:flex-row relative">
+        <div className="flex-1 min-w-0 p-4">
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="text-sm font-black text-black">
+                {post.professor}
+              </h3>
+
+              <span className="text-[10px] bg-gray-100 border border-black rounded px-1.5 font-bold uppercase tracking-wider text-gray-600">
+                {post.aula}
+              </span>
+            </div>
+
+            <div className="flex flex-col sm:flex-row sm:flex-wrap gap-x-4 gap-y-1 mt-2">
+              <span className="flex items-center gap-1.5 text-[11px] text-gray-700 font-bold">
+                <BookOpen className="w-3.5 h-3.5 shrink-0" />
+                {post.disciplina} • {post.turma}
+              </span>
+
+              <span className="flex items-center gap-1.5 text-[11px] text-gray-500 font-medium">
+                <MapPin className="w-3.5 h-3.5 shrink-0" />
+                {post.unidade}
+              </span>
+            </div>
+
+            <div className="flex flex-col sm:flex-row sm:flex-wrap gap-x-4 gap-y-1 mt-1.5">
+              <span className="flex items-center gap-1.5 text-[11px] text-blue-700 font-bold bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                <CalendarDays className="w-3.5 h-3.5 shrink-0" />
+                Aula de {post.diaSemana}, {post.dataReferencia}
+              </span>
+
+              <span className="flex items-center gap-1.5 text-[11px] text-gray-400 font-medium">
+                <Clock className="w-3.5 h-3.5 shrink-0" />
+                Registrado em {post.dataHoraFormatada} às {post.horaFormatada}
+              </span>
+            </div>
+          </div>
+
+          <div className="mt-3 pt-3 border-t border-dashed border-gray-200">
+            <div className="flex items-center gap-1.5 mb-2">
+              <StatusIcon
+                className={`w-4 h-4 ${style.iconColor}`}
+                strokeWidth={2.5}
+              />
+
+              <span className="text-[9px] font-black uppercase tracking-wider text-gray-400">
+                {style.label}
+              </span>
+            </div>
+
+            {post.tipo === "justificativa" && post.justificativa && (
+              <div className="bg-pink-50 border border-pink-200 rounded p-2 mb-2">
+                <p className="text-[10px] font-bold text-pink-700 uppercase tracking-wider mb-0.5">
+                  Motivo:
+                </p>
+
+                <p className="text-xs text-gray-800 font-medium">
+                  {post.justificativa}
+                </p>
+              </div>
+            )}
+
+            {post.tipo === "aula" && post.observacao && (
+              <div className="bg-gray-50 border border-gray-200 rounded p-2 mb-2">
+                <p className="text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-0.5">
+                  Observação:
+                </p>
+
+                <p className="text-xs text-gray-800 font-medium">
+                  {post.observacao}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="md:w-[160px] shrink-0 bg-gray-50 border-t-2 md:border-t-0 md:border-l-2 border-black p-3 flex md:flex-col justify-between gap-2">
+          <div className="hidden md:block">
+            <span className="text-[9px] font-black uppercase tracking-widest text-gray-400">
+              Ações
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2 md:flex-col md:items-stretch">
+            <ComentariosPost
+              post={{
+                id: post.id,
+                toggleComentarios,
+              }}
+              aberto={aberto}
+              user={user}
+            />
+          </div>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+export default function FeedList({
+  carregando,
+  posts,
+  comentariosAbertos,
+  toggleComentarios,
+  user,
+}) {
   return (
     <div className="space-y-2.5">
       {carregando && (
@@ -26,96 +373,27 @@ export default function FeedList({ carregando, posts, comentariosAbertos, toggle
           <div className="w-12 h-12 bg-gray-100 border-2 border-black rounded-xl flex items-center justify-center mx-auto mb-3">
             <AlertCircle className="w-6 h-6 text-gray-400" />
           </div>
-          <h3 className="text-sm font-black uppercase text-black">Nenhuma atividade encontrada</h3>
-          <p className="text-[11px] text-gray-500 mt-1.5">Não há registros para exibir com esses filtros.</p>
+
+          <h3 className="text-sm font-black uppercase text-black">
+            Nenhuma atividade encontrada
+          </h3>
+
+          <p className="text-[11px] text-gray-500 mt-1.5">
+            Não há registros para exibir com esses filtros.
+          </p>
         </div>
       )}
 
-      {!carregando && posts.map((post) => {
-        const style = getPostStyle(post);
-        const StatusIcon = style.icon;
-        const aberto = comentariosAbertos[post.id];
-        return (
-          <article key={post.id} className="bg-white border-2 border-black rounded-xl shadow-[2px_2px_0px_#000] overflow-hidden">
-            <div className="flex flex-col md:flex-row relative">
-              <div className="flex-1 min-w-0 p-4">
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-sm font-black text-black">{post.professor}</h3>
-                    <span className="text-[10px] bg-gray-100 border border-black rounded px-1.5 font-bold uppercase tracking-wider text-gray-600">{post.aula}</span>
-                  </div>
-                  <div className="flex flex-col sm:flex-row sm:flex-wrap gap-x-4 gap-y-1 mt-2">
-                    <span className="flex items-center gap-1.5 text-[11px] text-gray-700 font-bold">
-                      <BookOpen className="w-3.5 h-3.5 shrink-0" /> {post.disciplina} • {post.turma}
-                    </span>
-                    <span className="flex items-center gap-1.5 text-[11px] text-gray-500 font-medium">
-                      <MapPin className="w-3.5 h-3.5 shrink-0" /> {post.unidade}
-                    </span>
-                  </div>
-                  <div className="flex flex-col sm:flex-row sm:flex-wrap gap-x-4 gap-y-1 mt-1.5">
-                    <span className="flex items-center gap-1.5 text-[11px] text-blue-700 font-bold bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
-                      <CalendarDays className="w-3.5 h-3.5 shrink-0" /> Aula de {post.diaSemana}, {post.dataReferencia}
-                    </span>
-                    <span className="flex items-center gap-1.5 text-[11px] text-gray-400 font-medium">
-                      <Clock className="w-3.5 h-3.5 shrink-0" /> Registrado em {post.dataHoraFormatada} às {post.horaFormatada}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="mt-3 pt-3 border-t border-dashed border-gray-200">
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <StatusIcon className={`w-4 h-4 ${style.iconColor}`} strokeWidth={2.5} />
-                    <span className="text-[9px] font-black uppercase tracking-wider text-gray-400">{style.label}</span>
-                  </div>
-                  {post.tipo === "justificativa" && post.justificativa && (
-                    <div className="bg-pink-50 border border-pink-200 rounded p-2 mb-2">
-                      <p className="text-[10px] font-bold text-pink-700 uppercase tracking-wider mb-0.5">Motivo:</p>
-                      <p className="text-xs text-gray-800 font-medium">{post.justificativa}</p>
-                    </div>
-                  )}
-                  {post.tipo === "aula" && post.observacao && (
-                    <div className="bg-gray-50 border border-gray-200 rounded p-2 mb-2">
-                      <p className="text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-0.5">Observação:</p>
-                      <p className="text-xs text-gray-800 font-medium">{post.observacao}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="md:w-[160px] shrink-0 bg-gray-50 border-t-2 md:border-t-0 md:border-l-2 border-black p-3 flex md:flex-col justify-between gap-2">
-                <div className="hidden md:block">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-gray-400">Ações</span>
-                </div>
-                <div className="flex items-center gap-2 md:flex-col md:items-stretch">
-                  <button onClick={() => toggleComentarios(post.id)}
-                    className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 border-2 border-black rounded-lg text-[10px] font-black uppercase tracking-wider shadow-[2px_2px_0px_#000] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] transition-all ${aberto ? "bg-pensi-yellow" : "bg-white"}`}
-                    aria-expanded={aberto}>
-                    <MessageSquare className="w-3.5 h-3.5" />
-                    <span>0</span>
-                    <ChevronDown className={`w-3.5 h-3.5 transition-transform ${aberto ? "rotate-180" : ""}`} />
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {aberto && (
-              <div className="border-t-2 border-black bg-gray-50 p-3 animate-fade-in">
-                <p className="text-[11px] text-gray-400 italic mb-3">Nenhum comentário ainda.</p>
-                <div className="flex items-center gap-2 mt-3">
-                  <div className="relative flex-1">
-                    <User className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                    <input type="text" placeholder="Escreva um comentário..."
-                      className="w-full bg-white border-2 border-black rounded-xl pl-9 pr-3 py-2.5 text-xs font-medium focus:outline-none focus:bg-pensi-yellow/20 placeholder:text-gray-400 transition-colors shadow-[2px_2px_0px_#000]" />
-                  </div>
-                  <button className="w-9 h-9 bg-pensi-yellow border-2 border-black rounded-xl shadow-[2px_2px_0px_#000] flex items-center justify-center hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] transition-all shrink-0" aria-label="Enviar comentário">
-                    <Send size={15} className="text-black" />
-                  </button>
-                </div>
-              </div>
-            )}
-          </article>
-        );
-      })}
+      {!carregando &&
+        posts.map((post) => (
+          <FeedPost
+            key={post.id}
+            post={post}
+            comentariosAbertos={comentariosAbertos}
+            toggleComentarios={toggleComentarios}
+            user={user}
+          />
+        ))}
     </div>
   );
 }

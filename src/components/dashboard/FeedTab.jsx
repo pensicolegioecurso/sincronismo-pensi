@@ -204,10 +204,10 @@ export default function FeedTab({
           const nomeProf = isProfessor
             ? (user.nome?.split(" ")[0] || "Eu")
             : (
-                nomesCache[data.professorUid]?.split(" ")[0] ||
-                data.professorEmail?.split("@")[0] ||
-                "Professor"
-              );
+              nomesCache[data.professorUid]?.split(" ")[0] ||
+              data.professorEmail?.split("@")[0] ||
+              "Professor"
+            );
 
           posts.push({
             id: documento.id,
@@ -228,9 +228,9 @@ export default function FeedTab({
               : "",
             horaFormatada: dataHoraValida
               ? dataHora.toLocaleTimeString("pt-BR", {
-                  hour: "2-digit",
-                  minute: "2-digit"
-                })
+                hour: "2-digit",
+                minute: "2-digit"
+              })
               : "",
             comentarios: []
           });
@@ -427,6 +427,7 @@ export default function FeedTab({
           posts={postsPaginados}
           comentariosAbertos={comentariosAbertos}
           toggleComentarios={toggleComentarios}
+          user={user}
         />
 
         {totalPaginas > 1 && (

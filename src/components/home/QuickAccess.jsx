@@ -2,20 +2,12 @@ import { useState, useMemo } from "react";
 import { useAuth } from "../../hooks/useAuth";
 import { DISCIPLINAS_POR_ANO } from "../../data/disciplinas";
 import SubjectCard from "../SubjectCard";
-import Reveal from "../../utils/Reveal";
-import {
-  Triangle,
-  Square,
-  Circle,
-  ChevronLeft,
-  ChevronRight,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const ITENS_POR_PAGINA = 6;
 
 export default function QuickAccess({ onNavigate }) {
   const { user } = useAuth();
-
   const [ano, setAno] = useState("2026");
   const [pagina, setPagina] = useState(1);
 
@@ -34,181 +26,64 @@ export default function QuickAccess({ onNavigate }) {
     return disciplinas.slice(inicio, inicio + ITENS_POR_PAGINA);
   }, [disciplinas, paginaAtual]);
 
-  const mudarPagina = (novaPagina) => {
-    if (novaPagina < 1 || novaPagina > totalPaginas) return;
-    setPagina(novaPagina);
-  };
-
-  const mudarAno = (novoAno) => {
-    setAno(novoAno);
-    setPagina(1);
-  };
-
   return (
-    <section
-      className="
-        relative z-20
-        w-full max-w-[980px]
-        mx-auto
-        px-8 sm:px-10 lg:px-6
-        -mt-24 md:-mt-46
-        mb-14
-      "
-    >
-      <div
-        id="acesso-rapido"
-        className="
-          scroll-mt-28
-          relative
-          bg-white
-          border-[2px] border-black
-          rounded-3xl
-          shadow-[6px_6px_0px_0px_#000]
-          p-6 sm:p-8 md:p-10
-          overflow-hidden
-        "
-      >
-        <div className="absolute inset-0 bg-gradient-to-br from-white/30 to-transparent pointer-events-none opacity-40 z-0"></div>
-
-        {/* Cabeçalho */}
-        <div className="relative z-10 flex flex-col items-center text-center mb-8 pt-4">
-          <div className="flex items-center gap-2 mb-4" aria-hidden="true">
-            <Triangle className="w-4 h-4 text-gray-900" strokeWidth={2} />
-            <Square className="w-3.5 h-3.5 text-gray-900" strokeWidth={2} />
-            <Circle className="w-3.5 h-3.5 text-gray-900" strokeWidth={2} />
-          </div>
-
-          <h2 className="text-[26px] sm:text-[30px] font-bold tracking-[-0.04em] text-gray-900 mb-2">
-            Acesso Rápido
-            <span className="text-pensi-yellow">.</span>
+    <section id="acesso-rapido" className="w-full max-w-[1100px] mx-auto px-6 py-16 relative z-20">
+      
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-10 gap-6">
+        <div>
+          <h2 className="text-[36px] sm:text-[44px] font-black tracking-[-0.03em] text-pensi-dark uppercase leading-none mb-3">
+            Acesso Rápido<span className="text-pensi-yellow">.</span>
           </h2>
-
-          <p className="text-[13px] sm:text-sm text-gray-600 font-light">
-            Selecione uma disciplina para visualizar.
-          </p>
+          <p className="text-[15px] text-gray-500 font-medium">Selecione uma disciplina para visualizar o planejamento.</p>
         </div>
-
-        {/* Seletor de ano */}
-        <div className="relative z-10 flex justify-end mb-5">
-          <select
-            value={ano}
-            onChange={(e) => mudarAno(e.target.value)}
-            aria-label="Selecionar ano letivo"
-            className="
-              px-3 py-2
-              bg-white/60 backdrop-blur-md
-              border-[2px] border-black
-              shadow-[2px_2px_0px_0px_#000]
-              rounded-xl
-              font-bold text-sm
-              text-gray-800
-              cursor-pointer
-              focus:outline-none
-              hover:bg-white/80
-              transition-colors duration-200
-            "
-          >
-            <option value="2026">2026</option>
-            <option value="2027">2027</option>
-          </select>
-        </div>
-
-        {/* Disciplinas */}
-        <div className="relative z-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {disciplinasPaginadas.length === 0 && (
-            <div className="col-span-full text-center text-gray-500 text-sm font-medium py-10 bg-white/50 backdrop-blur-sm rounded-xl border-[2px] border-black border-dashed">
-              Nenhuma disciplina disponível.
-            </div>
-          )}
-
-          {disciplinasPaginadas.map((key, index) => {
-            const nome = DISCIPLINAS_POR_ANO[ano][key].nome;
-            const card = {
-              id: `${ano}-${key}`,
-              nome,
-              unidade: null,
-              turma: null,
-              qtdTurmas: null,
-              key,
-              ano,
-            };
-
-            return (
-              <Reveal key={`${ano}-${paginaAtual}-${key}`} delay={index * 50}>
-                <SubjectCard
-                  card={card}
-                  onClick={() => onNavigate("calendar", key, ano)}
-                />
-              </Reveal>
-            );
-          })}
-        </div>
-
-        {/* Paginação */}
-        {totalPaginas > 1 && (
-          <nav
-            className="relative z-10 flex flex-col items-center justify-center gap-4 mt-8 pt-6 border-t-[2px] border-black/20"
-            aria-label="Paginação de disciplinas"
-          >
-            <p className="text-[13px] font-bold text-gray-800 text-center">
-              Exibindo{" "}
-              {(paginaAtual - 1) * ITENS_POR_PAGINA + 1}
-              {"–"}
-              {Math.min(paginaAtual * ITENS_POR_PAGINA, disciplinas.length)}
-              {" de "}
-              {disciplinas.length} disciplinas
-            </p>
-
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              <button
-                type="button"
-                onClick={() => mudarPagina(paginaAtual - 1)}
-                disabled={paginaAtual === 1}
-                aria-label="Página anterior"
-                className="p-2 flex items-center justify-center bg-white/60 backdrop-blur-md border-[2px] border-black rounded-xl shadow-[2px_2px_0px_0px_#000] text-gray-900 hover:bg-white/80 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer"
-              >
-                <ChevronLeft className="w-4 h-4" strokeWidth={2.5} />
-              </button>
-
-              {Array.from({ length: totalPaginas }, (_, index) => index + 1).map((numero) => (
-                <button
-                  key={numero}
-                  type="button"
-                  onClick={() => mudarPagina(numero)}
-                  aria-label={`Página ${numero}`}
-                  aria-current={paginaAtual === numero ? "page" : undefined}
-                  className={`
-                    w-9 h-9
-                    flex items-center justify-center
-                    rounded-xl
-                    text-[13px] font-bold
-                    border-[2px] border-black
-                    transition-all duration-200
-                    cursor-pointer
-                    ${
-                      paginaAtual === numero
-                        ? "bg-pensi-yellow text-gray-900 shadow-[2px_2px_0px_0px_#000] -translate-y-0.5"
-                        : "bg-white/60 backdrop-blur-md text-gray-800 shadow-[2px_2px_0px_0px_#000] hover:bg-white/80"
-                    }
-                  `}
-                >
-                  {numero}
-                </button>
-              ))}
-
-              <button
-                type="button"
-                onClick={() => mudarPagina(paginaAtual + 1)}
-                disabled={paginaAtual === totalPaginas}
-                aria-label="Próxima página"
-                className="p-2 flex items-center justify-center bg-white/60 backdrop-blur-md border-[2px] border-black rounded-xl shadow-[2px_2px_0px_0px_#000] text-gray-900 hover:bg-white/80 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer"
-              >
-                <ChevronRight className="w-4 h-4" strokeWidth={2.5} />
-              </button>
-            </div>
-          </nav>
-        )}
+        
+        <select
+          value={ano}
+          onChange={(e) => { setAno(e.target.value); setPagina(1); }}
+          className="bg-white border border-gray-200 text-pensi-dark font-bold text-[13px] rounded-xl px-5 py-2.5 cursor-pointer shadow-sm focus:ring-2 focus:ring-pensi-yellow outline-none"
+        >
+          <option value="2026">2026</option>
+          <option value="2027">2027</option>
+        </select>
       </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        {disciplinasPaginadas.length === 0 && (
+            <p className="text-gray-400 font-medium py-8 col-span-full">Nenhuma disciplina disponível.</p>
+        )}
+        {disciplinasPaginadas.map((key) => {
+          const nome = DISCIPLINAS_POR_ANO[ano][key].nome;
+          const card = { id: `${ano}-${key}`, nome, unidade: null, turma: null, qtdTurmas: null, key, ano };
+          return (
+            <SubjectCard key={`${ano}-${paginaAtual}-${key}`} card={card} onClick={() => onNavigate("calendar", key, ano)} />
+          );
+        })}
+      </div>
+
+      {totalPaginas > 1 && (
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-10 pt-6 border-t border-gray-200">
+          <span className="text-[13px] font-medium text-gray-500 order-2 sm:order-1">
+            Página {paginaAtual} de {totalPaginas}
+          </span>
+          
+          <div className="flex items-center gap-1.5 order-1 sm:order-2">
+            <button 
+              onClick={() => setPagina(p => Math.max(1, p - 1))}
+              disabled={paginaAtual === 1}
+              className="w-8 h-8 rounded-lg bg-white border border-gray-200 flex items-center justify-center disabled:opacity-40 hover:bg-gray-50 transition-colors"
+            >
+              <ChevronLeft className="w-4 h-4 text-pensi-dark" />
+            </button>
+            <button 
+              onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))}
+              disabled={paginaAtual === totalPaginas}
+              className="w-8 h-8 rounded-lg bg-white border border-gray-200 flex items-center justify-center disabled:opacity-40 hover:bg-gray-50 transition-colors"
+            >
+              <ChevronRight className="w-4 h-4 text-pensi-dark" />
+            </button>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

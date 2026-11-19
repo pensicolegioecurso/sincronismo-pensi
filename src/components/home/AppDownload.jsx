@@ -1,354 +1,120 @@
-
-import {
-  Apple,
-  Bot,
-  ArrowUpRight,
-  Smartphone,
-  CalendarDays,
-  Check,
-} from "lucide-react";
+import { Apple, Bot, CalendarDays, Check, ArrowUpRight, Sparkles } from "lucide-react";
 
 export default function AppDownload() {
   return (
-    <section className="w-full max-w-5xl mx-auto mt-20 mb-12 px-3 sm:px-4">
-      <div
-        className="
-          relative
-          overflow-hidden
-          bg-pensi-yellow
-          border-[2px] border-black
-          rounded-[24px]
-          shadow-[9px_9px_0px_0px_#000000]
-          px-7 pt-12
-          sm:px-10
-          md:px-14 md:pt-14
-        "
-      >
-        {/* Pontinhos decorativos */}
-        <div
-          className="absolute top-5 left-6 flex items-center gap-1.5"
-          aria-hidden="true"
-        >
-          <span className="w-2.5 h-2.5 rounded-full bg-black" />
-          <span className="w-2.5 h-2.5 rounded-full bg-black/45" />
-          <span className="w-2.5 h-2.5 rounded-full bg-black/20" />
-        </div>
+    <section id="app-download" className="relative w-full py-24 px-6 bg-transparent overflow-hidden">
+      
+      {/* Brilho de fundo para dar profundidade */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[600px] bg-pensi-yellow/10 rounded-full blur-[120px] pointer-events-none z-0" />
 
-        {/* Geometria discreta */}
-        <div
-          className="
-            absolute -right-16 -top-20
-            w-[300px] h-[300px]
-            rounded-full
-            border-[2px] border-black/10
-            pointer-events-none
-          "
-          aria-hidden="true"
-        />
+      <div className="max-w-[1200px] mx-auto relative z-10">
+        <div className="bg-pensi-dark rounded-[48px] p-8 md:p-16 flex flex-col lg:flex-row items-center justify-between gap-16 relative overflow-hidden shadow-2xl border border-white/5">
+          
+          {/* Detalhe sutil no canto do card escuro */}
+          <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-pensi-yellow/20 to-transparent rounded-bl-full pointer-events-none" />
 
-        <div
-          className="
-            relative z-10
-            grid grid-cols-1
-            md:grid-cols-[minmax(0,1fr)_280px]
-            items-center
-            gap-10 md:gap-12
-          "
-        >
-          {/* Conteúdo */}
-          <div className="text-center md:text-left pb-4 md:pb-14">
+          <div className="max-w-xl w-full z-10 flex flex-col justify-center">
             
+       
 
-            {/* Título */}
-            <h2
-              className="
-                text-[30px]
-                sm:text-[36px]
-                md:text-[40px]
-                font-medium
-                tracking-[-0.045em]
-                leading-[1.15]
-                text-[#111111]
-                mb-5
-              "
-            >
-              Seu planejamento,
-              <br />
-              onde você estiver
-              <span className="text-white">.</span>
+            <h2 className="text-[40px] sm:text-[56px] font-black leading-[0.95] tracking-[-0.03em] text-white mb-6">
+              Seu planejamento,<br />
+              <span className="bg-pensi-yellow text-pensi-dark px-3 py-1 inline-block mt-2 transform -rotate-1">onde você estiver.</span>
             </h2>
-
-            {/* Descrição */}
-            <p
-              className="
-                max-w-[420px]
-                mx-auto md:mx-0
-                text-[14px] md:text-[15px]
-                font-normal
-                leading-[1.8]
-                text-black/70
-                mb-9
-              "
-            >
-              Em breve, o Sincronismo Pedagógico também
-              estará no seu celular. Consulte suas aulas,
-              acompanhe seu planejamento e registre seus
-              checks com praticidade.
+            
+            <p className="text-[16px] text-gray-400 font-medium leading-relaxed mb-10 max-w-md">
+             O Sincronismo Pedagógico também estará no seu celular. Consulte suas aulas, acompanhe seu planejamento e registre seus checks com a praticidade que você já conhece.
             </p>
 
-            {/* Botões de download */}
-            <div
-              className="
-                flex flex-col sm:flex-row
-                items-stretch sm:items-center
-                justify-center md:justify-start
-                gap-4
-              "
-            >
-              {/* iOS */}
-              <button
-                type="button"
-                disabled
-                aria-label="Download para iOS em breve"
-                className="
-                  w-full sm:w-auto
-                  min-w-[185px]
-                  flex items-center justify-center
-                  gap-3
-                  px-6 py-4
-                  bg-[#151515]
-                  text-white
-                  border-[2px] border-black
-                  rounded-xl
-                  shadow-[5px_5px_0px_0px_#FFFFFF]
-                  cursor-not-allowed
-                "
-              >
-                <Apple
-                  className="w-7 h-7 shrink-0"
-                  strokeWidth={1.7}
-                />
-
-                <div className="text-left">
-                  <span className="block text-[10px] font-light text-gray-300 leading-tight">
-                    Em breve para
-                  </span>
-                  <span className="block text-[18px] font-semibold leading-tight">
-                    iOS
-                  </span>
+            <div className="flex flex-col sm:flex-row gap-4 w-full">
+              <button className="group flex-1 flex items-center justify-between gap-4 bg-white hover:bg-gray-100 rounded-2xl px-6 py-4 transition-all duration-300 cursor-not-allowed shadow-lg">
+                <div className="flex items-center gap-4">
+                  <Apple className="w-8 h-8 text-pensi-dark" />
+                  <div className="text-left">
+                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Em breve para</p>
+                    <p className="text-[18px] text-pensi-dark font-black leading-tight">iOS</p>
+                  </div>
                 </div>
+                <ArrowUpRight className="w-5 h-5 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
               </button>
 
-              {/* Android */}
-              <button
-                type="button"
-                disabled
-                aria-label="Download para Android em breve"
-                className="
-                  w-full sm:w-auto
-                  min-w-[185px]
-                  flex items-center justify-center
-                  gap-3
-                  px-6 py-4
-                  bg-[#151515]
-                  text-white
-                  border-[2px] border-black
-                  rounded-xl
-                  shadow-[5px_5px_0px_0px_#FFFFFF]
-                  cursor-not-allowed
-                "
-              >
-                <Bot
-                  className="w-7 h-7 shrink-0"
-                  strokeWidth={1.7}
-                />
-
-                <div className="text-left">
-                  <span className="block text-[10px] font-light text-gray-300 leading-tight">
-                    Em breve para
-                  </span>
-                  <span className="block text-[18px] font-semibold leading-tight">
-                    Android
-                  </span>
+              <button className="group flex-1 flex items-center justify-between gap-4 bg-pensi-yellow hover:bg-pensi-yellow-hover rounded-2xl px-6 py-4 transition-all duration-300 cursor-not-allowed shadow-lg shadow-pensi-yellow/20">
+                <div className="flex items-center gap-4">
+                  <Bot className="w-8 h-8 text-pensi-dark" />
+                  <div className="text-left">
+                    <p className="text-[10px] text-pensi-dark/70 font-bold uppercase tracking-wider">Em breve para</p>
+                    <p className="text-[18px] text-pensi-dark font-black leading-tight">Android</p>
+                  </div>
                 </div>
+                <ArrowUpRight className="w-5 h-5 text-pensi-dark/50 opacity-0 group-hover:opacity-100 transition-opacity" />
               </button>
             </div>
           </div>
 
-          {/* Celular ilustrativo */}
-          <div
-            className="
-              relative
-              flex justify-center items-end
-              md:self-end
-              h-[280px]
-              sm:h-[320px]
-              md:h-[350px]
-            "
-            aria-hidden="true"
-          >
-            {/* Círculo preto atrás do celular */}
-            <div
-              className="
-                absolute
-                bottom-[-110px]
-                w-[310px] h-[310px]
-                rounded-full
-                bg-[#171717]
-              "
-            />
+          {/* Celular Refinado */}
+          <div className="relative z-10 shrink-0 flex items-center justify-center lg:mr-8">
+            {/* Anel de brilho atrás do celular */}
+            <div className="absolute inset-0 bg-pensi-yellow/20 blur-[60px] rounded-full scale-110 pointer-events-none" />
 
-            {/* Celular */}
-            <div
-              className="
-                relative
-                w-[205px] sm:w-[220px]
-                h-[390px]
-                bg-[#111111]
-                border-[5px] border-black
-                rounded-[32px]
-                shadow-[9px_9px_0px_0px_rgba(0,0,0,0.35)]
-                p-[5px]
-                translate-y-16
-              "
-            >
-              {/* Tela */}
-              <div
-                className="
-                  relative
-                  w-full h-full
-                  overflow-hidden
-                  bg-[#f8f9fa]
-                  rounded-[24px]
-                "
-              >
-                {/* Câmera */}
-                <div
-                  className="
-                    absolute top-2 left-1/2
-                    -translate-x-1/2
-                    w-16 h-4
-                    bg-[#111111]
-                    rounded-full
-                    z-10
-                  "
-                />
+            <div className="w-[260px] h-[530px] bg-[#1c1c1c] rounded-[48px] border-[8px] border-[#2a2a2a] shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col relative ring-1 ring-white/10">
+              
+              {/* Câmera/Notch */}
+              <div className="absolute top-3 left-1/2 -translate-x-1/2 w-24 h-6 bg-black rounded-full z-20 flex items-center justify-end px-2">
+                 <div className="w-2 h-2 rounded-full bg-[#1c1c1c] border border-gray-600" />
+              </div>
+              
+              <div className="flex-1 bg-[#F1F2F4] rounded-[40px] overflow-hidden flex flex-col mt-2 relative">
+                
+                {/* Reflexo da tela */}
+                <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/20 to-white/0 opacity-40 pointer-events-none z-30" />
 
-                {/* Cabeçalho */}
-                <div className="bg-white px-4 pt-9 pb-4 border-b border-gray-200">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-1.5">
-                      <span className="w-2 h-2 bg-pensi-yellow rounded-full" />
-                      <span className="text-[9px] font-semibold text-gray-900">
-                        Sincronismo
-                      </span>
-                    </div>
-
-                    <Smartphone className="w-3 h-3 text-gray-500" />
+                <div className="bg-white px-6 pt-10 pb-5 shadow-sm z-10">
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Meu planejamento</p>
+                    <div className="w-2 h-2 rounded-full bg-pensi-yellow" />
                   </div>
-
-                  <p className="text-[8px] text-gray-400 mb-1">
-                    Meu planejamento
-                  </p>
-
-                  <h3 className="text-[14px] font-semibold text-gray-900">
-                    Minhas aulas
-                  </h3>
+                  <h3 className="text-[18px] font-black text-pensi-dark">Minhas aulas</h3>
                 </div>
 
-                {/* Conteúdo */}
-                <div className="p-3">
-                  <div className="flex items-center gap-2 mb-3">
-                    <CalendarDays className="w-3 h-3 text-gray-700" />
-                    <span className="text-[9px] font-medium text-gray-700">
-                      Hoje
-                    </span>
+                <div className="p-5 flex-1 overflow-y-auto space-y-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <CalendarDays className="w-4 h-4 text-pensi-dark" />
+                    <span className="text-[11px] font-bold text-pensi-dark uppercase">Hoje, 12 de Nov</span>
                   </div>
 
-                  {/* Aula concluída */}
-                  <div
-                    className="
-                      bg-white
-                      border-[1.5px] border-black/60
-                      rounded-lg
-                      p-3 mb-2
-                      shadow-[2px_2px_0px_0px_rgba(0,0,0,0.15)]
-                    "
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-[10px] font-semibold text-gray-900">
-                          Matemática
-                        </p>
-                        <p className="text-[8px] text-gray-400 mt-1">
-                          Aula 01 · Planejamento
-                        </p>
-                      </div>
-
-                      <div
-                        className="
-                          w-6 h-6
-                          flex items-center justify-center
-                          bg-pensi-yellow
-                          border border-black
-                          rounded-full
-                        "
-                      >
-                        <Check className="w-3.5 h-3.5 text-black" />
-                      </div>
+                  {/* Card de Aula Concluída */}
+                  <div className="bg-white rounded-[20px] p-4 shadow-sm flex items-center justify-between border border-transparent hover:border-pensi-yellow/30 transition-colors">
+                    <div>
+                      <p className="text-[13px] font-bold text-pensi-dark">Matemática</p>
+                      <p className="text-[11px] text-gray-500 mt-0.5">Aula 01 · Concluída</p>
+                    </div>
+                    <div className="w-8 h-8 rounded-full bg-pensi-yellow flex items-center justify-center shadow-sm">
+                      <Check className="w-4 h-4 text-pensi-dark" strokeWidth={3} />
                     </div>
                   </div>
 
-                  {/* Aula pendente */}
-                  <div
-                    className="
-                      bg-white
-                      border-[1.5px] border-black/60
-                      rounded-lg
-                      p-3
-                      shadow-[2px_2px_0px_0px_rgba(0,0,0,0.15)]
-                    "
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-[10px] font-semibold text-gray-900">
-                          Ciências
-                        </p>
-                        <p className="text-[8px] text-gray-400 mt-1">
-                          Aula 02 · Planejamento
-                        </p>
-                      </div>
-
-                      <div
-                        className="
-                          w-6 h-6
-                          border border-black/40
-                          rounded-full
-                        "
-                      />
+                  {/* Card de Aula Pendente */}
+                  <div className="bg-white rounded-[20px] p-4 shadow-sm flex items-center justify-between border border-transparent">
+                    <div>
+                      <p className="text-[13px] font-bold text-pensi-dark">Ciências</p>
+                      <p className="text-[11px] text-gray-500 mt-0.5">Aula 02 · Pendente</p>
                     </div>
+                    <div className="w-8 h-8 rounded-full border-[2px] border-gray-200 hover:border-pensi-yellow transition-colors cursor-pointer" />
                   </div>
 
-                  {/* Botão ilustrativo */}
-                  <div
-                    className="
-                      flex items-center justify-center gap-1.5
-                      bg-[#171717]
-                      border border-black
-                      rounded-lg
-                      shadow-[2px_2px_0px_0px_#000000]
-                      mt-4 py-2.5
-                    "
-                  >
-                    <span className="text-[9px] font-medium text-white">
-                      Ver planejamento
-                    </span>
-                    <ArrowUpRight className="w-3 h-3 text-white" />
+                  {/* Card de Aula Pendente */}
+                  <div className="bg-white rounded-[20px] p-4 shadow-sm flex items-center justify-between border border-transparent">
+                    <div>
+                      <p className="text-[13px] font-bold text-pensi-dark">História</p>
+                      <p className="text-[11px] text-gray-500 mt-0.5">Aula 03 · Pendente</p>
+                    </div>
+                    <div className="w-8 h-8 rounded-full border-[2px] border-gray-200 hover:border-pensi-yellow transition-colors cursor-pointer" />
                   </div>
                 </div>
               </div>
             </div>
           </div>
+
         </div>
       </div>
     </section>

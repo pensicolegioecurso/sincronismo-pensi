@@ -1,8 +1,17 @@
 
 import { useState } from "react";
-import { X, AlertCircle, UserRound, FileSpreadsheet } from "lucide-react";
+
+import {
+  X,
+  AlertCircle,
+  UserRound,
+  FileSpreadsheet,
+  CreditCard,
+} from "lucide-react";
+
 import ManualForm from "./ManualForm";
 import CsvImport from "./CsvImport";
+import CpfOnlyForm from "./CpfOnlyForm";
 
 export default function CadastrarUsuario({
   onClose,
@@ -10,7 +19,7 @@ export default function CadastrarUsuario({
   perfilAtivo,
   unidadesEscopo,
 }) {
-  const [abaAtiva, setAbaAtiva] = useState("manual");
+  const [abaAtiva, setAbaAtiva] = useState("cpf");
   const [erro, setErro] = useState("");
 
   const trocarAba = (aba) => {
@@ -21,6 +30,7 @@ export default function CadastrarUsuario({
   return (
     <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fade-in">
       <div className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border-[3px] border-black bg-[#F7F7F5] shadow-[8px_8px_0px_#000]">
+
         <header className="shrink-0 border-b-[3px] border-black bg-white px-5 py-4">
           <div className="mb-4 flex items-center justify-between">
             <div>
@@ -33,6 +43,7 @@ export default function CadastrarUsuario({
               <h2 className="text-base font-black uppercase tracking-tight text-black">
                 Cadastrar usuário
               </h2>
+
               <p className="mt-0.5 text-[10px] font-bold uppercase tracking-wider text-gray-500">
                 Novo acesso ao sistema Pensi
               </p>
@@ -48,11 +59,25 @@ export default function CadastrarUsuario({
             </button>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+
+            <button
+              type="button"
+              onClick={() => trocarAba("cpf")}
+              className={`flex items-center justify-center gap-2 rounded-lg border-2 border-black px-2 py-2.5 text-[9px] font-black uppercase transition-all ${
+                abaAtiva === "cpf"
+                  ? "bg-pensi-yellow shadow-[3px_3px_0px_#000]"
+                  : "bg-white text-gray-500 hover:bg-gray-100"
+              }`}
+            >
+              <CreditCard className="h-3.5 w-3.5" />
+              Somente CPF
+            </button>
+
             <button
               type="button"
               onClick={() => trocarAba("manual")}
-              className={`flex items-center justify-center gap-2 rounded-lg border-2 border-black px-3 py-2.5 text-[10px] font-black uppercase transition-all ${
+              className={`flex items-center justify-center gap-2 rounded-lg border-2 border-black px-2 py-2.5 text-[9px] font-black uppercase transition-all ${
                 abaAtiva === "manual"
                   ? "bg-pensi-yellow shadow-[3px_3px_0px_#000]"
                   : "bg-white text-gray-500 hover:bg-gray-100"
@@ -65,7 +90,7 @@ export default function CadastrarUsuario({
             <button
               type="button"
               onClick={() => trocarAba("planilha")}
-              className={`flex items-center justify-center gap-2 rounded-lg border-2 border-black px-3 py-2.5 text-[10px] font-black uppercase transition-all ${
+              className={`flex items-center justify-center gap-2 rounded-lg border-2 border-black px-2 py-2.5 text-[9px] font-black uppercase transition-all ${
                 abaAtiva === "planilha"
                   ? "bg-pensi-yellow shadow-[3px_3px_0px_#000]"
                   : "bg-white text-gray-500 hover:bg-gray-100"
@@ -74,6 +99,7 @@ export default function CadastrarUsuario({
               <FileSpreadsheet className="h-3.5 w-3.5" />
               Importar CSV
             </button>
+
           </div>
         </header>
 
@@ -81,8 +107,19 @@ export default function CadastrarUsuario({
           {erro && (
             <div className="mb-4 flex items-start gap-2 rounded-lg border-2 border-red-500 bg-red-50 p-3">
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-700" />
-              <p className="text-[11px] font-bold text-red-800">{erro}</p>
+
+              <p className="text-[11px] font-bold text-red-800">
+                {erro}
+              </p>
             </div>
+          )}
+
+          {abaAtiva === "cpf" && (
+            <CpfOnlyForm
+              onClose={onClose}
+              onSuccess={onSuccess}
+              setErro={setErro}
+            />
           )}
 
           {abaAtiva === "manual" && (

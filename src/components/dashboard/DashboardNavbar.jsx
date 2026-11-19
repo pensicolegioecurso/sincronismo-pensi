@@ -1,6 +1,6 @@
-// src/components/dashboard/DashboardNavbar.jsx
+// Arquivo: src/components/dashboard/DashboardNavbar.jsx
 import {
-  LayoutDashboard, Users, MessageSquare, LogOut, User, Home, Settings,
+  LayoutDashboard, Users, MessageSquare, LogOut, User, Home, Settings, Calendar,
 } from "lucide-react";
 import logoPensi from "../../assets/logoPensi.png";
 
@@ -15,12 +15,18 @@ export default function DashboardNavbar({
   showLogo = false,
 }) {
   const isManager = isAdmin || isDirecao || isNucleo;
+  const podeConfigurar = isAdmin || isNucleo;
 
   const itens = isManager
     ? [
         { key: "dashboard", icon: LayoutDashboard, title: "Visão Geral" },
         { key: "usuarios", icon: Users, title: "Usuários" },
-        { key: "turmas", icon: Settings, title: "Configurações e Cadastros" },
+        ...(podeConfigurar
+          ? [{ key: "turmas", icon: Settings, title: "Configurações e Cadastros" }]
+          : []),
+        ...(isDirecao && !podeConfigurar
+          ? [{ key: "calendario", icon: Calendar, title: "Calendário" }]
+          : []),
         { key: "feed", icon: MessageSquare, title: "Feed" },
       ]
     : [

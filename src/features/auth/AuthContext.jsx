@@ -1,4 +1,6 @@
+
 import { createContext, useState, useEffect, useCallback } from "react";
+
 import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
@@ -6,10 +8,20 @@ import {
   signOut,
   sendPasswordResetEmail,
   updateProfile,
+  updatePassword,
 } from "firebase/auth";
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+
+import {
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  serverTimestamp,
+} from "firebase/firestore";
+
 import { auth, db } from "../../services/firebase";
 import { ouvirChecksDoProfessor } from "../../services/firestoreChecks";
+import { normalizarCPF, validarCPF } from "../../services/cpfService";
 
 export const AuthContext = createContext(null);
 
@@ -17,6 +29,15 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [checksSet, setChecksSet] = useState(new Set());
+
+  const primeiroAcessoPendente =
+    user?.origem === "cadastro-manual" &&
+    user?.primeiroAcessoConcluido !== true;
+
+  const cpfPendente =
+    !!user &&
+    user?.origem !== "cadastro-manual" &&
+    user?.cpfVinculado !== true;
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -27,12 +48,18 @@ export function AuthProvider({ children }) {
         return;
       }
 
+      setLoading(true);
+
       try {
         const userRef = doc(db, "users", firebaseUser.uid);
         const snap = await getDoc(userRef);
 
         if (snap.exists()) {
-          setUser({ uid: firebaseUser.uid, email: firebaseUser.email, ...snap.data() });
+          setUser({
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            ...snap.data(),
+          });
         } else {
           setUser({
             uid: firebaseUser.uid,
@@ -40,11 +67,18 @@ export function AuthProvider({ children }) {
             nome: firebaseUser.displayName || "",
             cargos: [],
             perfilIncompleto: true,
+            cpfVinculado: false,
           });
         }
       } catch (err) {
         console.error("Erro ao buscar dados do usuário:", err);
-        setUser({ uid: firebaseUser.uid, email: firebaseUser.email, perfilIncompleto: true });
+
+        setUser({
+          uid: firebaseUser.uid,
+          email: firebaseUser.email,
+          perfilIncompleto: true,
+          cpfVinculado: false,
+        });
       } finally {
         setLoading(false);
       }
@@ -53,13 +87,12 @@ export function AuthProvider({ children }) {
     return () => unsubscribe();
   }, []);
 
-  // OUVINTE EM TEMPO REAL DOS CHECKS
   useEffect(() => {
     if (!user?.uid) {
       setChecksSet(new Set());
       return;
     }
-    
+
     const unsubscribe = ouvirChecksDoProfessor(user.uid, (checks) => {
       setChecksSet(checks);
     });
@@ -67,45 +100,179 @@ export function AuthProvider({ children }) {
     return () => unsubscribe();
   }, [user?.uid]);
 
-  const register = useCallback(async ({ nome, email, senha, disciplinas, unidade, series, turmas }) => {
+  const register = useCallback(async ({
+    nome,
+    email,
+    senha,
+    disciplinas,
+    unidade,
+    series,
+    turmas,
+  }) => {
     try {
       const cred = await createUserWithEmailAndPassword(auth, email, senha);
       const firebaseUser = cred.user;
-      if (nome) await updateProfile(firebaseUser, { displayName: nome });
+
+      if (nome) {
+        await updateProfile(firebaseUser, { displayName: nome });
+      }
 
       const userData = {
-        uid: firebaseUser.uid, nome: nome || "", email: email,
-        disciplinas: disciplinas || [], unidade: unidade || "",
-        series: series || "", turmas: turmas || "",
-        cargos: ["professor"], criadoEm: serverTimestamp(),
+        uid: firebaseUser.uid,
+        nome: nome || "",
+        email,
+        disciplinas: disciplinas || [],
+        unidade: unidade || "",
+        series: series || "",
+        turmas: turmas || "",
+        cargos: ["professor"],
+        origem: "cadastro-proprio",
+        cpfVinculado: false,
+        perfilIncompleto: false,
+        primeiroAcessoConcluido: true,
+        criadoEm: serverTimestamp(),
       };
 
       await setDoc(doc(db, "users", firebaseUser.uid), userData);
-      return { ok: true, user: firebaseUser };
+
+      setUser({
+        ...userData,
+        uid: firebaseUser.uid,
+        email,
+      });
+
+      return { ok: true, user: firebaseUser, uid: firebaseUser.uid };
     } catch (err) {
       console.error("Erro no register:", err);
-      return { ok: false, message: "Não foi possível criar a conta." };
+
+      let message = "Não foi possível criar a conta.";
+
+      if (err.code === "auth/email-already-in-use") {
+        message = "Este e-mail já possui uma conta.";
+      } else if (err.code === "auth/weak-password") {
+        message = "A senha é muito fraca.";
+      } else if (err.code === "auth/invalid-email") {
+        message = "E-mail inválido.";
+      }
+
+      return { ok: false, message };
     }
   }, []);
 
   const atualizarPerfil = useCallback(async (dados) => {
     try {
-      if (!auth.currentUser) throw new Error("Sem usuário autenticado");
-      const uid = auth.currentUser.uid;
+      if (!auth.currentUser) {
+        throw new Error("Sem usuário autenticado.");
+      }
 
+      const uid = auth.currentUser.uid;
       const userRef = doc(db, "users", uid);
+
       const userData = {
-        uid, email: auth.currentUser.email,
+        uid,
+        email: auth.currentUser.email,
         nome: dados.nome || auth.currentUser.displayName || "",
-        disciplinas: dados.disciplinas || [], unidade: dados.unidade || "",
-        series: dados.series || "", turmas: dados.turmas || "",
-        cargos: dados.cargos || ["professor"], criadoEm: serverTimestamp(),
+        disciplinas: dados.disciplinas || [],
+        unidade: dados.unidade || "",
+        series: dados.series || "",
+        turmas: dados.turmas || "",
+        cargos: dados.cargos || ["professor"],
+        origem: "cadastro-proprio",
+        cpfVinculado: false,
+        perfilIncompleto: false,
+        primeiroAcessoConcluido: true,
       };
 
       await setDoc(userRef, userData, { merge: true });
+
+      setUser((prev) => ({
+        ...prev,
+        ...userData,
+      }));
+
       return { ok: true };
     } catch (err) {
-      return { ok: false, message: "Não foi possível salvar os dados." };
+      console.error("Erro ao atualizar perfil:", err);
+
+      return {
+        ok: false,
+        message: "Não foi possível salvar os dados.",
+      };
+    }
+  }, []);
+
+  const vincularCPF = useCallback(async (valor) => {
+    try {
+      const firebaseUser = auth.currentUser;
+
+      if (!firebaseUser) {
+        throw new Error("Nenhum usuário autenticado.");
+      }
+
+      const cpf = normalizarCPF(valor);
+
+      if (!validarCPF(cpf)) {
+        throw new Error("O CPF informado é inválido.");
+      }
+
+      const cpfRef = doc(db, "cpfs", cpf);
+      const userRef = doc(db, "users", firebaseUser.uid);
+
+      const { runTransaction } = await import("firebase/firestore");
+
+      await runTransaction(db, async (transaction) => {
+        const [cpfSnap, userSnap] = await Promise.all([
+          transaction.get(cpfRef),
+          transaction.get(userRef),
+        ]);
+
+        if (!userSnap.exists()) {
+          throw new Error("Perfil do usuário não encontrado.");
+        }
+
+        if (!cpfSnap.exists()) {
+          throw new Error(
+            "CPF não autorizado. Solicite à administração o pré-cadastro do seu CPF."
+          );
+        }
+
+        const dadosCPF = cpfSnap.data();
+
+        if (dadosCPF.origem !== "cadastro-cpf") {
+          throw new Error("Este CPF não está liberado para cadastro público.");
+        }
+
+        if (dadosCPF.uid) {
+          throw new Error("Este CPF já está vinculado a uma conta.");
+        }
+
+        transaction.update(userRef, {
+          cpf,
+          cpfVinculado: true,
+          atualizadoEm: serverTimestamp(),
+        });
+
+        transaction.update(cpfRef, {
+          uid: firebaseUser.uid,
+          origem: "pre-cadastro-vinculado",
+          atualizadoEm: serverTimestamp(),
+        });
+      });
+
+      setUser((prev) => ({
+        ...prev,
+        cpf,
+        cpfVinculado: true,
+      }));
+
+      return { ok: true };
+    } catch (err) {
+      console.error("Erro ao vincular CPF:", err);
+
+      return {
+        ok: false,
+        message: err.message || "Não foi possível vincular o CPF.",
+      };
     }
   }, []);
 
@@ -114,7 +281,62 @@ export function AuthProvider({ children }) {
       await signInWithEmailAndPassword(auth, email, senha);
       return { ok: true };
     } catch (err) {
+      console.error("Erro no login:", err);
       return { ok: false, message: "E-mail ou senha incorretos." };
+    }
+  }, []);
+
+  const concluirPrimeiroAcesso = useCallback(async (novaSenha) => {
+    try {
+      const firebaseUser = auth.currentUser;
+
+      if (!firebaseUser) {
+        throw new Error("Nenhum usuário autenticado.");
+      }
+
+      const userRef = doc(db, "users", firebaseUser.uid);
+      const snap = await getDoc(userRef);
+
+      if (!snap.exists()) {
+        throw new Error("Cadastro do usuário não encontrado.");
+      }
+
+      const dados = snap.data();
+
+      if (
+        dados.origem !== "cadastro-manual" ||
+        dados.primeiroAcessoConcluido === true
+      ) {
+        throw new Error("Este usuário não possui primeiro acesso pendente.");
+      }
+
+      await updatePassword(firebaseUser, novaSenha);
+
+      await updateDoc(userRef, {
+        primeiroAcessoConcluido: true,
+        atualizadoEm: serverTimestamp(),
+      });
+
+      setUser((prev) => ({
+        ...prev,
+        primeiroAcessoConcluido: true,
+      }));
+
+      return { ok: true };
+    } catch (err) {
+      console.error("Erro ao concluir primeiro acesso:", err);
+
+      let message = "Não foi possível atualizar sua senha. Tente novamente.";
+
+      if (err.code === "auth/weak-password") {
+        message = "A senha deve possuir pelo menos 6 caracteres.";
+      } else if (err.code === "auth/requires-recent-login") {
+        message = "Sua sessão expirou. Entre novamente.";
+      } else if (err.message) {
+        message = err.message;
+      }
+
+      return { ok: false, message };
     }
   }, []);
 
@@ -123,6 +345,7 @@ export function AuthProvider({ children }) {
       await signOut(auth);
       return { ok: true };
     } catch (err) {
+      console.error("Erro ao sair:", err);
       return { ok: false, message: "Erro ao sair." };
     }
   }, []);
@@ -132,15 +355,34 @@ export function AuthProvider({ children }) {
       await sendPasswordResetEmail(auth, email);
       return { ok: true };
     } catch (err) {
-      return { ok: false, message: "Não foi possível enviar o e-mail." };
+      return {
+        ok: false,
+        message: "Não foi possível enviar o e-mail.",
+      };
     }
   }, []);
 
   const value = {
-    user, loading, checksSet, setChecksSet,
-    register, atualizarPerfil, login, logout, redefine,
-    isAuthenticated: !!user, perfilIncompleto: !!user?.perfilIncompleto,
+    user,
+    loading,
+    checksSet,
+    setChecksSet,
+    register,
+    atualizarPerfil,
+    vincularCPF,
+    login,
+    logout,
+    redefine,
+    concluirPrimeiroAcesso,
+    primeiroAcessoPendente,
+    cpfPendente,
+    isAuthenticated: !!user,
+    perfilIncompleto: !!user?.perfilIncompleto,
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
 }

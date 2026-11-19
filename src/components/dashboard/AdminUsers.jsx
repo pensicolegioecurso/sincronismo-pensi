@@ -12,7 +12,7 @@ import { db } from "../../services/firebase";
 import { useTurmas } from "../../hooks/useTurmas";
 import { useUnidades } from "../../hooks/useUnidades";
 
-import { Loader2, Search } from "lucide-react";
+import { Loader2, Search, UserPlus } from "lucide-react";
 
 import UsersHeader from "./users/UsersHeader";
 import UsersFilters from "./users/UsersFilters";
@@ -426,12 +426,42 @@ export default function AdminUsers({
   return (
     <div className="w-full min-w-0 pb-8 animate-fade-in">
       <div className="w-full min-w-0 px-1">
-        <UsersHeader
-          ehRegional={ehRegional}
-          ehDirecao={ehDirecao}
-          total={usersFiltrados.length}
-          inativos={totalInativos}
-        />
+
+        {/* CABEÇALHO + BOTÃO NOVO USUÁRIO */}
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <UsersHeader
+              ehRegional={ehRegional}
+              ehDirecao={ehDirecao}
+              total={usersFiltrados.length}
+              inativos={totalInativos}
+            />
+          </div>
+
+          {podeGerenciar && (
+            <button
+              type="button"
+              onClick={() => setIsCadastroOpen(true)}
+              className="
+                inline-flex shrink-0 items-center justify-center gap-2
+                rounded-lg border-2 border-black
+                bg-[#FFD600] px-4 py-2.5
+                text-[11px] font-black uppercase tracking-wide
+                text-black
+                shadow-[3px_3px_0px_#000]
+                transition-all duration-150
+                hover:translate-x-[2px]
+                hover:translate-y-[2px]
+                hover:shadow-none
+                active:translate-x-[3px]
+                active:translate-y-[3px]
+              "
+            >
+              <UserPlus size={16} strokeWidth={2.5} />
+              Novo usuário
+            </button>
+          )}
+        </div>
 
         <section className="mb-6 w-full rounded-lg border-2 border-black bg-white px-4 py-4 shadow-[3px_3px_0px_#000]">
           <div className="flex flex-wrap items-end gap-x-5 gap-y-3">

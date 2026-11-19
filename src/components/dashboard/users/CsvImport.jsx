@@ -1,6 +1,9 @@
 
 import { useRef, useState } from "react";
-import { doc, setDoc } from "firebase/firestore";
+import {
+  salvarUsuarioComCPF,
+  verificarCPFDisponivel,
+} from "../../../services/cpfService";
 import { db } from "../../../services/firebase";
 import { criarUsuarioSecundario } from "../../../services/criarUsuarioSecundario";
 import { AlertCircle, CheckCircle2, FileSpreadsheet } from "lucide-react";
@@ -248,80 +251,111 @@ export default function CsvImport({ onClose, onSuccess, setErro }) {
   };
 
   const confirmarImportacao = async () => {
-    if (!csvData.length || csvErros.length || loading) return;
+   
+const confirmarImportacao = async () => {
+  if (!csvData.length || csvErros.length || loading) return;
 
-    setLoading(true);
-    setErro("");
-    setResultado([]);
+  setLoading(true);
+  setErro("");
+  setResultado([]);
 
-    const resultados = [];
+  const resultados = [];
 
-    for (const usuario of csvData) {
-      try {
-        const uid = await criarUsuarioSecundario(
-          usuario.email,
-          usuario.senha
-        );
+  for (const usuario of csvData) {
+    try {
+      // Permite aproveitar CPF que já foi cadastrado
+      // isoladamente na coleção cpfs.
+      await verificarCPFDisponivel(usuario.cpf, {
+        permitirPreCadastro: true,
+      });
 
-        const payload = {
-          nome: usuario.nome,
-          email: usuario.email,
-          cpf: usuario.cpf,
-          cargos: [usuario.cargo],
-          disciplinas: [],
-          unidade: usuario.unidades.join(","),
-          series: "",
-          turmas: "",
-          unidadesComando:
-            usuario.cargo === "regional" ? usuario.unidades : [],
-          unidadesInativas: [],
-          turmasInativas: [],
-          criadoEm: new Date(),
-          status: "Ativo",
-        };
-
-        await setDoc(doc(db, "users", uid), payload);
-
-        resultados.push({
-          email: usuario.email,
-          sucesso: true,
-        });
-      } catch (err) {
-        console.error(`Erro ao importar ${usuario.email}:`, err);
-
-        let mensagem = "Erro ao cadastrar.";
-
-        if (err.code === "auth/email-already-in-use") {
-          mensagem = "E-mail já cadastrado.";
-        } else if (err.code === "auth/weak-password") {
-          mensagem = "Senha fraca.";
-        } else if (err.code === "permission-denied") {
-          mensagem = "Sem permissão para criar o perfil no Firestore.";
-        }
-
-        resultados.push({
-          email: usuario.email,
-          sucesso: false,
-          mensagem,
-        });
-      }
-    }
-
-    setResultado(resultados);
-    setLoading(false);
-
-    const quantidadeSucesso = resultados.filter((r) => r.sucesso).length;
-    const quantidadeErro = resultados.length - quantidadeSucesso;
-
-    if (quantidadeSucesso > 0) {
-      onSuccess?.();
-    }
-
-    if (quantidadeErro > 0) {
-      setErro(
-        `${quantidadeSucesso} usuário(s) cadastrado(s) e ${quantidadeErro} com erro. Confira o resultado da importação.`
+      const uid = await criarUsuarioSecundario(
+        usuario.email,
+        usuario.senha
       );
+
+      const payload = {
+        nome: usuario.nome,
+        email: usuario.email,
+        cpf: usuario.cpf,
+        cargos: [usuario.cargo],
+        disciplinas: [],
+        unidade: usuario.unidades.join(","),
+        series: "",
+        turmas: "",
+        unidadesComando:
+          usuario.cargo === "regional"
+            ? usuario.unidades
+            : [],
+        unidadesInativas: [],
+        turmasInativas: [],
+        criadoEm: new Date(),
+        status: "Ativo",
+      };
+
+      // Salva o usuário e o CPF na mesma transação.
+      await salvarUsuarioComCPF(
+        uid,
+        payload,
+        "cadastro-lote"
+      );
+
+      resultados.push({
+        email: usuario.email,
+        sucesso: true,
+      });
+
+    } catch (err) {
+      console.error(
+        `Erro ao importar ${usuario.email}:`,
+        err
+      );
+
+      let mensagem = "Erro ao cadastrar.";
+
+      if (
+        err.code === "cpf/ja-vinculado" ||
+        err.code === "cpf/ja-cadastrado"
+      ) {
+        mensagem = "CPF já cadastrado ou vinculado a outro usuário.";
+      } else if (err.code === "cpf/invalido") {
+        mensagem = "CPF inválido.";
+      } else if (err.code === "auth/email-already-in-use") {
+        mensagem = "E-mail já cadastrado.";
+      } else if (err.code === "auth/weak-password") {
+        mensagem = "Senha fraca.";
+      } else if (err.code === "permission-denied") {
+        mensagem = "Sem permissão para gravar no Firestore.";
+      }
+
+      resultados.push({
+        email: usuario.email,
+        sucesso: false,
+        mensagem,
+      });
     }
+  }
+
+  setResultado(resultados);
+  setLoading(false);
+
+  const quantidadeSucesso = resultados.filter(
+    (r) => r.sucesso
+  ).length;
+
+  const quantidadeErro = resultados.length - quantidadeSucesso;
+
+  if (quantidadeSucesso > 0) {
+    onSuccess?.();
+  }
+
+  if (quantidadeErro > 0) {
+    setErro(
+      `${quantidadeSucesso} usuário(s) cadastrado(s) e ${quantidadeErro} com erro. Confira o resultado da importação.`
+    );
+  }
+};
+
   };
 
   const limparArquivo = () => {

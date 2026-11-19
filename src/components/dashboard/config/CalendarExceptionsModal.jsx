@@ -1,3 +1,4 @@
+
 import { Calendar as CalendarIcon, Trash2 } from "lucide-react";
 import Modal from "./Modal";
 import Field from "./Field";
@@ -15,12 +16,12 @@ export default function CalendarExceptionsModal({
   setExcecao,
   unidadeCalendario,
   SERIES_DISPONIVEIS,
-  turmas,
+  turmas = [],
   inputClass,
   buttonClass,
   salvando,
   erro,
-  excecoesDaUnidade,
+  excecoesDaUnidade = [],
   removerExcecao,
   podeGerenciar,
   podeAdicionarGeral,
@@ -28,12 +29,21 @@ export default function CalendarExceptionsModal({
   ehRegional,
 }) {
   const turmasDaUnidade = turmas.filter(
-    (item) => nomeUnidade(item.unidade) === unidadeCalendario
+    (item) =>
+      nomeUnidade(item.unidade) === unidadeCalendario &&
+      item.ativo !== false
   );
 
   const podeAdicionarNestaUnidade =
     podeGerenciar &&
     (unidadeCalendario !== "Todas" || podeAdicionarGeral);
+
+  const turmasOrdenadas = [...turmasDaUnidade].sort((a, b) =>
+    String(a.turma || "").localeCompare(
+      String(b.turma || ""),
+      "pt-BR"
+    )
+  );
 
   return (
     <Modal
@@ -55,7 +65,11 @@ export default function CalendarExceptionsModal({
               <p className="text-[10px] font-black uppercase text-gray-600">
                 Unidade selecionada
               </p>
-              <p className="text-sm font-black">{unidadeCalendario}</p>
+
+              <p className="text-sm font-black">
+                {unidadeCalendario}
+              </p>
+
               <p className="mt-1 text-[10px] font-semibold text-gray-600">
                 {unidadeCalendario === "Todas"
                   ? "Esta exceção será geral (todas as unidades)."
@@ -64,7 +78,9 @@ export default function CalendarExceptionsModal({
             </div>
 
             {erro && (
-              <p className="text-xs font-bold text-red-600">{erro}</p>
+              <p className="text-xs font-bold text-red-600">
+                {erro}
+              </p>
             )}
 
             <div className="grid grid-cols-2 gap-2">
@@ -87,6 +103,7 @@ export default function CalendarExceptionsModal({
                 <input
                   type="date"
                   value={excecao.dataFim}
+                  min={excecao.dataInicio || undefined}
                   onChange={(event) =>
                     setExcecao((atual) => ({
                       ...atual,
@@ -145,6 +162,7 @@ export default function CalendarExceptionsModal({
                   className={inputClass}
                 >
                   <option value="">Selecione uma série</option>
+
                   {SERIES_DISPONIVEIS.map((serie) => (
                     <option key={serie} value={serie}>
                       {serie}
@@ -168,18 +186,29 @@ export default function CalendarExceptionsModal({
                   className={inputClass}
                 >
                   <option value="">Selecione uma turma</option>
-                  {turmasDaUnidade.map((item) => (
+
+                  {turmasOrdenadas.map((item) => (
                     <option key={item.id} value={item.turma}>
                       {item.turma}
                     </option>
                   ))}
                 </select>
+
+                {turmasOrdenadas.length === 0 && (
+                  <p className="mt-1 text-[10px] font-semibold text-red-600">
+                    Nenhuma turma encontrada para esta unidade.
+                  </p>
+                )}
               </Field>
             )}
 
             <button
               type="submit"
-              disabled={salvando}
+              disabled={
+                salvando ||
+                (excecao.tipo === "turma" &&
+                  turmasOrdenadas.length === 0)
+              }
               className={`${buttonClass} w-full bg-pensi-yellow`}
             >
               {salvando ? "Salvando..." : "Adicionar exceção"}
@@ -191,6 +220,7 @@ export default function CalendarExceptionsModal({
           {excecoesDaUnidade.length === 0 ? (
             <div className="flex min-h-48 flex-col items-center justify-center p-6 text-center text-gray-400">
               <CalendarIcon size={28} className="mb-2" />
+
               <p className="text-xs font-bold">
                 Nenhuma exceção cadastrada para esta unidade.
               </p>
@@ -203,10 +233,15 @@ export default function CalendarExceptionsModal({
               >
                 <div className="min-w-0">
                   <p className="text-xs font-black">
-                    {new Date(`${item.dataInicio}T12:00:00`).toLocaleDateString("pt-BR")}
+                    {new Date(
+                      `${item.dataInicio}T12:00:00`
+                    ).toLocaleDateString("pt-BR")}
+
                     {item.dataFim &&
                       item.dataFim !== item.dataInicio &&
-                      ` até ${new Date(`${item.dataFim}T12:00:00`).toLocaleDateString("pt-BR")}`}
+                      ` até ${new Date(
+                        `${item.dataFim}T12:00:00`
+                      ).toLocaleDateString("pt-BR")}`}
                   </p>
 
                   <p className="mt-1 truncate text-[10px] font-semibold text-gray-500">

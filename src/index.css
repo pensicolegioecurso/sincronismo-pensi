@@ -73,3 +73,35 @@
   }
 }
 
+@import "tailwindcss";
+
+@theme {
+  --color-pensi-yellow: #F5C518;
+  --color-pensi-yellow-hover: #e0b400;
+  --color-pensi-bg: #F1F2F4;
+  --color-pensi-dark: #111111;
+  --color-pensi-muted: #6B7280;
+
+  --font-sans: "Archivo", sans-serif;
+}
+
+@layer base {
+  html, body, #root {
+    min-height: 100%;
+  }
+  body {
+    background-color: var(--color-pensi-bg);
+    color: var(--color-pensi-dark);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  button {
+    font-family: inherit;
+  }
+}
+
+@layer utilities {
+  .bg-hero-gradient {
+    background: radial-gradient(circle at top right, rgba(245, 197, 24, 0.25) 0%, rgba(241, 242, 244, 1) 50%);
+  }
+}

@@ -1,10 +1,7 @@
+// Arquivo: src/components/dashboard/TurmasAdmin.jsx
 import { useState, useEffect, useMemo, useRef } from "react";
 
-import {
-  X,
-  AlertCircle,
-  CheckCircle2,
-} from "lucide-react";
+import { X, AlertCircle, CheckCircle2 } from "lucide-react";
 
 import {
   collection,
@@ -197,6 +194,9 @@ export default function TurmasAdmin({
     : true;
 
   const podeVerRegionais = temPerfil ? ehAdmin || ehNucleo : true;
+  const podeExcluirUnidade = temPerfil ? ehAdmin || ehNucleo : true;
+  const podeCriarUnidade = temPerfil ? ehAdmin || ehNucleo : true;
+  const podeGerenciarCalendario = temPerfil ? ehAdmin || ehNucleo : true;
 
   const unidadesComando = useMemo(
     () => normalizarUnidadesComando(perfilAtivo),
@@ -213,11 +213,11 @@ export default function TurmasAdmin({
     if (ehAdmin || ehNucleo) return todasUnidades;
     if (ehRegional) {
       const base = unidadesComando.length ? unidadesComando : [];
-      if (!base.length) return todasUnidades;
+      if (!base.length) return [];
       return todasUnidades.filter((u) => pertenceAoEscopo(u, base));
     }
     if (ehDirecao) {
-      if (!unidadePerfil) return todasUnidades;
+      if (!unidadePerfil) return [];
       return todasUnidades.filter((u) => pertenceAoEscopo(u, [unidadePerfil]));
     }
     return todasUnidades;
@@ -257,12 +257,27 @@ export default function TurmasAdmin({
   const [calendarios, setCalendarios] = useState([]);
   const [carregandoCal, setCarregandoCal] = useState(true);
   const [unidadeCalendario, setUnidadeCalendario] = useState(
-    ehDirecao && unidadePerfil ? unidadePerfil : "Todas"
+    ehDirecao && unidadePerfil
+      ? unidadePerfil
+      : ehRegional && unidadesComando.length
+        ? unidadesComando[0]
+        : "Todas"
   );
 
   useEffect(() => {
     if (ehDirecao && unidadePerfil) {
       setUnidadeCalendario(unidadePerfil);
+      return;
+    }
+    if (ehRegional) {
+      if (unidadesComando.length) {
+        if (
+          unidadeCalendario === "Todas" ||
+          !pertenceAoEscopo(unidadeCalendario, unidadesComando)
+        ) {
+          setUnidadeCalendario(unidadesComando[0]);
+        }
+      }
       return;
     }
     if (
@@ -273,11 +288,9 @@ export default function TurmasAdmin({
           String(unidadeCalendario).toLocaleLowerCase("pt-BR")
       )
     ) {
-      setUnidadeCalendario(
-        ehRegional ? (unidadesPermitidas[0] || "Todas") : "Todas"
-      );
+      setUnidadeCalendario("Todas");
     }
-  }, [ehDirecao, ehRegional, unidadePerfil, unidadesPermitidas, unidadeCalendario]);
+  }, [ehDirecao, ehRegional, unidadePerfil, unidadesComando, unidadesPermitidas, unidadeCalendario]);
 
   const [novoCal, setNovoCal] = useState({
     nome: "",
@@ -533,6 +546,11 @@ export default function TurmasAdmin({
   };
 
   const excluirUnidadeCompleta = async (nomeUnidade) => {
+    if (!podeExcluirUnidade) {
+      setErro("Você não tem permissão para excluir unidades.");
+      return;
+    }
+
     const turmasDaUnidade = turmas.filter((item) => item.unidade === nomeUnidade);
 
     const mensagem =
@@ -890,6 +908,7 @@ export default function TurmasAdmin({
       <ConfigHeader
         buttonClass={buttonClass}
         podeGerenciar={podeGerenciar}
+        podeCriarUnidade={podeCriarUnidade}
         ehDirecao={ehDirecao}
         abrirNovaTurma={() => abrirNovaTurma()}
         abrirNovaUnidade={abrirModalUnidade}
@@ -926,6 +945,10 @@ export default function TurmasAdmin({
         ehRegional={ehRegional}
         ehDirecao={ehDirecao}
         podeGerenciar={podeGerenciar}
+        podeImportar={podeGerenciar && !ehDirecao}
+        podeExcluirTurma={podeGerenciar}
+        podeExcluirUnidade={podeExcluirUnidade}
+        excluirUnidadeCompleta={excluirUnidadeCompleta}
         secaoUnidadesVisivel={secaoUnidadesVisivel}
         setSecaoUnidadesVisivel={setSecaoUnidadesVisivel}
         unidadesAbertas={unidadesAbertas}
@@ -938,8 +961,8 @@ export default function TurmasAdmin({
 
       <CalendarsSection
         podeGerenciar={podeGerenciar}
-        podeCriarCalendario={podeGerenciar}
-        podeExcluirCalendario={podeGerenciar}
+        podeCriarCalendario={podeGerenciarCalendario}
+        podeExcluirCalendario={podeGerenciarCalendario}
         ehDirecao={ehDirecao}
         ehRegional={ehRegional}
         unidadeAtivaPerfil={unidadePerfil}
@@ -1049,7 +1072,7 @@ export default function TurmasAdmin({
           excecoesDaUnidade={excecoesDaUnidade}
           removerExcecao={removerExcecao}
           podeGerenciar={podeGerenciar}
-          podeAdicionarGeral={true}
+          podeAdicionarGeral={!ehDirecao && !ehRegional}
           ehDirecao={ehDirecao}
           ehRegional={ehRegional}
         />

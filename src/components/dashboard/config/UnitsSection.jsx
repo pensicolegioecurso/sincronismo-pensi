@@ -1,9 +1,9 @@
+// Arquivo: src/pages/config/UnitsSection.jsx
 import {
   Building2,
   GraduationCap,
   ChevronDown,
   ChevronUp,
-  Search,
   Trash2,
   Upload,
   Eye,
@@ -23,6 +23,8 @@ export default function UnitsSection({
   podeGerenciar,
   podeImportar,
   podeExcluirTurma,
+  podeExcluirUnidade,
+  excluirUnidadeCompleta,
   secaoUnidadesVisivel,
   setSecaoUnidadesVisivel,
   unidadesAbertas,
@@ -37,6 +39,8 @@ export default function UnitsSection({
 
   const mostrarExcluirTurma =
     typeof podeExcluirTurma === "boolean" ? podeExcluirTurma : podeGerenciar;
+
+  const mostrarExcluirUnidade = podeExcluirUnidade && !ehRegional;
 
   return (
     <section className="space-y-4">
@@ -111,36 +115,48 @@ export default function UnitsSection({
                   key={unidade}
                   className="min-w-0 overflow-hidden rounded-xl border-2 border-black bg-white shadow-[3px_3px_0_#000]"
                 >
-                  <button
-                    onClick={() =>
-                      setUnidadesAbertas((atual) => ({
-                        ...atual,
-                        [unidade]: !aberto,
-                      }))
-                    }
-                    className="flex w-full items-center gap-3 p-3 text-left transition hover:bg-gray-50"
-                  >
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border-2 border-black bg-pensi-yellow">
-                      <Building2 size={19} />
-                    </div>
+                  <div className="flex items-center gap-2 p-3">
+                    <button
+                      onClick={() =>
+                        setUnidadesAbertas((atual) => ({
+                          ...atual,
+                          [unidade]: !aberto,
+                        }))
+                      }
+                      className="flex flex-1 items-center gap-3 text-left transition hover:opacity-80 min-w-0"
+                    >
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border-2 border-black bg-pensi-yellow">
+                        <Building2 size={19} />
+                      </div>
 
-                    <div className="min-w-0 flex-1">
-                      <h3 className="truncate text-xs font-black uppercase">
-                        {unidade}
-                      </h3>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="truncate text-xs font-black uppercase">
+                          {unidade}
+                        </h3>
 
-                      <p className="mt-1 text-[10px] font-semibold text-gray-500">
-                        {lista.length}{" "}
-                        {lista.length === 1 ? "turma" : "turmas"}
-                      </p>
-                    </div>
+                        <p className="mt-1 text-[10px] font-semibold text-gray-500">
+                          {lista.length}{" "}
+                          {lista.length === 1 ? "turma" : "turmas"}
+                        </p>
+                      </div>
 
-                    {aberto ? (
-                      <ChevronUp size={17} className="shrink-0" />
-                    ) : (
-                      <ChevronDown size={17} className="shrink-0" />
+                      {aberto ? (
+                        <ChevronUp size={17} className="shrink-0" />
+                      ) : (
+                        <ChevronDown size={17} className="shrink-0" />
+                      )}
+                    </button>
+
+                    {mostrarExcluirUnidade && (
+                      <button
+                        onClick={() => excluirUnidadeCompleta(unidade)}
+                        title="Excluir unidade"
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border-2 border-black bg-red-100 text-red-700 transition hover:bg-red-200"
+                      >
+                        <Trash2 size={15} />
+                      </button>
                     )}
-                  </button>
+                  </div>
 
                   {aberto && (
                     <div className="border-t-2 border-black bg-gray-50 p-3">

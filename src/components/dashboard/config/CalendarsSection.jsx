@@ -1,3 +1,4 @@
+// Arquivo: src/pages/config/CalendarsSection.jsx
 import { useState } from "react";
 import {
   Calendar as CalendarIcon,

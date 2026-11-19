@@ -1,7 +1,9 @@
 
 import { useState, useMemo } from "react";
-import { doc, setDoc } from "firebase/firestore";
-import { db } from "../../../services/firebase";
+import {
+  salvarUsuarioComCPF,
+  verificarCPFDisponivel,
+} from "../../../services/cpfService";
 import { criarUsuarioSecundario } from "../../../services/criarUsuarioSecundario";
 import { DISCIPLINAS_POR_ANO } from "../../../data/disciplinas";
 import { useTurmas } from "../../../hooks/useTurmas";
@@ -84,6 +86,7 @@ export default function ManualForm({
   setErro,
 }) {
   const { todasUnidades } = useUnidades();
+
   const { getSeriesPorUnidades, getTurmasPorUnidadesESeries } = useTurmas({
     somenteAtivas: true,
   });
@@ -99,11 +102,38 @@ export default function ManualForm({
   const [selecoesPorPar, setSelecoesPorPar] = useState({});
   const [loading, setLoading] = useState(false);
 
-  const ehRegionalLogado = perfilAtivo === "regional";
+  const perfilNormalizado = String(perfilAtivo || "").toLowerCase();
+
+  const ehRegionalLogado = perfilNormalizado === "regional";
+
+  const ehDiretorOuCoordenadorLogado = [
+    "diretor",
+    "direcao",
+    "coordenador",
+  ].includes(perfilNormalizado);
+
+  const unidadesDoEscopo = useMemo(() => {
+    if (Array.isArray(unidadesEscopo)) {
+      return unidadesEscopo;
+    }
+
+    if (typeof unidadesEscopo === "string") {
+      return unidadesEscopo
+        .split(",")
+        .map((u) => u.trim())
+        .filter(Boolean);
+    }
+
+    return [];
+  }, [unidadesEscopo]);
 
   const unidadesDisponiveis = ehRegionalLogado
-    ? todasUnidades.filter((u) => (unidadesEscopo || []).includes(u))
+    ? todasUnidades.filter((u) => unidadesDoEscopo.includes(u))
     : todasUnidades;
+
+  const cargosPermitidos = ehDiretorOuCoordenadorLogado
+    ? [{ id: "professor", label: "Professor" }]
+    : CARGOS_ATRIBUIVEIS;
 
   const disciplinasLista = useMemo(() => {
     const todas = Object.values(DISCIPLINAS_POR_ANO).reduce((acc, ano) => {
@@ -120,6 +150,18 @@ export default function ManualForm({
 
   const precisaDisciplinas = cargos.includes("professor");
   const ehRegional = cargos.includes("regional");
+  const ehNucleo = cargos.includes("nucleo");
+
+  // Diretor e coordenador usam automaticamente a própria unidade.
+  const unidadesEfetivas = ehDiretorOuCoordenadorLogado
+    ? unidadesDoEscopo
+    : ehNucleo
+      ? []
+      : unidades;
+
+  // Núcleo não precisa atribuir unidade ao usuário cadastrado.
+  const precisaSelecionarUnidade =
+    !ehDiretorOuCoordenadorLogado && !ehNucleo;
 
   const pares = useMemo(() => {
     if (!precisaDisciplinas) return [];
@@ -127,13 +169,13 @@ export default function ManualForm({
     const lista = [];
 
     disciplinas.forEach((disciplina) => {
-      unidades.forEach((unidade) => {
+      unidadesEfetivas.forEach((unidade) => {
         lista.push({ disciplina, unidade });
       });
     });
 
     return lista;
-  }, [disciplinas, unidades, precisaDisciplinas]);
+  }, [disciplinas, unidadesEfetivas, precisaDisciplinas]);
 
   const toggleItem = (setList, item) => {
     setList((prev) =>
@@ -155,6 +197,16 @@ export default function ManualForm({
       const emailNormalizado = email.trim().toLowerCase();
       const cpfNormalizado = cpf.replace(/\D/g, "");
 
+      if (ehDiretorOuCoordenadorLogado && unidadesEfetivas.length === 0) {
+        throw new Error(
+          "Não foi possível identificar a unidade do Diretor/Coordenador."
+        );
+      }
+
+      await verificarCPFDisponivel(cpfNormalizado, {
+        permitirPreCadastro: true,
+      });
+
       const novoUid = await criarUsuarioSecundario(
         emailNormalizado,
         senha
@@ -164,7 +216,8 @@ export default function ManualForm({
       const todasSeries = new Set();
 
       Object.entries(selecoesPorPar).forEach(([chave, selecao]) => {
-        const unidade = chave.split("|")[1];
+        const partes = chave.split("|");
+        const unidade = partes.slice(1).join("|");
 
         if (!turmasPorUnidade[unidade]) {
           turmasPorUnidade[unidade] = [];
@@ -190,31 +243,60 @@ export default function ManualForm({
         nome: nome.trim(),
         email: emailNormalizado,
         cpf: cpfNormalizado,
-        cargos,
+
+        cargos: ehDiretorOuCoordenadorLogado
+          ? ["professor"]
+          : cargos,
+
         disciplinas: precisaDisciplinas ? disciplinas : [],
-        unidade: unidades.join(","),
-        series: precisaDisciplinas ? [...todasSeries].join(",") : "",
+        unidade: unidadesEfetivas.join(","),
+
+        series: precisaDisciplinas
+          ? [...todasSeries].join(",")
+          : "",
+
         turmas: precisaDisciplinas ? turmasString : "",
-        unidadesComando: ehRegional ? unidades : [],
+
+        unidadesComando: ehRegional ? unidadesEfetivas : [],
         unidadesInativas: [],
         turmasInativas: [],
+
+        // Controle de primeiro acesso
+        origem: "cadastro-manual",
+        primeiroAcessoConcluido: false,
+
         criadoEm: new Date(),
         status: "Ativo",
       };
 
-      await setDoc(doc(db, "users", novoUid), payload);
+      await salvarUsuarioComCPF(
+        novoUid,
+        payload,
+        "cadastro-manual"
+      );
+
       onSuccess?.();
+
     } catch (err) {
       console.error("Erro ao cadastrar usuário:", err);
 
-      if (err.code === "auth/email-already-in-use") {
+      if (err.code === "cpf/ja-vinculado") {
+        setErro("Este CPF já está vinculado a outro usuário.");
+      } else if (err.code === "cpf/ja-cadastrado") {
+        setErro("Este CPF já está cadastrado.");
+      } else if (err.code === "cpf/invalido") {
+        setErro("O CPF informado é inválido.");
+      } else if (err.code === "auth/email-already-in-use") {
         setErro("Este e-mail já está cadastrado.");
       } else if (err.code === "auth/weak-password") {
         setErro("A senha deve ter pelo menos 6 caracteres.");
       } else if (err.code === "permission-denied") {
         setErro("Você não tem permissão para cadastrar este usuário.");
       } else {
-        setErro("Não foi possível cadastrar. Verifique os dados e tente novamente.");
+        setErro(
+          err.message ||
+          "Não foi possível cadastrar. Verifique os dados e tente novamente."
+        );
       }
     } finally {
       setLoading(false);
@@ -230,7 +312,9 @@ export default function ManualForm({
       }
 
       if (!validarEmail(email)) {
-        return setErro(`Use um e-mail válido com o domínio ${DOMINIO_PERMITIDO}.`);
+        return setErro(
+          `Use um e-mail válido com o domínio ${DOMINIO_PERMITIDO}.`
+        );
       }
 
       if (senha.length < 6) {
@@ -241,6 +325,19 @@ export default function ManualForm({
         return setErro("O CPF informado é inválido. Confira os números.");
       }
 
+      if (ehDiretorOuCoordenadorLogado) {
+        if (unidadesDoEscopo.length === 0) {
+          return setErro(
+            "Não foi possível identificar a unidade do seu perfil."
+          );
+        }
+
+        setCargos(["professor"]);
+        setUnidades(unidadesDoEscopo);
+        setStep(4);
+        return;
+      }
+
       setStep(2);
       return;
     }
@@ -248,6 +345,15 @@ export default function ManualForm({
     if (step === 2) {
       if (cargos.length === 0) {
         return setErro("Selecione ao menos um cargo.");
+      }
+
+      if (ehNucleo) {
+        if (precisaDisciplinas) {
+          setStep(4);
+        } else {
+          handleSubmitManual();
+        }
+        return;
       }
 
       setStep(3);
@@ -261,16 +367,21 @@ export default function ManualForm({
 
       if (precisaDisciplinas) {
         setStep(4);
-        return;
+      } else {
+        handleSubmitManual();
       }
 
-      handleSubmitManual();
       return;
     }
 
     if (step === 4) {
       if (disciplinas.length === 0) {
         return setErro("Selecione ao menos uma disciplina.");
+      }
+
+      if (pares.length === 0) {
+        handleSubmitManual();
+        return;
       }
 
       setStep(5);
@@ -297,7 +408,15 @@ export default function ManualForm({
     }
   };
 
-  const totalEtapas = precisaDisciplinas ? 5 : 3;
+  const totalEtapas = ehDiretorOuCoordenadorLogado
+    ? (pares.length > 0 ? 3 : 2)
+    : ehNucleo
+      ? (precisaDisciplinas
+          ? (unidadesEfetivas.length > 0 ? 4 : 3)
+          : 2)
+      : precisaDisciplinas
+        ? 5
+        : 3;
 
   return (
     <div className="space-y-5">
@@ -306,6 +425,7 @@ export default function ManualForm({
           <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">
             Etapa {step} de {totalEtapas}
           </p>
+
           <div className="mt-2 flex gap-1">
             {Array.from({ length: totalEtapas }).map((_, index) => (
               <span
@@ -419,7 +539,7 @@ export default function ManualForm({
           </div>
 
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            {CARGOS_ATRIBUIVEIS.map((cargo) => (
+            {cargosPermitidos.map((cargo) => (
               <label
                 key={cargo.id}
                 className={`flex cursor-pointer items-center gap-3 rounded-lg border-2 p-3 transition-all ${
@@ -443,7 +563,7 @@ export default function ManualForm({
         </div>
       )}
 
-      {step === 3 && (
+      {step === 3 && precisaSelecionarUnidade && (
         <div className="animate-fade-in space-y-3">
           <div>
             <h3 className="text-sm font-black uppercase text-black">
@@ -538,12 +658,14 @@ export default function ManualForm({
           <div className="space-y-3">
             {pares.map(({ disciplina, unidade }) => {
               const chave = `${disciplina}|${unidade}`;
+
               const selecao = selecoesPorPar[chave] || {
                 series: [],
                 turmas: [],
               };
 
               const seriesDisponiveis = getSeriesPorUnidades([unidade]);
+
               const turmasDisponiveis = getTurmasPorUnidadesESeries(
                 [unidade],
                 selecao.series

@@ -1,4 +1,4 @@
-
+// Arquivo: src/pages/DashboardPage.jsx
 import { useState, useEffect } from "react";
 import { useAuth } from "../hooks/useAuth";
 import DashboardNavbar from "../components/dashboard/DashboardNavbar";
@@ -6,6 +6,7 @@ import ProfileModal from "../components/ProfileModal";
 import AdminOverview from "../components/dashboard/AdminOverview";
 import AdminUsers from "../components/dashboard/AdminUsers";
 import TurmasAdmin from "../components/dashboard/TurmasAdmin";
+import DirecaoCalendario from "../components/dashboard/DirecaoCalendario";
 import StartTab from "../components/dashboard/StartTab";
 import FeedTab from "../components/dashboard/FeedTab";
 import { ArrowUp } from "lucide-react";
@@ -29,6 +30,7 @@ export default function DashboardPage({ onNavigate, perfilAtivo }) {
   const isRegional = perfilAtivo === "regional";
   const isDirection = DIRECTION_ROLES.includes(perfilAtivo);
   const isManager = ADMIN_MANAGER_ROLES.includes(perfilAtivo) || isDirection;
+  const podeConfigurar = isAdmin || isNucleo;
 
   let unidadesEscopo = null;
   let unidadeFoco = null;
@@ -40,7 +42,7 @@ export default function DashboardPage({ onNavigate, perfilAtivo }) {
       .split(",")
       .map((u) => u.trim())
       .filter(Boolean);
-    unidadeFoco = unidadesEscopo[0] || "Todas";
+    unidadeFoco = unidadesEscopo[0] || null;
   } else if (isTeacher) {
     unidadeFoco = user?.unidade?.split(",")[0]?.trim() || null;
   }
@@ -63,8 +65,16 @@ export default function DashboardPage({ onNavigate, perfilAtivo }) {
           />
         )}
 
-        {isManager && activeTab === "turmas" && (
-          <TurmasAdmin />
+        {podeConfigurar && activeTab === "turmas" && (
+          <TurmasAdmin
+            perfilAtivo={perfilAtivo}
+            unidadeFoco={unidadeFoco}
+            unidadesEscopo={unidadesEscopo}
+          />
+        )}
+
+        {isDirection && !podeConfigurar && activeTab === "calendario" && (
+          <DirecaoCalendario perfilAtivo={perfilAtivo} />
         )}
 
         {isTeacher && activeTab === "inicio" && (
