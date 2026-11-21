@@ -18,8 +18,8 @@ export default function Hero({ onLogin, onRegister }) {
 
       {/* Mesma largura da nav */}
       <div className="relative z-10 w-full max-w-[900px] mx-auto">
-        <h1 className="text-[clamp(2.4rem,13.5vw,4.5rem)] font-black leading-[0.9] tracking-[-0.05em] text-[#111] mb-6 sm:mb-8 lg:mb-10 text-center lg:text-left">
-          SUA <br />ROTINA EM <br /><span className="bg-pensi-yellow text-black px-2.5 inline-block mt-4 rounded-md -rotate-3 lg:origin-left">SINCRONIA.</span>
+        <h1 className="text-[clamp(2.4rem,12vw,4.5rem)] font-black leading-[0.9] tracking-[-0.05em] text-[#111] mb-0 sm:mb-8 lg:mb-10 text-center lg:text-left">
+          SUA <br />ROTINA EM <br /><span className=" text-black px-2.5 inline-block rounded-md  lg:origin-left">SINCRONIA.</span>
         </h1>
 
         <div className="grid lg:grid-cols-[1.25fr_1fr] gap-0 lg:gap-12 items-center">
