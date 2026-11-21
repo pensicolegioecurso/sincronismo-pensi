@@ -1,78 +1,74 @@
-import { LogIn, BookOpen, CheckCheck } from "lucide-react";
+import { LogIn, BookOpen, CheckCheck, ArrowRight, ArrowUpRight } from "lucide-react";
 
 const passos = [
-  {
-    numero: "PASSO 01",
-    titulo: "Acesse sua conta",
-    descricao: "Entre com seu e-mail institucional para liberar o acesso ao seu painel de disciplinas.",
-    icon: LogIn,
-    angulo: "-rotate-3",
-  },
-  {
-    numero: "PASSO 02",
-    titulo: "Escolha a disciplina",
-    descricao: "No Acesso Rápido, clique na matéria que você leciona para abrir o calendário.",
-    icon: BookOpen,
-    angulo: "rotate-2",
-  },
-  {
-    numero: "PASSO 03",
-    titulo: "Dê o check",
-    descricao: 'Navegue pelo calendário, encontre a aula do dia e clique em "Dar Check" para registrar.',
-    icon: CheckCheck,
-    angulo: "-rotate-2",
-  },
+  { n: "1", titulo: "Entrar no painel", desc: "Acesse com a sua conta em segundos.", icon: LogIn },
+  { n: "2", titulo: "Escolher a disciplina", desc: "Selecione a turma e a matéria do dia.", icon: BookOpen, destaque: true },
+  { n: "3", titulo: "Dar o check diário", desc: "Um toque e a aula fica registrada.", icon: CheckCheck },
 ];
 
 export default function HowItWorks() {
   return (
-    <section id="como-funciona" className="w-full py-24 px-6 bg-transparent">
-      <div className="max-w-[1100px] mx-auto">
-        
-        <div className="mb-16">
-          <h2 className="text-[40px] sm:text-[56px] font-black leading-[0.95] tracking-[-0.03em] uppercase mb-4 text-pensi-dark">
-            Como<br />Funciona.
+    <section id="como-funciona" className="py-14 sm:py-20 px-4 max-w-[930px] mx-auto">
+      <div className="bg-[#0a0a0a] rounded-[32px] sm:rounded-[40px] p-6 sm:p-8 md:p-10 text-white shadow-2xl flex flex-col lg:flex-row gap-8 sm:gap-12 items-center">
+        {/* Esquerda: Texto */}
+        <div className="w-full lg:w-1/2">
+          <h2 className="text-4xl sm:text-5xl md:text-[58px] font-black uppercase leading-[0.9] tracking-tighter mb-5 sm:mb-6 text-white">
+            Como<br />
+            funciona<br />
+            <span className="text-black px-2 inline-block mt-2" style={{ background: "#F5C542" }}>o seu</span><br />
+            <span className="text-black px-2 inline-block" style={{ background: "#F5C542" }}>sincronismo</span><br />
+            na rotina?
           </h2>
-          <p className="text-[18px] text-gray-500 font-medium max-w-md leading-relaxed">
-            Três passos simples para manter o acompanhamento em dia.
+          <p className="text-gray-400 text-xs sm:text-sm max-w-sm mb-6 sm:mb-8 leading-relaxed">
+            Chega de planilhas perdidas ou cadernos bagunçados. O Sincronismo organiza a sua rotina pedagógica em poucos cliques.
           </p>
+
+          <button
+            onClick={() => document.getElementById("acesso-rapido")?.scrollIntoView({ behavior: "smooth" })}
+            className="border border-white/30 text-white px-5 py-2.5 rounded-full text-xs font-bold flex items-center gap-2 hover:bg-white hover:text-black transition-colors w-fit"
+          >
+            Acessar painel <ArrowRight size={14} />
+          </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {passos.map((passo, index) => {
-            const Icon = passo.icon;
-            return (
-              <div 
-                key={index}
-                className="relative bg-gradient-to-br from-pensi-yellow/40 via-pensi-yellow/10 to-transparent rounded-[32px] p-4 pt-7 shadow-sm flex flex-col"
+        {/* Direita: passos */}
+        <div className="w-full lg:w-1/2 flex flex-col gap-4.5">
+          {passos.map(({ n, titulo, desc, icon: Icon, destaque }, i) => (
+            <div
+              key={n}
+              className={`group flex items-center gap-2 rounded-2xl px-5 sm:px-10 py-3.5 ${
+                destaque
+                  ? "bg-pensi-yellow text-black lg:translate-x-5 shadow-[0_10px_30px_rgba(245,197,66,0.25)]"
+                  : "bg-[#171717] text-white"
+              }`}
+            >
+              <span
+                className={`text-2xl sm:text-3xl font-black leading-none tracking-tighter w-6 shrink-0 ${
+                  destaque ? "text-black" : "text-white/25"
+                }`}
               >
-                {/* Selo Inclinado no canto da borda amarela */}
-                <div className={`absolute -top-3 right-6 z-20 bg-pensi-dark text-white text-[11px] font-black uppercase tracking-wider px-4 py-1.5 rounded-md shadow-md ${passo.angulo}`}>
-                  {passo.numero}
-                </div>
+                {n}
+              </span>
 
-                {/* Bloco Branco Interno */}
-                <div className="bg-white rounded-[24px] p-6 h-full flex flex-col justify-center items-center shadow-sm relative z-10 min-h-[160px]">
-                  <div className="w-14 h-14 rounded-full bg-pensi-dark flex items-center justify-center">
-                     <Icon className="w-6 h-6 text-white" strokeWidth={2.5} />
-                  </div>
-                </div>
-
-                {/* Textos Abaixo do Bloco Branco */}
-                <div className="mt-5 px-2">
-                  <h3 className="text-[18px] font-bold text-pensi-dark mb-1.5 flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-full bg-pensi-dark text-white flex items-center justify-center text-[10px] font-bold shrink-0">
-                      {index + 1}
-                    </span>
-                    {passo.titulo}
-                  </h3>
-                  <p className="text-[14px] text-gray-500 font-medium leading-relaxed">
-                    {passo.descricao}
-                  </p>
-                </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[13px] sm:text-sm font-extrabold tracking-tight leading-tight">{titulo}</p>
+                <p className={`text-[10px] sm:text-[11px] mt-0.5 leading-snug ${destaque ? "text-black/70" : "text-gray-400"}`}>{desc}</p>
               </div>
-            );
-          })}
+
+              <Icon size={18} className={destaque ? "text-black" : "text-pensi-yellow"} />
+            </div>
+          ))}
+
+          {/* Fechamento */}
+          <div className="flex items-center gap-4 rounded-2xl border border-dashed border-white/20 px-4 sm:px-5 py-3.5 mt-1">
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] sm:text-[11px] text-gray-400 mb-0.5">E no final do mês?</p>
+              <p className="text-[13px] sm:text-sm font-extrabold tracking-tight leading-tight text-white">
+                Relatórios prontos para a direção.
+              </p>
+            </div>
+            <ArrowUpRight size={18} className="text-white/50 shrink-0" />
+          </div>
         </div>
       </div>
     </section>

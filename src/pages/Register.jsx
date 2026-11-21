@@ -5,12 +5,7 @@ import { UNIDADES } from "../data/unidades";
 import { useTurmas } from "../hooks/useTurmas";
 import { validarEmailInstitucional } from "../utils/validators";
 
-import {
-  signInWithPopup,
-  GoogleAuthProvider,
-  signOut,
-} from "firebase/auth";
-
+import { signInWithPopup, GoogleAuthProvider, signOut } from "firebase/auth";
 import { auth } from "../services/firebase";
 
 import {
@@ -22,19 +17,8 @@ import {
 } from "../services/cpfService";
 
 import {
-  Mail,
-  Lock,
-  User,
-  ArrowRight,
-  Eye,
-  EyeOff,
-  BookOpen,
-  MapPin,
-  Users,
-  ShieldCheck,
-  CheckCircle2,
-  GraduationCap,
-  CreditCard,
+  Mail, Lock, User, ArrowRight, Eye, EyeOff, BookOpen, MapPin, Users,
+  ShieldCheck, CheckCircle2, GraduationCap, CreditCard,
 } from "lucide-react";
 
 import AuthBackButton from "../components/auth/AuthBackButton";
@@ -49,27 +33,21 @@ import RegisterSelectionGroup from "../components/register/RegisterSelectionGrou
 import RegisterCountBadge from "../components/register/RegisterCountBadge";
 import RegisterGoogleBanner from "../components/register/RegisterGoogleBanner";
 
-const DOMINIO_PERMITIDO =
-  import.meta.env.VITE_DOMINIO_PERMITIDO || "@pensi.com.br";
+const DOMINIO_PERMITIDO = import.meta.env.VITE_DOMINIO_PERMITIDO || "@pensi.com.br";
 
 const inputCPFClass =
-  "w-full rounded-lg border-2 border-black bg-white px-3 py-3 text-sm font-bold text-black outline-none transition-all placeholder:text-gray-400 focus:bg-yellow-50 focus:shadow-[2px_2px_0px_#000]";
+  "w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-[#111111] outline-none transition-all placeholder:text-gray-400 focus:border-pensi-yellow focus:ring-4 focus:ring-pensi-yellow/20";
 
 function traduzirErro(error, padrao) {
   if (error?.code === "permission-denied") {
     return "Sem permissão para validar o CPF. Verifique se sua conta é institucional e tente novamente.";
   }
-
   return error?.message || padrao;
 }
 
 export default function Register({ onNavigate }) {
   const { register, atualizarPerfil, user } = useAuth();
-
-  const {
-    getSeriesPorUnidades,
-    getTurmasPorUnidadesESeries,
-  } = useTurmas({ somenteAtivas: true });
+  const { getSeriesPorUnidades, getTurmasPorUnidadesESeries } = useTurmas({ somenteAtivas: true });
 
   const [baseStep, setBaseStep] = useState(1);
   const [parIdx, setParIdx] = useState(0);
@@ -78,7 +56,6 @@ export default function Register({ onNavigate }) {
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [cpf, setCpf] = useState("");
-
   const [senha, setSenha] = useState("");
   const [senha2, setSenha2] = useState("");
   const [mostrarSenha, setMostrarSenha] = useState(false);
@@ -89,21 +66,18 @@ export default function Register({ onNavigate }) {
   const [selecoesPorPar, setSelecoesPorPar] = useState({});
 
   const [googleUser, setGoogleUser] = useState(null);
-
   const [erro, setErro] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
   useEffect(() => {
     if (googleLoading) return;
-
     if (user?.perfilIncompleto && !googleUser) {
       setGoogleUser({
         uid: user.uid,
         email: user.email,
         displayName: user.nome || "",
       });
-
       setNome(user.nome || "");
       setEmail(user.email || "");
       setBaseStep(1);
@@ -111,178 +85,97 @@ export default function Register({ onNavigate }) {
   }, [user, googleUser, googleLoading]);
 
   const disciplinasLista = useMemo(() => {
-    const todas = Object.values(DISCIPLINAS_POR_ANO).reduce(
-      (acc, ano) => {
-        Object.entries(ano).forEach(([key, value]) => {
-          acc[key] = value.nome;
-        });
-
-        return acc;
-      },
-      {}
-    );
-
-    return Object.entries(todas).sort((a, b) =>
-      a[1].localeCompare(b[1], "pt-BR")
-    );
+    const todas = Object.values(DISCIPLINAS_POR_ANO).reduce((acc, ano) => {
+      Object.entries(ano).forEach(([key, value]) => {
+        acc[key] = value.nome;
+      });
+      return acc;
+    }, {});
+    return Object.entries(todas).sort((a, b) => a[1].localeCompare(b[1], "pt-BR"));
   }, []);
 
   const nomeDisciplina = useMemo(() => {
     const mapa = {};
-
     disciplinasLista.forEach(([key, nome]) => {
       mapa[key] = nome;
     });
-
     return mapa;
   }, [disciplinasLista]);
 
   const pares = useMemo(() => {
     const lista = [];
-
     disciplinas.forEach((d) => {
       unidades.forEach((u) => {
-        lista.push({
-          disciplina: d,
-          unidade: u,
-        });
+        lista.push({ disciplina: d, unidade: u });
       });
     });
-
     return lista;
   }, [disciplinas, unidades]);
 
   useEffect(() => {
     setSelecoesPorPar((prev) => {
       const novo = {};
-
       pares.forEach(({ disciplina, unidade }) => {
         const chave = `${disciplina}|${unidade}`;
-        novo[chave] = prev[chave] || {
-          series: [],
-          turmas: [],
-        };
+        novo[chave] = prev[chave] || { series: [], turmas: [] };
       });
-
       return novo;
     });
   }, [pares]);
 
   const toggleItem = (setList, item) => {
     setList((prev) =>
-      prev.includes(item)
-        ? prev.filter((v) => v !== item)
-        : [...prev, item]
+      prev.includes(item) ? prev.filter((v) => v !== item) : [...prev, item]
     );
   };
 
-  const totalSteps = googleUser
-    ? 2 + 2 * pares.length
-    : 3 + 2 * pares.length;
+  const totalSteps = googleUser ? 2 + 2 * pares.length : 3 + 2 * pares.length;
 
   const currentStepNumber = (() => {
     if (baseStep === 1) return 1;
-
-    if (baseStep === 2) {
-      return googleUser ? 1 : 2;
-    }
-
-    if (baseStep === 3) {
-      return googleUser ? 2 : 3;
-    }
-
+    if (baseStep === 2) return googleUser ? 1 : 2;
+    if (baseStep === 3) return googleUser ? 2 : 3;
     const offset = googleUser ? 2 : 3;
-
     return offset + parIdx * 2 + (subStep === "turma" ? 2 : 1);
   })();
 
   const parAtual = pares[parIdx] || null;
-
-  const chaveParAtual = parAtual
-    ? `${parAtual.disciplina}|${parAtual.unidade}`
-    : null;
-
+  const chaveParAtual = parAtual ? `${parAtual.disciplina}|${parAtual.unidade}` : null;
   const selecaoAtual = chaveParAtual
-    ? selecoesPorPar[chaveParAtual] || {
-      series: [],
-      turmas: [],
-    }
-    : {
-      series: [],
-      turmas: [],
-    };
+    ? selecoesPorPar[chaveParAtual] || { series: [], turmas: [] }
+    : { series: [], turmas: [] };
 
   const seriesDoParAtual = useMemo(() => {
     if (!parAtual) return [];
-
     return getSeriesPorUnidades([parAtual.unidade]);
   }, [parAtual, getSeriesPorUnidades]);
 
   const turmasDoParAtual = useMemo(() => {
     if (!parAtual) return [];
-
-    return getTurmasPorUnidadesESeries(
-      [parAtual.unidade],
-      selecaoAtual.series
-    );
-  }, [
-    parAtual,
-    selecaoAtual.series,
-    getTurmasPorUnidadesESeries,
-  ]);
+    return getTurmasPorUnidadesESeries([parAtual.unidade], selecaoAtual.series);
+  }, [parAtual, selecaoAtual.series, getTurmasPorUnidadesESeries]);
 
   const toggleSerieDoPar = (serie) => {
     if (!chaveParAtual) return;
-
     setSelecoesPorPar((prev) => {
-      const atual = prev[chaveParAtual] || {
-        series: [],
-        turmas: [],
-      };
-
+      const atual = prev[chaveParAtual] || { series: [], turmas: [] };
       const novasSeries = atual.series.includes(serie)
         ? atual.series.filter((s) => s !== serie)
         : [...atual.series, serie];
-
-      const turmasValidas = getTurmasPorUnidadesESeries(
-        [parAtual.unidade],
-        novasSeries
-      ).map((t) => t.turma);
-
-      const novasTurmas = atual.turmas.filter((t) =>
-        turmasValidas.includes(t)
-      );
-
-      return {
-        ...prev,
-        [chaveParAtual]: {
-          series: novasSeries,
-          turmas: novasTurmas,
-        },
-      };
+      const turmasValidas = getTurmasPorUnidadesESeries([parAtual.unidade], novasSeries).map((t) => t.turma);
+      const novasTurmas = atual.turmas.filter((t) => turmasValidas.includes(t));
+      return { ...prev, [chaveParAtual]: { series: novasSeries, turmas: novasTurmas } };
     });
   };
 
   const toggleTurmaDoPar = (turma) => {
     if (!chaveParAtual) return;
-
     setSelecoesPorPar((prev) => {
-      const atual = prev[chaveParAtual] || {
-        series: [],
-        turmas: [],
-      };
-
+      const atual = prev[chaveParAtual] || { series: [], turmas: [] };
       const novasTurmas = atual.turmas.includes(turma)
         ? atual.turmas.filter((t) => t !== turma)
         : [...atual.turmas, turma];
-
-      return {
-        ...prev,
-        [chaveParAtual]: {
-          ...atual,
-          turmas: novasTurmas,
-        },
-      };
+      return { ...prev, [chaveParAtual]: { ...atual, turmas: novasTurmas } };
     });
   };
 
@@ -290,142 +183,62 @@ export default function Register({ onNavigate }) {
     if (baseStep === 1) return "Seus dados";
     if (baseStep === 2) return "Disciplinas";
     if (baseStep === 3) return "Unidades";
-    if (subStep === "serie") {
-      return `Séries — ${parAtual?.unidade || ""}`;
-    }
-
+    if (subStep === "serie") return `Séries — ${parAtual?.unidade || ""}`;
     return `Turmas — ${parAtual?.unidade || ""}`;
   })();
 
-  // Só pode ser chamada com o usuário JÁ autenticado
-  // (as regras do Firestore exigem autenticação para ler /cpfs).
   const validarCPFParaContinuar = async () => {
     const cpfNormalizado = normalizarCPF(cpf);
-
-    if (!validarCPF(cpfNormalizado)) {
-      throw new Error("Informe um CPF válido.");
-    }
-
+    if (!validarCPF(cpfNormalizado)) throw new Error("Informe um CPF válido.");
     await verificarCPFPreCadastrado(cpfNormalizado);
-
     return cpfNormalizado;
   };
 
   const avancar = async () => {
     setErro("");
-
     if (baseStep === 1) {
-      if (!cpf.trim()) {
-        setErro("Informe seu CPF.");
-        return;
-      }
-
-      if (!validarCPF(cpf)) {
-        setErro("Informe um CPF válido.");
-        return;
-      }
-
+      if (!cpf.trim()) { setErro("Informe seu CPF."); return; }
+      if (!validarCPF(cpf)) { setErro("Informe um CPF válido."); return; }
       if (!googleUser) {
-        if (!nome.trim() || !email.trim() || !senha || !senha2) {
-          setErro("Preencha todos os campos.");
-          return;
-        }
-
-        if (!validarEmailInstitucional(email.trim())) {
-          setErro(
-            "E-mail institucional inválido. Use @pensi.com.br."
-          );
-          return;
-        }
-
-        if (senha !== senha2) {
-          setErro("As senhas não coincidem.");
-          return;
-        }
-
-        const requisitos = [
-          senha.length >= 8,
-          /[A-Z]/.test(senha),
-          /[a-z]/.test(senha),
-          /[0-9]/.test(senha),
-          /[^A-Za-z0-9]/.test(senha),
-        ].filter(Boolean).length;
-
-        if (requisitos < 5) {
-          setErro("A senha não atende a todos os requisitos.");
-          return;
-        }
-
-        // Sem autenticação ainda: a consulta ao CPF no Firestore
-        // será feita logo após a criação da conta.
+        if (!nome.trim() || !email.trim() || !senha || !senha2) { setErro("Preencha todos os campos."); return; }
+        if (!validarEmailInstitucional(email.trim())) { setErro("E-mail institucional inválido. Use @pensi.com.br."); return; }
+        if (senha !== senha2) { setErro("As senhas não coincidem."); return; }
+        const requisitos = [senha.length >= 8, /[A-Z]/.test(senha), /[a-z]/.test(senha), /[0-9]/.test(senha), /[^A-Za-z0-9]/.test(senha)].filter(Boolean).length;
+        if (requisitos < 5) { setErro("A senha não atende a todos os requisitos."); return; }
         setBaseStep(2);
         return;
       }
-
-      // Usuário Google já autenticado: pode consultar o CPF agora.
       setLoading(true);
-
       try {
         await validarCPFParaContinuar();
         setBaseStep(2);
       } catch (error) {
-        setErro(
-          traduzirErro(error, "Não foi possível validar seu CPF.")
-        );
+        setErro(traduzirErro(error, "Não foi possível validar seu CPF."));
       } finally {
         setLoading(false);
       }
-
       return;
     }
-
     if (baseStep === 2) {
-      if (disciplinas.length === 0) {
-        setErro("Selecione ao menos uma disciplina.");
-        return;
-      }
-
+      if (disciplinas.length === 0) { setErro("Selecione ao menos uma disciplina."); return; }
       setBaseStep(3);
       return;
     }
-
     if (baseStep === 3) {
-      if (unidades.length === 0) {
-        setErro("Selecione ao menos uma unidade.");
-        return;
-      }
-
-      setParIdx(0);
-      setSubStep("serie");
-      setBaseStep(4);
+      if (unidades.length === 0) { setErro("Selecione ao menos uma unidade."); return; }
+      setParIdx(0); setSubStep("serie"); setBaseStep(4);
       return;
     }
-
     if (!parAtual) return;
-
     if (subStep === "serie") {
-      if (selecaoAtual.series.length === 0) {
-        setErro(
-          `Selecione ao menos uma série em ${parAtual.unidade}.`
-        );
-        return;
-      }
-
+      if (selecaoAtual.series.length === 0) { setErro(`Selecione ao menos uma série em ${parAtual.unidade}.`); return; }
       setSubStep("turma");
       return;
     }
-
     if (subStep === "turma") {
-      if (selecaoAtual.turmas.length === 0) {
-        setErro(
-          `Selecione ao menos uma turma em ${parAtual.unidade}.`
-        );
-        return;
-      }
-
+      if (selecaoAtual.turmas.length === 0) { setErro(`Selecione ao menos uma turma em ${parAtual.unidade}.`); return; }
       if (parIdx + 1 < pares.length) {
-        setParIdx(parIdx + 1);
-        setSubStep("serie");
+        setParIdx(parIdx + 1); setSubStep("serie");
       } else {
         handleSubmitFinal();
       }
@@ -434,174 +247,75 @@ export default function Register({ onNavigate }) {
 
   const voltar = () => {
     setErro("");
-
-    if (baseStep === 1) {
-      onNavigate("home");
-      return;
-    }
-
-    if (baseStep === 2) {
-      setBaseStep(1);
-      return;
-    }
-
-    if (baseStep === 3) {
-      setBaseStep(2);
-      return;
-    }
-
-    if (subStep === "turma") {
-      setSubStep("serie");
-      return;
-    }
-
+    if (baseStep === 1) { onNavigate("home"); return; }
+    if (baseStep === 2) { setBaseStep(1); return; }
+    if (baseStep === 3) { setBaseStep(2); return; }
+    if (subStep === "turma") { setSubStep("serie"); return; }
     if (subStep === "serie") {
-      if (parIdx === 0) {
-        setBaseStep(3);
-        setSubStep(null);
-      } else {
-        setParIdx(parIdx - 1);
-        setSubStep("turma");
-      }
+      if (parIdx === 0) { setBaseStep(3); setSubStep(null); }
+      else { setParIdx(parIdx - 1); setSubStep("turma"); }
     }
   };
 
   const handleSubmitFinal = async () => {
     setErro("");
-
     const turmasPorUnidade = {};
     const todasSeries = new Set();
-
     Object.entries(selecoesPorPar).forEach(([chave, sel]) => {
       const unidade = chave.split("|")[1];
-
-      if (!turmasPorUnidade[unidade]) {
-        turmasPorUnidade[unidade] = [];
-      }
-
+      if (!turmasPorUnidade[unidade]) turmasPorUnidade[unidade] = [];
       sel.turmas.forEach((t) => {
-        if (!turmasPorUnidade[unidade].includes(t)) {
-          turmasPorUnidade[unidade].push(t);
-        }
+        if (!turmasPorUnidade[unidade].includes(t)) turmasPorUnidade[unidade].push(t);
       });
-
       sel.series.forEach((s) => todasSeries.add(s));
     });
-
     const turmasString = Object.entries(turmasPorUnidade)
       .filter(([_, turmas]) => turmas.length > 0)
-      .map(
-        ([unidade, turmas]) =>
-          `${unidade}: ${turmas.join(", ")}`
-      )
+      .map(([unidade, turmas]) => `${unidade}: ${turmas.join(", ")}`)
       .join(" | ");
-
-    if (!turmasString) {
-      setErro("Selecione ao menos uma turma.");
-      return;
-    }
-
+    if (!turmasString) { setErro("Selecione ao menos uma turma."); return; }
     const cpfNormalizado = normalizarCPF(cpf);
-
-    if (!validarCPF(cpfNormalizado)) {
-      setErro("Informe um CPF válido.");
-      return;
-    }
-
+    if (!validarCPF(cpfNormalizado)) { setErro("Informe um CPF válido."); return; }
     setLoading(true);
-
     try {
       const payload = {
         nome: nome.trim() || googleUser?.displayName || "",
-        email: (googleUser?.email || email)
-          .trim()
-          .toLowerCase(),
+        email: (googleUser?.email || email).trim().toLowerCase(),
         cpf: cpfNormalizado,
         disciplinas,
         unidade: unidades.join(","),
         series: [...todasSeries].join(","),
         turmas: turmasString,
       };
-
       if (googleUser) {
         const uid = googleUser.uid || auth.currentUser?.uid;
-
-        if (!uid) {
-          throw new Error(
-            "Não foi possível identificar sua conta Google. Entre novamente."
-          );
-        }
-
-        // Já autenticado: revalida o CPF antes de gravar.
+        if (!uid) throw new Error("Não foi possível identificar sua conta Google. Entre novamente.");
         await verificarCPFPreCadastrado(cpfNormalizado);
-
         const res = await atualizarPerfil(payload);
-
-        if (!res?.ok) {
-          throw new Error(
-            res?.message || "Não foi possível salvar os dados."
-          );
-        }
-
+        if (!res?.ok) throw new Error(res?.message || "Não foi possível salvar os dados.");
         await salvarUsuarioPublicoComCPF(uid, payload);
-
         onNavigate("home");
       } else {
-        // 1) Cria a conta (passa a estar autenticado).
-        const res = await register({
-          ...payload,
-          senha,
-        });
-
-        if (!res?.ok) {
-          throw new Error(
-            res?.message || "Não foi possível criar a conta."
-          );
-        }
-
-        const uid =
-          res.uid ||
-          res.user?.uid ||
-          auth.currentUser?.uid;
-
-        if (!uid) {
-          throw new Error(
-            "A conta foi criada, mas não foi possível identificar o usuário para vincular o CPF. Entre em contato com a administração."
-          );
-        }
-
-        // 2) Agora autenticado, valida e vincula o CPF.
+        const res = await register({ ...payload, senha });
+        if (!res?.ok) throw new Error(res?.message || "Não foi possível criar a conta.");
+        const uid = res.uid || res.user?.uid || auth.currentUser?.uid;
+        if (!uid) throw new Error("A conta foi criada, mas não foi possível identificar o usuário para vincular o CPF. Entre em contato com a administração.");
         try {
           await verificarCPFPreCadastrado(cpfNormalizado);
           await salvarUsuarioPublicoComCPF(uid, payload);
         } catch (cpfError) {
-          // CPF inválido para cadastro: desfaz a conta criada.
           try {
-            if (auth.currentUser) {
-              await auth.currentUser.delete();
-            }
+            if (auth.currentUser) await auth.currentUser.delete();
           } catch (_) {
-            try {
-              await signOut(auth);
-            } catch (__) {
-              /* ignora */
-            }
+            try { await signOut(auth); } catch (__) { /* ignora */ }
           }
-
           throw cpfError;
         }
-
         onNavigate("home");
       }
     } catch (error) {
       console.error("Erro ao finalizar cadastro:", error);
-
-      setErro(
-        traduzirErro(
-          error,
-          "Ocorreu um erro ao finalizar o cadastro. Tente novamente."
-        )
-      );
+      setErro(traduzirErro(error, "Ocorreu um erro ao finalizar o cadastro. Tente novamente."));
     } finally {
       setLoading(false);
     }
@@ -614,75 +328,42 @@ export default function Register({ onNavigate }) {
 
   const handleGoogleLogin = async () => {
     setErro("");
-
     if (!cpf.trim() || !validarCPF(cpf)) {
       setErro("Informe um CPF válido antes de continuar com o Google.");
       return;
     }
-
     setGoogleLoading(true);
-
     try {
-      // 1) Autentica primeiro (as regras exigem usuário logado para ler /cpfs).
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
       const gUser = result.user;
-
-      if (
-        !gUser.email ||
-        !gUser.email
-          .toLowerCase()
-          .endsWith(DOMINIO_PERMITIDO.toLowerCase())
-      ) {
+      if (!gUser.email || !gUser.email.toLowerCase().endsWith(DOMINIO_PERMITIDO.toLowerCase())) {
         await signOut(auth);
-
-        setErro(
-          `Acesso negado. Use um e-mail ${DOMINIO_PERMITIDO}.`
-        );
-
+        setErro(`Acesso negado. Use um e-mail ${DOMINIO_PERMITIDO}.`);
         return;
       }
-
-      // 2) Com o usuário autenticado, valida o CPF pré-cadastrado.
       try {
         await validarCPFParaContinuar();
       } catch (cpfError) {
         await signOut(auth);
         setGoogleUser(null);
-
-        setErro(
-          traduzirErro(cpfError, "Não foi possível validar seu CPF.")
-        );
-
+        setErro(traduzirErro(cpfError, "Não foi possível validar seu CPF."));
         return;
       }
-
       setGoogleUser(gUser);
       setNome(gUser.displayName || "");
       setEmail(gUser.email || "");
       setBaseStep(2);
     } catch (error) {
       console.error("Erro no login com Google:", error);
-
       if (error.code === "auth/popup-closed-by-user") {
         setErro("Login cancelado. Tente novamente.");
-      } else if (
-        error.code === "account-exists-with-different-credential"
-      ) {
-        setErro(
-          "Já existe uma conta com este e-mail usando outro método de login."
-        );
+      } else if (error.code === "account-exists-with-different-credential") {
+        setErro("Já existe uma conta com este e-mail usando outro método de login.");
       } else if (error.code === "auth/unauthorized-domain") {
-        setErro(
-          "Domínio não autorizado. Configure o domínio no Console do Firebase."
-        );
+        setErro("Domínio não autorizado. Configure o domínio no Console do Firebase.");
       } else {
-        setErro(
-          traduzirErro(
-            error,
-            "Não foi possível entrar com Google."
-          )
-        );
+        setErro(traduzirErro(error, "Não foi possível entrar com Google."));
       }
     } finally {
       setGoogleLoading(false);
@@ -694,35 +375,37 @@ export default function Register({ onNavigate }) {
     if (baseStep === 2) return BookOpen;
     if (baseStep === 3) return MapPin;
     if (subStep === "serie") return GraduationCap;
-
     return Users;
   })();
 
   return (
-    <main className="relative min-h-screen flex items-center justify-center bg-[#f3f4f6] px-4 sm:px-6 py-6">
+    <main className="relative min-h-screen flex items-center justify-center bg-[#F1F2F4] px-4 sm:px-6 py-12">
       <AuthBackButton
         onClick={voltar}
         label={currentStepNumber === 1 ? "Voltar" : "Voltar Etapa"}
       />
 
       <AuthCard>
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_1.5fr] gap-8 md:gap-12 items-start mt-4">
-          <div className="flex flex-col items-start text-left h-full pt-2">
-            <div className="w-12 h-12 flex items-center justify-center bg-pensi-yellow border-[2px] border-black rounded-full shadow-[3px_3px_0px_0px_#000] mb-6">
-              <EtapaIcone
-                className="w-5 h-5 text-black"
-                strokeWidth={2.5}
-              />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-start mt-4">
+          
+          {/* Painel Lateral Esquerdo (Estilo Home) */}
+          <div className="flex flex-col items-start text-left h-full pt-2 order-2 lg:order-1">
+            {/* Ícone Solto e Grande */}
+            <div className="mb-6">
+              <EtapaIcone className="w-12 h-12 sm:w-14 sm:h-14 text-[#111111]" strokeWidth={2.5} />
             </div>
 
-            <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight leading-tight text-gray-900 mb-3">
-              Crie sua conta
-              <span className="text-pensi-yellow">.</span>
-            </h1>
+            <div className="flex flex-col items-start mb-8">
+              <h1 className="text-[40px] sm:text-[48px] font-black tracking-[-0.04em] leading-[0.9] text-[#111111] uppercase transform -rotate-2">
+                Crie sua
+              </h1>
+              <h1 className="text-[40px] sm:text-[48px] font-black tracking-[-0.04em] leading-[0.9] uppercase transform rotate-2 mt-2 ml-2">
+                <span className="bg-pensi-yellow px-3 py-1 inline-block text-[#111111]">conta.</span>
+              </h1>
+            </div>
 
-            <p className="text-[13px] font-light leading-relaxed text-gray-500 mb-6 max-w-[280px]">
-              Leva menos de 2 minutos. Informe seus dados,
-              escolha suas disciplinas e turmas, e comece a usar.
+            <p className="text-[15px] sm:text-[16px] font-medium leading-relaxed text-gray-500 max-w-[320px] mb-8">
+              Leva menos de 2 minutos. Informe seus dados, escolha suas disciplinas e turmas, e comece a usar.
             </p>
 
             <RegisterProgress
@@ -732,7 +415,8 @@ export default function Register({ onNavigate }) {
             />
           </div>
 
-          <div className="md:border-l-[2px] md:border-gray-100 md:pl-10">
+          {/* Coluna do Formulário com Divisória */}
+          <div className="order-1 lg:order-2 w-full max-w-md mx-auto lg:max-w-none lg:border-l border-gray-100 lg:pl-12">
             <AuthError>{erro}</AuthError>
 
             {baseStep === 1 && !googleUser && (
@@ -742,7 +426,6 @@ export default function Register({ onNavigate }) {
                   loading={googleLoading}
                   label="Cadastrar com o Google"
                 />
-
                 <AuthDivider label="ou use seu e-mail" />
               </>
             )}
@@ -755,122 +438,40 @@ export default function Register({ onNavigate }) {
               <RegisterGoogleBanner email={googleUser.email} />
             )}
 
-            <form
-              onSubmit={handleFormSubmit}
-              className="space-y-4"
-            >
+            <form onSubmit={handleFormSubmit} className="space-y-4">
               {baseStep === 1 && (
                 <div className="space-y-4">
                   <div>
-                    <label
-                      htmlFor="register-cpf"
-                      className="mb-2 block text-[10px] font-black uppercase tracking-widest text-gray-600"
-                    >
+                    <label htmlFor="register-cpf" className="mb-2 block text-[11px] font-bold text-[#111111] uppercase tracking-wide">
                       CPF *
                     </label>
-
                     <div className="relative">
-                      <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-
+                      <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                       <input
                         id="register-cpf"
                         type="text"
                         value={cpf}
-                        onChange={(e) => {
-                          setCpf(
-                            formatarCPF(e.target.value)
-                          );
-                          setErro("");
-                        }}
+                        onChange={(e) => { setCpf(formatarCPF(e.target.value)); setErro(""); }}
                         placeholder="000.000.000-00"
                         inputMode="numeric"
                         autoComplete="off"
                         maxLength={14}
-                        className={`${inputCPFClass} pl-10`}
+                        className={`${inputCPFClass} pl-11`}
                       />
                     </div>
-
-                    <p className="mt-2 text-[10px] text-gray-400">
-                      Seu CPF precisa estar previamente cadastrado
-                      pela administração do Pensi.
+                    <p className="mt-2 text-[11px] text-gray-500 font-medium">
+                      Seu CPF precisa estar previamente cadastrado pela administração do Pensi.
                     </p>
                   </div>
 
                   {!googleUser && (
                     <>
-                      <AuthFormField
-                        id="register-nome"
-                        label="Nome completo"
-                        value={nome}
-                        onChange={(e) => setNome(e.target.value)}
-                        placeholder="Seu nome"
-                        icon={User}
-                      />
-
-                      <AuthFormField
-                        id="register-email"
-                        label="E-mail institucional"
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="nome@pensi.com.br"
-                        icon={Mail}
-                      />
-
+                      <AuthFormField id="register-nome" label="Nome completo" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Seu nome" icon={User} />
+                      <AuthFormField id="register-email" label="E-mail institucional" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nome@pensi.com.br" icon={Mail} />
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <AuthFormField
-                          id="register-senha"
-                          label="Senha"
-                          type={mostrarSenha ? "text" : "password"}
-                          value={senha}
-                          onChange={(e) => setSenha(e.target.value)}
-                          placeholder="••••••••"
-                          icon={Lock}
-                          rightElement={
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setMostrarSenha(!mostrarSenha)
-                              }
-                              className="text-gray-400 hover:text-black transition-colors"
-                            >
-                              {mostrarSenha ? (
-                                <EyeOff className="w-4 h-4" />
-                              ) : (
-                                <Eye className="w-4 h-4" />
-                              )}
-                            </button>
-                          }
-                        />
-
-                        <AuthFormField
-                          id="register-senha2"
-                          label="Repetir"
-                          type={
-                            mostrarSenha2 ? "text" : "password"
-                          }
-                          value={senha2}
-                          onChange={(e) => setSenha2(e.target.value)}
-                          placeholder="••••••••"
-                          icon={ShieldCheck}
-                          rightElement={
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setMostrarSenha2(!mostrarSenha2)
-                              }
-                              className="text-gray-400 hover:text-black transition-colors"
-                            >
-                              {mostrarSenha2 ? (
-                                <EyeOff className="w-4 h-4" />
-                              ) : (
-                                <Eye className="w-4 h-4" />
-                              )}
-                            </button>
-                          }
-                        />
+                        <AuthFormField id="register-senha" label="Senha" type={mostrarSenha ? "text" : "password"} value={senha} onChange={(e) => setSenha(e.target.value)} placeholder="••••••••" icon={Lock} rightElement={<button type="button" onClick={() => setMostrarSenha(!mostrarSenha)} className="text-gray-400 hover:text-[#111111] transition-colors">{mostrarSenha ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button>} />
+                        <AuthFormField id="register-senha2" label="Repetir" type={mostrarSenha2 ? "text" : "password"} value={senha2} onChange={(e) => setSenha2(e.target.value)} placeholder="••••••••" icon={ShieldCheck} rightElement={<button type="button" onClick={() => setMostrarSenha2(!mostrarSenha2)} className="text-gray-400 hover:text-[#111111] transition-colors">{mostrarSenha2 ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button>} />
                       </div>
-
                       <RegisterPasswordStrength senha={senha} />
                     </>
                   )}
@@ -880,195 +481,63 @@ export default function Register({ onNavigate }) {
               {baseStep === 2 && (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between gap-3 mb-2">
-                    <p className="text-[12px] text-gray-500">
-                      Marque todas as disciplinas que você leciona.
-                    </p>
-
-                    <RegisterCountBadge
-                      count={disciplinas.length}
-                      singular="selecionada"
-                      plural="selecionadas"
-                    />
+                    <p className="text-[13px] text-gray-500 font-medium">Marque todas as disciplinas que você leciona.</p>
+                    <RegisterCountBadge count={disciplinas.length} singular="selecionada" plural="selecionadas" />
                   </div>
-
-                  <RegisterSelectionGroup
-                    titulo="Disciplinas"
-                    icon={BookOpen}
-                    items={disciplinasLista.map(
-                      ([key, nome]) => ({
-                        value: key,
-                        label: nome,
-                      })
-                    )}
-                    selecionados={disciplinas}
-                    onToggle={(item) =>
-                      toggleItem(setDisciplinas, item)
-                    }
-                    altura="max-h-[320px]"
-                  />
+                  <RegisterSelectionGroup titulo="Disciplinas" icon={BookOpen} items={disciplinasLista.map(([key, nome]) => ({ value: key, label: nome }))} selecionados={disciplinas} onToggle={(item) => toggleItem(setDisciplinas, item)} altura="max-h-[320px]" />
                 </div>
               )}
 
               {baseStep === 3 && (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between gap-3 mb-2">
-                    <p className="text-[12px] text-gray-500">
-                      Marque todas as unidades em que você leciona.
-                    </p>
-
-                    <RegisterCountBadge
-                      count={unidades.length}
-                      singular="selecionada"
-                      plural="selecionadas"
-                    />
+                    <p className="text-[13px] text-gray-500 font-medium">Marque todas as unidades em que você leciona.</p>
+                    <RegisterCountBadge count={unidades.length} singular="selecionada" plural="selecionadas" />
                   </div>
-
-                  <RegisterSelectionGroup
-                    titulo="Unidades"
-                    icon={MapPin}
-                    items={UNIDADES.map((u) => ({
-                      value: u,
-                      label: u,
-                    }))}
-                    selecionados={unidades}
-                    onToggle={(item) =>
-                      toggleItem(setUnidades, item)
-                    }
-                    altura="max-h-[320px]"
-                  />
+                  <RegisterSelectionGroup titulo="Unidades" icon={MapPin} items={UNIDADES.map((u) => ({ value: u, label: u }))} selecionados={unidades} onToggle={(item) => toggleItem(setUnidades, item)} altura="max-h-[320px]" />
                 </div>
               )}
 
-              {baseStep === 4 &&
-                subStep === "serie" &&
-                parAtual && (
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between gap-3 mb-2">
-                      <p className="text-[12px] text-gray-500">
-                        Séries de{" "}
-                        <strong>
-                          {nomeDisciplina[parAtual.disciplina] ||
-                            parAtual.disciplina}
-                        </strong>{" "}
-                        em <strong>{parAtual.unidade}</strong>.
-                      </p>
-
-                      <RegisterCountBadge
-                        count={selecaoAtual.series.length}
-                        singular="selecionada"
-                        plural="selecionadas"
-                      />
-                    </div>
-
-                    <RegisterSelectionGroup
-                      titulo="Séries"
-                      icon={GraduationCap}
-                      items={seriesDoParAtual.map((s) => ({
-                        value: s,
-                        label: s,
-                      }))}
-                      selecionados={selecaoAtual.series}
-                      onToggle={toggleSerieDoPar}
-                      altura="max-h-[320px]"
-                    />
+              {baseStep === 4 && subStep === "serie" && parAtual && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between gap-3 mb-2">
+                    <p className="text-[13px] text-gray-500 font-medium">
+                      Séries de <strong>{nomeDisciplina[parAtual.disciplina] || parAtual.disciplina}</strong> em <strong>{parAtual.unidade}</strong>.
+                    </p>
+                    <RegisterCountBadge count={selecaoAtual.series.length} singular="selecionada" plural="selecionadas" />
                   </div>
-                )}
+                  <RegisterSelectionGroup titulo="Séries" icon={GraduationCap} items={seriesDoParAtual.map((s) => ({ value: s, label: s }))} selecionados={selecaoAtual.series} onToggle={toggleSerieDoPar} altura="max-h-[320px]" />
+                </div>
+              )}
 
-              {baseStep === 4 &&
-                subStep === "turma" &&
-                parAtual && (
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between gap-3 mb-2">
-                      <p className="text-[12px] text-gray-500">
-                        Turmas de{" "}
-                        <strong>
-                          {nomeDisciplina[parAtual.disciplina] ||
-                            parAtual.disciplina}
-                        </strong>{" "}
-                        em <strong>{parAtual.unidade}</strong>.
-                      </p>
-
-                      <RegisterCountBadge
-                        count={selecaoAtual.turmas.length}
-                        singular="selecionada"
-                        plural="selecionadas"
-                      />
-                    </div>
-
-                    {turmasDoParAtual.length === 0 ? (
-                      <p className="text-sm text-gray-500 italic">
-                        Nenhuma turma encontrada. Volte e ajuste
-                        as séries.
-                      </p>
-                    ) : (
-                      <RegisterSelectionGroup
-                        titulo="Turmas"
-                        icon={Users}
-                        items={turmasDoParAtual.map((t) => ({
-                          value: t.turma,
-                          label: t.turma,
-                        }))}
-                        selecionados={selecaoAtual.turmas}
-                        onToggle={toggleTurmaDoPar}
-                        altura="max-h-[320px]"
-                      />
-                    )}
+              {baseStep === 4 && subStep === "turma" && parAtual && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between gap-3 mb-2">
+                    <p className="text-[13px] text-gray-500 font-medium">
+                      Turmas de <strong>{nomeDisciplina[parAtual.disciplina] || parAtual.disciplina}</strong> em <strong>{parAtual.unidade}</strong>.
+                    </p>
+                    <RegisterCountBadge count={selecaoAtual.turmas.length} singular="selecionada" plural="selecionadas" />
                   </div>
-                )}
+                  {turmasDoParAtual.length === 0 ? (
+                    <p className="text-sm text-gray-500 italic">Nenhuma turma encontrada. Volte e ajuste as séries.</p>
+                  ) : (
+                    <RegisterSelectionGroup titulo="Turmas" icon={Users} items={turmasDoParAtual.map((t) => ({ value: t.turma, label: t.turma }))} selecionados={selecaoAtual.turmas} onToggle={toggleTurmaDoPar} altura="max-h-[320px]" />
+                  )}
+                </div>
+              )}
 
-              <div className="pt-2 space-y-2">
-                {baseStep === 4 &&
-                  subStep === "turma" &&
-                  parIdx === pares.length - 1 ? (
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full flex items-center justify-center gap-2 bg-[#171717] text-white border-[2px] border-black rounded-lg px-5 py-2.5 text-[13px] font-semibold shadow-[3px_3px_0px_0px_#F5C518] hover:bg-black hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_#F5C518] active:shadow-none active:translate-x-[3px] active:translate-y-[3px] transition-all disabled:opacity-60"
-                  >
-                    {loading ? (
-                      <>
-                        <span className="w-4 h-4 border-[2px] border-white border-t-transparent rounded-full animate-spin" />
-                        Salvando...
-                      </>
-                    ) : (
-                      <>
-                        Finalizar Cadastro
-                        <CheckCircle2
-                          className="w-4 h-4"
-                          strokeWidth={2.5}
-                        />
-                      </>
-                    )}
+              <div className="pt-4 space-y-3">
+                {baseStep === 4 && subStep === "turma" && parIdx === pares.length - 1 ? (
+                  <button type="submit" disabled={loading} className="w-full flex items-center justify-center gap-2 bg-[#111111] text-white rounded-full px-5 py-4 text-[14px] font-bold hover:bg-black transition-colors disabled:opacity-60">
+                    {loading ? <><span className="w-4 h-4 border-[2px] border-white border-t-transparent rounded-full animate-spin" /> Salvando...</> : <>Finalizar Cadastro <CheckCircle2 className="w-4 h-4" strokeWidth={2.5} /></>}
                   </button>
                 ) : (
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full flex items-center justify-center gap-2 bg-pensi-yellow text-black border-[2px] border-black rounded-lg px-5 py-2.5 text-[13px] font-semibold shadow-[3px_3px_0px_0px_#000] hover:bg-[#ffdb4d] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_#000] active:shadow-none active:translate-x-[3px] active:translate-y-[3px] transition-all disabled:opacity-60"
-                  >
-                    {loading ? (
-                      <>
-                        <span className="w-4 h-4 border-[2px] border-black border-t-transparent rounded-full animate-spin" />
-                        Validando...
-                      </>
-                    ) : (
-                      <>
-                        Próximo passo
-                        <ArrowRight
-                          className="w-4 h-4"
-                          strokeWidth={2.5}
-                        />
-                      </>
-                    )}
+                  <button type="submit" disabled={loading} className="w-full flex items-center justify-center gap-2 bg-pensi-yellow text-[#111111] rounded-full px-5 py-4 text-[14px] font-bold hover:bg-pensi-yellow-hover transition-colors disabled:opacity-60">
+                    {loading ? <><span className="w-4 h-4 border-[2px] border-[#111111] border-t-transparent rounded-full animate-spin" /> Validando...</> : <>Próximo passo <ArrowRight className="w-4 h-4" strokeWidth={2.5} /></>}
                   </button>
                 )}
-
                 {currentStepNumber > 1 && (
-                  <button
-                    type="button"
-                    onClick={voltar}
-                    className="w-full py-1 text-[11px] font-medium text-gray-500 hover:text-black transition-colors"
-                  >
+                  <button type="button" onClick={voltar} className="w-full py-2 text-[12px] font-medium text-gray-500 hover:text-[#111111] transition-colors">
                     Voltar para o passo anterior
                   </button>
                 )}
@@ -1076,14 +545,10 @@ export default function Register({ onNavigate }) {
             </form>
 
             {baseStep === 1 && !googleUser && (
-              <div className="mt-5 text-center pt-4 border-t-[1px] border-gray-100">
-                <p className="text-[11px] font-normal text-gray-500">
+              <div className="mt-6 text-center pt-5 border-t border-gray-100">
+                <p className="text-[13px] font-medium text-gray-500">
                   Já tem uma conta?{" "}
-                  <button
-                    type="button"
-                    onClick={() => onNavigate("login")}
-                    className="font-semibold text-black underline decoration-pensi-yellow decoration-2 underline-offset-4 hover:decoration-black transition-colors"
-                  >
+                  <button type="button" onClick={() => onNavigate("login")} className="font-bold text-[#111111] hover:text-pensi-yellow transition-colors">
                     Fazer login
                   </button>
                 </p>

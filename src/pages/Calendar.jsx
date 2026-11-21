@@ -1,4 +1,3 @@
-
 import { useEffect, useState, useMemo } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { useCalendarData } from "../hooks/useCalendarData";
@@ -12,21 +11,10 @@ import CalendarAlert from "../components/calendar/CalendarAlert";
 import CalendarError from "../components/calendar/CalendarError";
 import CalendarGrid from "../components/calendar/CalendarGrid";
 import CalendarDetailPanel from "../components/calendar/CalendarDetailPanel";
-
-import {
-  parseTurmasPorUnidade,
-  extrairSerieTurma,
-  normalizarTurma,
-  normalizarUnidade,
-} from "../utils/turmas";
+import { parseTurmasPorUnidade, extrairSerieTurma, normalizarTurma, normalizarUnidade } from "../utils/turmas";
 
 function normalizar(s) {
-  return String(s || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, " ");
+  return String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim().replace(/\s+/g, " ");
 }
 
 function extrairBase(serie) {
@@ -35,109 +23,52 @@ function extrairBase(serie) {
 
 function acharAba(abas, serieDaTurma) {
   if (!abas?.length) return null;
-
   const baseTurma = extrairBase(serieDaTurma);
-
-  return (
-    abas.find((aba) => extrairBase(aba) === baseTurma) || null
-  );
+  return abas.find((aba) => extrairBase(aba) === baseTurma) || null;
 }
 
 function parseData(periodo, ano) {
-  const t = String(periodo || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase();
-
+  const t = String(periodo || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   let m = t.match(/(\d{1,2})\s*[\/.-]\s*([a-z]{3})/);
-
   if (m) {
-    const mes = [
-      "jan", "fev", "mar", "abr", "mai", "jun",
-      "jul", "ago", "set", "out", "nov", "dez",
-    ].indexOf(m[2]);
-
-    return mes < 0
-      ? null
-      : new Date(ano, mes, parseInt(m[1], 10));
+    const mes = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"].indexOf(m[2]);
+    return mes < 0 ? null : new Date(ano, mes, parseInt(m[1], 10));
   }
-
   m = t.match(/(\d{1,2})\s*[\/.-]\s*(\d{1,2})/);
-
   if (m) {
     const mes = parseInt(m[2], 10) - 1;
-
-    return mes < 0 || mes > 11
-      ? null
-      : new Date(ano, mes, parseInt(m[1], 10));
+    return mes < 0 || mes > 11 ? null : new Date(ano, mes, parseInt(m[1], 10));
   }
-
   return null;
 }
 
 function obterUnidadesUsuario(valor) {
-  if (Array.isArray(valor)) {
-    return valor.map((item) => String(item).trim()).filter(Boolean);
-  }
-
-  return String(valor || "")
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
+  if (Array.isArray(valor)) return valor.map((item) => String(item).trim()).filter(Boolean);
+  return String(valor || "").split(",").map((item) => item.trim()).filter(Boolean);
 }
 
 function obterTurmasInativas(unidade, turmasInativas) {
   const unidadeNormalizada = normalizarUnidade(unidade);
-
   return new Set(
     (Array.isArray(turmasInativas) ? turmasInativas : [])
       .map((item) => {
         if (typeof item !== "string") return "";
-
-        // Formato: Unidade::Turma
         if (item.includes("::")) {
           const [unidadeItem, ...resto] = item.split("::");
-
-          if (
-            normalizarUnidade(unidadeItem) !== unidadeNormalizada
-          ) {
-            return "";
-          }
-
+          if (normalizarUnidade(unidadeItem) !== unidadeNormalizada) return "";
           return normalizarTurma(resto.join("::"));
         }
-
-        // Formato antigo: somente o nome da turma.
         return normalizarTurma(item);
       })
       .filter(Boolean)
   );
 }
 
-export default function CalendarPage({
-  disciplinaKey,
-  ano,
-  onBack,
-  unidadePreSelecionada,
-  turmaPreSelecionada,
-}) {
+export default function CalendarPage({ disciplinaKey, ano, onBack, unidadePreSelecionada, turmaPreSelecionada }) {
   const { user, checksSet, setChecksSet } = useAuth();
-
   const disc = DISCIPLINAS_POR_ANO[ano]?.[disciplinaKey];
-
   const { isDiaLetivo } = useCalendario();
-
-  const {
-    currentWeeks,
-    currentAulas,
-    currentCaps,
-    currentSemanas,
-    currentAulaIdx,
-    currentModelo,
-    fetchAbas,
-    carregarAba,
-    processar,
-  } = useCalendarData();
+  const { currentWeeks, currentAulas, currentCaps, currentSemanas, currentAulaIdx, currentModelo, fetchAbas, carregarAba, processar } = useCalendarData();
 
   const [abas, setAbas] = useState([]);
   const [serie, setSerie] = useState("");
@@ -147,424 +78,156 @@ export default function CalendarPage({
   const [mesIdx, setMesIdx] = useState(0);
   const [diaSelecionado, setDiaSelecionado] = useState(null);
 
-  // Busca as abas disponíveis da disciplina.
   useEffect(() => {
     let ativo = true;
-
-    if (!disc) {
-      setError(true);
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    setError(false);
-
+    if (!disc) { setError(true); setLoading(false); return; }
+    setLoading(true); setError(false);
     fetchAbas(disc)
       .then((lista) => {
         if (!ativo) return;
-
-        if (!lista || !lista.length) {
-          throw new Error("Sem abas");
-        }
-
+        if (!lista || !lista.length) throw new Error("Sem abas");
         setAbas(lista);
       })
       .catch((err) => {
         if (!ativo) return;
-
         console.error("Erro ao buscar abas:", err);
-        setError(true);
-        setLoading(false);
+        setError(true); setLoading(false);
       });
-
-    return () => {
-      ativo = false;
-    };
+    return () => { ativo = false; };
   }, [disc, fetchAbas]);
 
-  // Identifica dinamicamente as turmas do professor.
   const opcoesProfessor = useMemo(() => {
     if (!user || !abas.length) return [];
-
     const mapa = parseTurmasPorUnidade(user.turmas || "");
-
     const unidadesUsuario = obterUnidadesUsuario(user.unidade);
-
-    const unidadesPermitidas = new Set(
-      unidadesUsuario.map(normalizarUnidade)
-    );
-
-    const unidadesInativas = new Set(
-      (Array.isArray(user.unidadesInativas)
-        ? user.unidadesInativas
-        : []
-      ).map(normalizarUnidade)
-    );
-
+    const unidadesPermitidas = new Set(unidadesUsuario.map(normalizarUnidade));
+    const unidadesInativas = new Set((Array.isArray(user.unidadesInativas) ? user.unidadesInativas : []).map(normalizarUnidade));
     const resultado = [];
-
     Object.entries(mapa).forEach(([unidade, turmas]) => {
       const unidadeNormalizada = normalizarUnidade(unidade);
-
-      // Restringe às unidades cadastradas para o usuário.
-      if (
-        unidadesPermitidas.size > 0 &&
-        !unidadesPermitidas.has(unidadeNormalizada)
-      ) {
-        return;
-      }
-
-      // Uma unidade inativa não afeta as outras unidades.
-      if (unidadesInativas.has(unidadeNormalizada)) {
-        return;
-      }
-
-      const turmasInativas = obterTurmasInativas(
-        unidade,
-        user.turmasInativas
-      );
-
+      if (unidadesPermitidas.size > 0 && !unidadesPermitidas.has(unidadeNormalizada)) return;
+      if (unidadesInativas.has(unidadeNormalizada)) return;
+      const turmasInativas = obterTurmasInativas(unidade, user.turmasInativas);
       turmas.forEach((nomeTurma) => {
-        if (turmasInativas.has(normalizarTurma(nomeTurma))) {
-          return;
-        }
-
+        if (turmasInativas.has(normalizarTurma(nomeTurma))) return;
         const serieTurma = extrairSerieTurma(nomeTurma);
-
-        if (!serieTurma) {
-          console.warn(
-            "Não foi possível identificar a série da turma:",
-            { unidade, nomeTurma }
-          );
-          return;
-        }
-
+        if (!serieTurma) { console.warn("Não foi possível identificar a série da turma:", { unidade, nomeTurma }); return; }
         const aba = acharAba(abas, serieTurma);
-
-        if (!aba) {
-          console.warn(
-            "Não foi encontrada uma aba para a série:",
-            { unidade, nomeTurma, serieTurma, abas }
-          );
-          return;
-        }
-
-        // Restringe à unidade solicitada, quando houver.
-        if (
-          unidadePreSelecionada &&
-          unidadeNormalizada !==
-            normalizarUnidade(unidadePreSelecionada)
-        ) {
-          return;
-        }
-
-        resultado.push({
-          unidade,
-          turma: nomeTurma,
-          serie: serieTurma,
-          aba,
-        });
+        if (!aba) { console.warn("Não foi encontrada uma aba para a série:", { unidade, nomeTurma, serieTurma, abas }); return; }
+        if (unidadePreSelecionada && unidadeNormalizada !== normalizarUnidade(unidadePreSelecionada)) return;
+        resultado.push({ unidade, turma: nomeTurma, serie: serieTurma, aba });
       });
     });
-
     return resultado;
   }, [user, abas, unidadePreSelecionada]);
 
-  // Seleciona automaticamente uma turma disponível.
   useEffect(() => {
     if (!abas.length) return;
-
     if (turmaPreSelecionada) {
-      const opcao = opcoesProfessor.find(
-        (o) =>
-          normalizarTurma(o.turma) ===
-          normalizarTurma(turmaPreSelecionada)
-      );
-
-      if (opcao) {
-        setTurmaSelecionada(opcao.turma);
-        setSerie(opcao.aba);
-        return;
-      }
+      const opcao = opcoesProfessor.find((o) => normalizarTurma(o.turma) === normalizarTurma(turmaPreSelecionada));
+      if (opcao) { setTurmaSelecionada(opcao.turma); setSerie(opcao.aba); return; }
     }
-
     if (opcoesProfessor.length > 0) {
       const primeira = opcoesProfessor[0];
-
-      setTurmaSelecionada(primeira.turma);
-      setSerie(primeira.aba);
-      return;
+      setTurmaSelecionada(primeira.turma); setSerie(primeira.aba); return;
     }
-
-    // Mantém a visualização do calendário mesmo sem turma ativa.
-    setTurmaSelecionada("");
-    setSerie(abas[0]);
+    setTurmaSelecionada(""); setSerie(abas[0]);
   }, [abas, opcoesProfessor, turmaPreSelecionada]);
 
-  // Carrega os dados da aba selecionada.
   useEffect(() => {
     if (!serie || !disc || error) return;
-
     let ativo = true;
-
-    setLoading(true);
-    setDiaSelecionado(null);
-
+    setLoading(true); setDiaSelecionado(null);
     carregarAba(ano, disciplinaKey, serie)
       .then((rows) => {
         if (!ativo) return;
-
-        if (!rows) {
-          throw new Error("Sem dados");
-        }
-
+        if (!rows) throw new Error("Sem dados");
         processar(rows);
       })
       .catch((err) => {
         if (!ativo) return;
-
         console.error("Erro ao carregar aba:", err);
-        setError(true);
-        processar([]);
+        setError(true); processar([]);
       })
-      .finally(() => {
-        if (ativo) setLoading(false);
-      });
-
-    return () => {
-      ativo = false;
-    };
+      .finally(() => { if (ativo) setLoading(false); });
+    return () => { ativo = false; };
   }, [serie, ano, disciplinaKey, disc, carregarAba, processar, error]);
 
-  // Organiza as semanas por mês.
   const meses = useMemo(() => {
-    if (!currentWeeks.length) {
-      return [{ y: 0, m: -1, rotulo: "Todas" }];
-    }
-
+    if (!currentWeeks.length) return [{ y: 0, m: -1, rotulo: "Todas" }];
     const set = new Map();
-
     let anoRef = parseInt(ano, 10);
     let ant = null;
-
     currentWeeks.forEach((w) => {
       const d = parseData(w.periodo, anoRef);
-
-      if (d && ant && d < ant) {
-        anoRef++;
-      }
-
+      if (d && ant && d < ant) anoRef++;
       if (d) ant = d;
-
-      w.datas = d
-        ? [0, 1, 2, 3, 4, 5].map(
-            (k) =>
-              new Date(
-                d.getFullYear(),
-                d.getMonth(),
-                d.getDate() + k
-              )
-          )
-        : null;
+      w.datas = d ? [0, 1, 2, 3, 4, 5].map((k) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + k)) : null;
     });
-
     currentWeeks.forEach((w) => {
       if (!w.datas) return;
-
       w.datas.slice(0, 5).forEach((d) => {
         const k = d.getFullYear() * 12 + d.getMonth();
-
-        if (!set.has(k)) {
-          set.set(k, {
-            y: d.getFullYear(),
-            m: d.getMonth(),
-          });
-        }
+        if (!set.has(k)) set.set(k, { y: d.getFullYear(), m: d.getMonth() });
       });
     });
-
-    return [...set.values()]
-      .sort(
-        (a, b) =>
-          a.y * 12 + a.m - (b.y * 12 + b.m)
-      )
-      .map((v) => ({
-        ...v,
-        rotulo: NOMES_MES[v.m],
-      }));
+    return [...set.values()].sort((a, b) => a.y * 12 + a.m - (b.y * 12 + b.m)).map((v) => ({ ...v, rotulo: NOMES_MES[v.m] }));
   }, [currentWeeks, ano]);
 
-  // Abre o mês atual automaticamente.
   useEffect(() => {
     if (currentWeeks.length > 0 && meses.length > 0) {
       const hoje = new Date();
-
-      const idxHoje = meses.findIndex(
-        (m) =>
-          m.y === hoje.getFullYear() &&
-          m.m === hoje.getMonth()
-      );
-
-      if (idxHoje !== -1) {
-        setMesIdx(idxHoje);
-      }
+      const idxHoje = meses.findIndex((m) => m.y === hoje.getFullYear() && m.m === hoje.getMonth());
+      if (idxHoje !== -1) setMesIdx(idxHoje);
     }
   }, [currentWeeks, meses]);
 
-  // Identifica a opção selecionada e a unidade correspondente.
   const opcaoSelecionada = useMemo(() => {
-    return (
-      opcoesProfessor.find(
-        (o) =>
-          normalizarTurma(o.turma) ===
-            normalizarTurma(turmaSelecionada) &&
-          o.aba === serie
-      ) ||
-      opcoesProfessor.find((o) => o.aba === serie) ||
-      null
-    );
+    return opcoesProfessor.find((o) => normalizarTurma(o.turma) === normalizarTurma(turmaSelecionada) && o.aba === serie) || opcoesProfessor.find((o) => o.aba === serie) || null;
   }, [opcoesProfessor, turmaSelecionada, serie]);
 
-  const unidadeAtiva =
-    unidadePreSelecionada ||
-    opcaoSelecionada?.unidade ||
-    "";
+  const unidadeAtiva = unidadePreSelecionada || opcaoSelecionada?.unidade || "";
 
-  // Lista somente as turmas da unidade atual.
   const listaTurmasParaCheck = useMemo(() => {
-    return opcoesProfessor
-      .filter(
-        (o) =>
-          !unidadeAtiva ||
-          normalizarUnidade(o.unidade) ===
-            normalizarUnidade(unidadeAtiva)
-      )
-      .map((o) => o.turma);
+    return opcoesProfessor.filter((o) => !unidadeAtiva || normalizarUnidade(o.unidade) === normalizarUnidade(unidadeAtiva)).map((o) => o.turma);
   }, [opcoesProfessor, unidadeAtiva]);
 
-  const nomeParaOProperty =
-    turmaSelecionada ||
-    (opcaoSelecionada ? opcaoSelecionada.turma : serie);
+  const nomeParaOProperty = turmaSelecionada || (opcaoSelecionada ? opcaoSelecionada.turma : serie);
 
-  // Registra os checks.
-  async function handleCheck({
-    semanaIdx,
-    diaNome,
-    aulaIndex,
-    tipo,
-    justificativa,
-    observacao,
-    turmasParaAplicar,
-  }) {
+  async function handleCheck({ semanaIdx, diaNome, aulaIndex, tipo, justificativa, observacao, turmasParaAplicar }) {
     if (!user) return;
-
-    if (!unidadeAtiva) {
-      alert("Não foi possível identificar a unidade desta turma.");
-      return;
-    }
-
-    const turmasValidas = (turmasParaAplicar || []).filter(
-      (turma) =>
-        listaTurmasParaCheck.some(
-          (item) =>
-            normalizarTurma(item) === normalizarTurma(turma)
-        )
-    );
-
-    if (!turmasValidas.length) {
-      alert("Nenhuma turma ativa disponível para registrar.");
-      return;
-    }
-
-    const payload = {
-      uid: user.uid,
-      email: user.email,
-      disciplina: disciplinaKey,
-      serie,
-      unidade: unidadeAtiva,
-      turmasParaAplicar: turmasValidas,
-      semanaIdx,
-      diaNome,
-      aulaIndex,
-      tipo,
-      justificativa,
-      observacao,
-    };
-
-    const chavesNovas = turmasValidas.map((turma) =>
-      gerarIdCheck({
-        disciplina: disciplinaKey,
-        serie: turma,
-        semanaIdx,
-        diaNome,
-        aulaIndex,
-      })
-    );
-
-    setChecksSet(
-      (prev) => new Set([...prev, ...chavesNovas])
-    );
-
+    if (!unidadeAtiva) { alert("Não foi possível identificar a unidade desta turma."); return; }
+    const turmasValidas = (turmasParaAplicar || []).filter((turma) => listaTurmasParaCheck.some((item) => normalizarTurma(item) === normalizarTurma(turma)));
+    if (!turmasValidas.length) { alert("Nenhuma turma ativa disponível para registrar."); return; }
+    const payload = { uid: user.uid, email: user.email, disciplina: disciplinaKey, serie, unidade: unidadeAtiva, turmasParaAplicar: turmasValidas, semanaIdx, diaNome, aulaIndex, tipo, justificativa, observacao };
+    const chavesNovas = turmasValidas.map((turma) => gerarIdCheck({ disciplina: disciplinaKey, serie: turma, semanaIdx, diaNome, aulaIndex }));
+    setChecksSet((prev) => new Set([...prev, ...chavesNovas]));
     try {
       await salvarCheck(payload);
     } catch (err) {
       console.error("Erro ao salvar check:", err);
-
-      setChecksSet((prev) => {
-        const novo = new Set(prev);
-
-        chavesNovas.forEach((chave) => novo.delete(chave));
-
-        return novo;
-      });
-
-      alert(
-        "Não foi possível registrar o check. Tente novamente."
-      );
+      setChecksSet((prev) => { const novo = new Set(prev); chavesNovas.forEach((chave) => novo.delete(chave)); return novo; });
+      alert("Não foi possível registrar o check. Tente novamente.");
     }
   }
 
-  if (error) {
-    return <CalendarError onBack={onBack} />;
-  }
+  if (error) return <CalendarError onBack={onBack} />;
 
-  const isReady =
-    !loading && currentWeeks.length > 0;
+  const isReady = !loading && currentWeeks.length > 0;
 
   const mostrarSeletor = (() => {
     if (!user) return abas.length > 1;
     if (turmaPreSelecionada) return false;
-
     return opcoesProfessor.length > 1;
   })();
 
-  const unicaOpcao =
-    opcoesProfessor.length === 1
-      ? opcoesProfessor[0]
-      : null;
+  const unicaOpcao = opcoesProfessor.length === 1 ? opcoesProfessor[0] : null;
 
   return (
-    <div className="min-h-screen bg-[#e6e8eb] flex flex-col font-sans relative overflow-hidden">
-      {!isReady && (
-        <Loading texto="Carregando calendário..." />
-      )}
+    <div className="min-h-screen bg-[#F1F2F4] flex flex-col font-sans relative overflow-hidden">
+      {!isReady && <Loading texto="Carregando calendário..." />}
 
-      <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
-        <div className="absolute top-[10%] left-[-5%] w-[600px] h-[600px] bg-pensi-yellow/8 rounded-full blur-[120px]"></div>
-
-        <div className="absolute bottom-[-10%] right-[-5%] w-[600px] h-[600px] bg-blue-400/10 rounded-full blur-[120px]"></div>
-
-        <div className="absolute top-[40%] left-[30%] w-[500px] h-[500px] bg-purple-300/8 rounded-full blur-[120px]"></div>
-      </div>
-
-      <div
-        className={
-          isReady
-            ? "block"
-            : "opacity-0 pointer-events-none"
-        }
-      >
+      <div className={isReady ? "block" : "opacity-0 pointer-events-none"}>
         <CalendarHeader
           onBack={onBack}
           mesIdx={mesIdx}
@@ -582,35 +245,39 @@ export default function CalendarPage({
           unicaOpcao={unicaOpcao}
         />
 
-        {user && opcoesProfessor.length === 0 && (
-          <CalendarAlert />
-        )}
+        {user && opcoesProfessor.length === 0 && <CalendarAlert />}
 
-        <div className="flex-1 grid md:grid-cols-[1.3fr_1fr] gap-8 max-w-[1400px] mx-auto p-6 w-full items-start relative z-10">
-          <div className="bg-white/50 backdrop-blur-2xl border-[3px] border-black rounded-2xl shadow-[6px_6px_0px_0px_#000] p-6">
-            <CalendarGrid
-              weeks={currentWeeks}
-              mesSelecionado={meses[mesIdx]}
-              diaSelecionado={diaSelecionado}
-              onDayClick={(weekIdx, diaIdx) =>
-                setDiaSelecionado({ weekIdx, diaIdx })
-              }
-              isDiaLetivo={isDiaLetivo}
-              turmaSelecionada={
-                turmaSelecionada || nomeParaOProperty
-              }
-              serie={serie}
-              unidadeSelecionada={unidadeAtiva}
-            />
+        <div className="flex-1 grid lg:grid-cols-[1.3fr_1fr] gap-8 max-w-[1400px] mx-auto p-6 pt-15 w-full items-start relative z-10">
+          
+          <div className="flex flex-col gap-6">
+            <div className="flex flex-col items-start pb-2">
+              <h1 className="text-[40px] sm:text-[56px] font-black tracking-[-0.04em] leading-[0.9] text-[#111111] uppercase transform -rotate-1">
+                Calendário
+              </h1>
+              <h2 className="text-[40px] sm:text-[56px] font-black tracking-[-0.04em] leading-[0.9] uppercase transform rotate-1 mt-2 ml-2">
+                <span className="bg-pensi-yellow px-3 py-1 inline-block text-[#111111]">
+                  Escolar.
+                </span>
+              </h2>
+            </div>
+
+            <div className="bg-white rounded-[32px] border border-gray-100 shadow-sm p-6">
+              <CalendarGrid
+                weeks={currentWeeks}
+                mesSelecionado={meses[mesIdx]}
+                diaSelecionado={diaSelecionado}
+                onDayClick={(weekIdx, diaIdx) => setDiaSelecionado({ weekIdx, diaIdx })}
+                isDiaLetivo={isDiaLetivo}
+                turmaSelecionada={turmaSelecionada || nomeParaOProperty}
+                serie={serie}
+                unidadeSelecionada={unidadeAtiva}
+              />
+            </div>
           </div>
 
-          <aside className="bg-white/50 backdrop-blur-2xl border-[3px] border-black rounded-2xl shadow-[6px_6px_0px_0px_#000] sticky top-6 max-h-[calc(100vh-3rem)] overflow-y-auto">
+          <aside className="sticky top-28 max-h-[calc(100vh-8rem)] overflow-y-auto">
             <CalendarDetailPanel
-              semData={
-                diaSelecionado
-                  ? currentWeeks[diaSelecionado.weekIdx]
-                  : null
-              }
+              semData={diaSelecionado ? currentWeeks[diaSelecionado.weekIdx] : null}
               diaIdx={diaSelecionado?.diaIdx}
               weekIdx={diaSelecionado?.weekIdx}
               currentModelo={currentModelo}
@@ -627,9 +294,7 @@ export default function CalendarPage({
               isDiaLetivo={isDiaLetivo}
               turmaSelecionada={turmaSelecionada || nomeParaOProperty}
               serie={serie}
-              podeRegistrarChecks={Boolean(
-                user && opcoesProfessor.length > 0
-              )}
+              podeRegistrarChecks={Boolean(user && opcoesProfessor.length > 0)}
             />
           </aside>
         </div>

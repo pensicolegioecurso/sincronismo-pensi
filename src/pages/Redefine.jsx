@@ -31,17 +31,13 @@ export default function Redefine({ onNavigate }) {
 
     setLoading(true);
     try {
-      // 1. Verifica quais métodos de login existem para este e-mail
       let metodos = [];
       try {
         metodos = await fetchSignInMethodsForEmail(auth, emailLimpo);
       } catch (err) {
-        // Se a proteção contra enumeração estiver ativa, a função pode falhar
-        // ou retornar lista vazia. Nesse caso, seguimos com o fluxo normal.
         console.warn("Não foi possível verificar os métodos de login:", err);
       }
 
-      // 2. Se o único método for Google, avisa e não envia o link
       if (metodos.length > 0 && metodos.includes("google.com") && !metodos.includes("password")) {
         setErro(
           "Esta conta foi criada com o Google e não possui senha para redefinir. " +
@@ -51,7 +47,6 @@ export default function Redefine({ onNavigate }) {
         return;
       }
 
-      // 3. Caso contrário, envia o e-mail normalmente
       const res = await redefine(emailLimpo);
       if (res.ok) {
         setEnviado(true);
@@ -66,14 +61,19 @@ export default function Redefine({ onNavigate }) {
   }
 
   return (
-    <main className="relative min-h-screen flex items-center justify-center bg-[#f3f4f6] px-4 sm:px-6 py-6">
+    <main className="relative isolate min-h-screen flex items-center justify-center bg-[#F1F2F4] px-4 sm:px-6 py-12">
       <AuthBackButton onClick={() => onNavigate("login")} label="Voltar" />
 
-      <AuthCard maxWidth="max-w-[750px]">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-10 items-center mt-4">
-          <RedefineSidePanel enviado={enviado} />
+      <AuthCard maxWidth="max-w-[900px]">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center mt-4">
+          
+          {/* Painel Lateral Esquerdo (Estilo Home) */}
+          <div className="order-2 lg:order-1 flex flex-col items-start text-left h-full pt-2">
+            <RedefineSidePanel enviado={enviado} />
+          </div>
 
-          <div className="md:border-l-[2px] md:border-gray-100 md:pl-10">
+          {/* Coluna do Formulário com Divisória */}
+          <div className="order-1 lg:order-2 w-full max-w-md mx-auto lg:max-w-none lg:border-l border-gray-100 lg:pl-12">
             {enviado ? (
               <RedefineSuccess
                 email={email}
@@ -98,11 +98,11 @@ export default function Redefine({ onNavigate }) {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full flex items-center justify-center gap-2 bg-pensi-yellow text-black border-[2px] border-black rounded-lg px-4 py-2.5 text-[13px] font-semibold shadow-[3px_3px_0px_0px_#000] hover:bg-[#ffdb4d] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_#000] active:shadow-none active:translate-x-[3px] active:translate-y-[3px] transition-all duration-150 disabled:opacity-60"
+                    className="w-full flex items-center justify-center gap-2 bg-pensi-yellow text-[#111111] rounded-full px-5 py-4 mt-2 text-[14px] font-bold hover:bg-pensi-yellow-hover transition-colors disabled:opacity-60"
                   >
                     {loading ? (
                       <>
-                        <span className="w-4 h-4 border-[2px] border-black border-t-transparent rounded-full animate-spin" />
+                        <span className="w-4 h-4 border-[2px] border-[#111111] border-t-transparent rounded-full animate-spin" />
                         Enviando...
                       </>
                     ) : (
@@ -114,13 +114,13 @@ export default function Redefine({ onNavigate }) {
                   </button>
                 </form>
 
-                <div className="mt-5 text-center pt-4 border-t-[1px] border-gray-100">
-                  <p className="text-[11px] font-normal text-gray-500">
+                <div className="mt-6 text-center pt-5 border-t border-gray-100">
+                  <p className="text-[13px] font-medium text-gray-500">
                     Lembrou sua senha?{" "}
                     <button
                       type="button"
                       onClick={() => onNavigate("login")}
-                      className="font-semibold text-black underline decoration-pensi-yellow decoration-2 underline-offset-4 hover:decoration-black transition-colors"
+                      className="font-bold text-[#111111] hover:text-pensi-yellow transition-colors"
                     >
                       Fazer login
                     </button>

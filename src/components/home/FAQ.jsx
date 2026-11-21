@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Minus } from "lucide-react";
 
 const perguntas = [
   { q: "Esqueci minha senha, como recuperar?", a: "Na tela de login, clique em 'Esqueci minha senha' e siga as instruções enviadas para o seu e-mail institucional." },
@@ -11,36 +11,35 @@ export default function FAQ() {
   const [openIndex, setOpenIndex] = useState(null);
 
   return (
-    <section id="faq" className="w-full py-20 px-6 bg-pensi-bg">
-      <div className="max-w-[700px] mx-auto">
-        <h2 className="text-[45px] sm:text-[60px] font-black leading-[0.95] tracking-[-0.03em] uppercase  mb-12 text-pensi-dark">
-          Perguntas<br />Frequentes.
+    <section id="faq" className="py-14 sm:py-20 px-4 sm:px-6 max-w-[930px] mt-[-20px] sm:mt-[-50px] mx-auto">
+      <div className="flex flex-col items-end text-right mb-8 sm:mb-10">
+        <h2 className="text-4xl sm:text-5xl md:text-[56px] font-black uppercase leading-[0.9] tracking-tighter mb-3 text-[#111]">
+          Perguntas <br />
+          <span className="text-black px-2 inline-block mt-1 rounded-md">frequentes.</span>
         </h2>
+        <p className="text-xs sm:text-sm text-gray-500 font-medium max-w-[280px] leading-snug">
+          Tire suas dúvidas sobre o Sincronismo Pedagógico.
+        </p>
+      </div>
 
-        <div className="space-y-3">
-          {perguntas.map((item, idx) => {
-            const isOpen = openIndex === idx;
-            return (
-              <div 
-                key={idx} 
-                className="bg-white rounded-[20px] overflow-hidden transition-all duration-300 shadow-sm hover:shadow-md cursor-pointer border border-gray-100"
-                onClick={() => setOpenIndex(isOpen ? null : idx)}
+      {/* Perguntas alinhadas à direita */}
+      <div className="flex flex-col gap-2 max-w-[500px] ml-auto w-full">
+        {perguntas.map((faq, i) => {
+          const isOpen = openIndex === i;
+          return (
+            <div key={i} className="bg-white rounded-xl overflow-hidden">
+              <button
+                onClick={() => setOpenIndex(isOpen ? null : i)}
+                aria-expanded={isOpen}
+                className="w-full flex items-center justify-between gap-3 px-4 py-3.5 text-[11px] sm:text-xs font-bold text-left text-pensi-dark"
               >
-                <div className="flex items-center justify-between p-5">
-                  <h3 className="text-[15px] sm:text-[16px] font-bold text-pensi-dark pr-4">{item.q}</h3>
-                  <div className={`w-8 h-8 rounded-full bg-pensi-bg flex items-center justify-center shrink-0 transition-transform duration-300 ${isOpen ? 'rotate-45 bg-pensi-yellow' : ''}`}>
-                    <Plus className="w-4 h-4 text-pensi-dark" strokeWidth={3} />
-                  </div>
-                </div>
-                <div className={`px-5 pb-5 transition-all duration-300 ease-in-out ${isOpen ? 'opacity-100 max-h-40' : 'opacity-0 max-h-0 overflow-hidden p-0'}`}>
-                  <p className="text-[14px] text-gray-500 font-medium leading-relaxed border-t border-gray-100 pt-4">
-                    {item.a}
-                  </p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+                {faq.q}
+                {isOpen ? <Minus size={14} className="shrink-0" /> : <Plus size={14} className="shrink-0" />}
+              </button>
+              {isOpen && <div className="px-4 pb-4 text-[11px] sm:text-xs text-gray-500 leading-relaxed">{faq.a}</div>}
+            </div>
+          );
+        })}
       </div>
     </section>
   );

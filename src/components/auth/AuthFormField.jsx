@@ -5,18 +5,18 @@ export default function AuthFormField({
   return (
     <div>
       {label && (
-        <label htmlFor={id} className="block text-[11px] font-medium text-gray-800 mb-1">{label}</label>
+        <label htmlFor={id} className="block text-[12px] font-bold text-[#111111] mb-1.5">{label}</label>
       )}
       <div className="relative">
         {Icon && (
-          <Icon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" strokeWidth={2} />
+          <Icon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" strokeWidth={2} />
         )}
         <input
           id={id} type={type} required={required} value={value}
           onChange={onChange} placeholder={placeholder}
-          className={`w-full bg-gray-50 border-[2px] border-gray-300 rounded-lg ${Icon ? "pl-9" : "pl-4"} ${rightElement ? "pr-10" : "pr-4"} py-2.5 text-[13px] text-gray-900 placeholder:text-gray-400 outline-none focus:border-black focus:bg-white focus:shadow-[3px_3px_0px_0px_#F5C518] transition-all duration-200 ${className}`}
+          className={`w-full bg-white border border-gray-200 rounded-2xl ${Icon ? "pl-11" : "pl-5"} ${rightElement ? "pr-12" : "pr-5"} py-4 text-[14px] text-[#111111] placeholder:text-gray-400 outline-none focus:border-pensi-yellow focus:ring-4 focus:ring-pensi-yellow/20 transition-all duration-200 ${className}`}
         />
-        {rightElement && <div className="absolute right-3 top-1/2 -translate-y-1/2">{rightElement}</div>}
+        {rightElement && <div className="absolute right-4 top-1/2 -translate-y-1/2">{rightElement}</div>}
       </div>
     </div>
   );

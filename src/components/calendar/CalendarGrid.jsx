@@ -1,19 +1,12 @@
-
 import { COLUNAS_DIAS, pad2 } from "../../utils/formatters";
 
 export default function CalendarGrid({
-  weeks,
-  mesSelecionado,
-  onDayClick,
-  diaSelecionado,
-  isDiaLetivo,
-  turmaSelecionada,
-  serie,
-  unidadeSelecionada,
+  weeks, mesSelecionado, onDayClick, diaSelecionado,
+  isDiaLetivo, turmaSelecionada, serie, unidadeSelecionada,
 }) {
   if (!weeks.length) {
     return (
-      <div className="text-center text-black font-bold py-8 bg-white border-[2px] border-black rounded-xl shadow-[3px_3px_0px_0px_#000]">
+      <div className="text-center text-[#111111] font-bold py-8 bg-white border border-gray-100 rounded-[24px] shadow-sm">
         Nenhum dado encontrado nesta aba.
       </div>
     );
@@ -24,55 +17,47 @@ export default function CalendarGrid({
 
   const visiveis = weeks.filter((sem) => {
     if (mesSelecionado.m < 0) return true;
-
     return (
       !sem.datas ||
       sem.datas.slice(0, 5).some(
-        (d) =>
-          d.getFullYear() === mesSelecionado.y &&
-          d.getMonth() === mesSelecionado.m
+        (d) => d.getFullYear() === mesSelecionado.y && d.getMonth() === mesSelecionado.m
       )
     );
   });
 
   if (!visiveis.length) {
     return (
-      <div className="text-center text-black font-bold py-8 bg-white border-[2px] border-black rounded-xl shadow-[3px_3px_0px_0px_#000]">
+      <div className="text-center text-[#111111] font-bold py-8 bg-white border border-gray-100 rounded-[24px] shadow-sm">
         Nenhuma semana neste mês.
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {visiveis.map((sem) => {
         const originalIdx = weeks.indexOf(sem);
 
         return (
-          <div
-            key={sem.key}
-            className="border-[3px] border-black rounded-xl overflow-hidden bg-black shadow-[5px_5px_0px_0px_#000]"
-          >
-            <div className="grid grid-cols-[90px_repeat(6,1fr)]">
-              <div className="px-2 py-3 bg-pensi-yellow border-r-[2px] border-black text-[10px] flex flex-col justify-center items-center text-center">
-                <strong className="text-[10px] font-black text-black uppercase leading-tight">
-                  {sem.periodo || `Sem. ${originalIdx + 1}`}
-                </strong>
-              </div>
+          <div key={sem.key} className="bg-white border border-gray-100 rounded-[32px] overflow-hidden shadow-sm flex items-stretch">
+            
+            {/* Coluna Lateral Ultra Compacta (Período em Amarelo) */}
+            <div className="bg-pensi-yellow flex flex-col items-center justify-center px-2 sm:w-[70px] md:w-[85px] shrink-0 border-r border-black/5">
+              <span className="text-[10px] sm:text-[11px] font-black text-[#111111] uppercase tracking-tighter text-center leading-tight">
+                {sem.periodo || `Sem. ${originalIdx + 1}`}
+              </span>
+            </div>
 
+            {/* Dias da Semana (Máximo Espaço) */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 p-2.5 flex-1">
               {COLUNAS_DIAS.map(([nomeDia, abrev], k) => {
                 const d = sem.datas ? sem.datas[k] : null;
 
                 const fora =
-                  d &&
-                  mesSelecionado.m >= 0 &&
-                  !(
-                    d.getFullYear() === mesSelecionado.y &&
-                    d.getMonth() === mesSelecionado.m
-                  );
+                  d && mesSelecionado.m >= 0 &&
+                  !(d.getFullYear() === mesSelecionado.y && d.getMonth() === mesSelecionado.m);
 
-                const ehHoje =
-                  d && d.getTime() === hoje.getTime();
+                const ehHoje = d && d.getTime() === hoje.getTime();
 
                 const dataTxt = d
                   ? fora
@@ -81,12 +66,7 @@ export default function CalendarGrid({
                   : "";
 
                 const letivo = d
-                  ? isDiaLetivo(
-                      d,
-                      turmaSelecionada,
-                      serie,
-                      unidadeSelecionada
-                    )
+                  ? isDiaLetivo(d, turmaSelecionada, serie, unidadeSelecionada)
                   : false;
 
                 const isSelected =
@@ -107,84 +87,32 @@ export default function CalendarGrid({
                     aria-disabled={!letivo}
                     title={!letivo ? "Dia bloqueado ou não letivo" : nomeDia}
                     className={`
-                      relative min-h-[85px] p-2
-                      border-r-[2px] last:border-r-0 border-black
-                      text-left transition-colors duration-150
-
-                      ${isSelected
-                        ? "bg-black text-pensi-yellow"
-                        : "bg-white"
+                      relative flex flex-col justify-between min-h-[85px] p-2.5 rounded-[16px] text-left transition-all duration-200
+                      ${isSelected 
+                        ? "bg-[#111111] text-white border-2 border-[#111111] shadow-md" 
+                        : "bg-gray-50 border border-transparent hover:border-gray-200"
                       }
-
-                      ${!isSelected && fora
-                        ? "bg-gray-100 opacity-60"
-                        : ""
-                      }
-
-                      ${!isSelected && ehHoje && letivo
-                        ? "bg-green-50"
-                        : ""
-                      }
-
-                      ${!isSelected && !fora && letivo
-                        ? "hover:bg-yellow-50 cursor-pointer"
-                        : ""
-                      }
-
-                      ${!letivo
-                        ? "bg-gray-300 opacity-40 grayscale cursor-not-allowed"
-                        : ""
-                      }
+                      ${!isSelected && fora ? "bg-gray-100 opacity-50" : ""}
+                      ${!isSelected && ehHoje && letivo && !isSelected ? "bg-green-50/50 border-green-200" : ""}
+                      ${!isSelected && !fora && letivo && !isSelected ? "hover:bg-gray-100 cursor-pointer" : ""}
+                      ${!letivo ? "bg-gray-50 opacity-40 grayscale cursor-not-allowed" : ""}
                     `}
                   >
-                    <div
-                      className={`
-                        text-[10px] font-black uppercase
-                        flex items-center justify-between w-full
-                        ${isSelected
-                          ? "text-pensi-yellow"
-                          : "text-gray-500"
-                        }
-                      `}
-                    >
-                      <span>
-                        {abrev}
-                      </span>
-
+                    <div className={`text-[10px] font-black uppercase flex items-center justify-between w-full mb-2 ${isSelected ? "text-pensi-yellow" : "text-gray-400"}`}>
+                      <span>{abrev}</span>
                       {dataTxt && (
-                        <span
-                          className={`
-                            px-1 rounded
-                            ${!isSelected && ehHoje && letivo
-                              ? "bg-black text-white"
-                              : ""
-                            }
-                          `}
-                        >
+                        <span className={`px-1.5 py-0.5 rounded-md text-[9px] ${isSelected ? "bg-white/20 text-white" : ehHoje && letivo ? "bg-[#111111] text-white" : "bg-gray-200/50 text-gray-600"}`}>
                           {dataTxt}
                         </span>
                       )}
                     </div>
 
-                    <div
-                      className={`
-                        text-[10px] mt-1.5 font-bold leading-tight break-words
-                        ${isSelected
-                          ? "text-pensi-yellow"
-                          : letivo
-                            ? "text-gray-800"
-                            : "text-gray-500"
-                        }
-                      `}
-                    >
-                      {letivo
-                        ? (sem.dias[nomeDia] || "—")
-                        : "Exceção / Não letivo"
-                      }
+                    <div className={`text-[11px] font-bold leading-tight break-words ${isSelected ? "text-white" : letivo ? "text-gray-700" : "text-gray-400"}`}>
+                      {letivo ? (sem.dias[nomeDia] || "—") : "Exceção"}
                     </div>
 
                     {isSelected && (
-                      <div className="absolute bottom-1.5 right-1.5 w-2.5 h-2.5 bg-pensi-yellow rounded-full" />
+                      <div className="absolute bottom-1.5 right-1.5 w-1.5 h-1.5 bg-pensi-yellow rounded-full" />
                     )}
                   </button>
                 );

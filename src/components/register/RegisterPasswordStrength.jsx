@@ -21,17 +21,17 @@ export default function RegisterPasswordStrength({ senha }) {
   if (senha.length === 0) return null;
 
   return (
-    <div className="bg-gray-50 border-[2px] border-gray-200 rounded-lg p-3">
+    <div className="bg-gray-50 border border-gray-100 rounded-2xl p-4 mt-2">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-[10px] font-bold text-gray-600">Força da senha</span>
-        <span className="text-[10px] font-bold text-gray-600">{textoForca}</span>
+        <span className="text-[11px] font-bold text-gray-600 uppercase tracking-wide">Força da senha</span>
+        <span className="text-[11px] font-bold text-gray-600">{textoForca}</span>
       </div>
-      <div className="flex gap-1 mb-3">
+      <div className="flex gap-1.5 mb-3">
         {[1, 2, 3].map((n) => (
-          <div key={n} className={`h-1 flex-1 rounded-full ${forcaSenha >= n ? corForca : "bg-gray-300"}`} />
+          <div key={n} className={`h-1.5 flex-1 rounded-full ${forcaSenha >= n ? corForca : "bg-gray-200"}`} />
         ))}
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         <RegisterPasswordRequirement ok={temMinLength} text="8+ caracteres" />
         <RegisterPasswordRequirement ok={temMaiuscula} text="Letra maiúscula" />
         <RegisterPasswordRequirement ok={temMinuscula} text="Letra minúscula" />
