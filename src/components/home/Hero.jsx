@@ -2,8 +2,7 @@ import { LogIn, UserPlus, ArrowDown, CheckCircle2, BookOpen, Clock } from "lucid
 
 export default function Hero({ onLogin, onRegister }) {
   return (
-    <section className="relative px-4 overflow-hidden lg:min-h-[100dvh] flex flex-col justify-center pt-[170px] pb-10 sm:pt-33 sm:pb-12">
-      {/* Só o amarelinho no canto de cima, sem cor de fundo */}
+    <section className="relative px-4 overflow-hidden min-h-[100svh] flex flex-col justify-center pt-24 pb-10 sm:pt-28 sm:pb-12">
       <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-gradient-to-bl from-pensi-yellow/50 via-pensi-yellow/10 to-transparent rounded-full blur-[190px] pointer-events-none translate-x-1/4 -translate-y-1/4" />
 
       <style>
@@ -25,7 +24,7 @@ export default function Hero({ onLogin, onRegister }) {
         <div className="grid lg:grid-cols-[1.25fr_1fr] gap-0 lg:gap-12 items-center">
           {/* Esquerda */}
           <div className="flex flex-col items-center text-center lg:items-start lg:text-left">
-            <p className="text-[15px] sm:text-[17px] mt-5 mb-10 sm:mt-[-15px] text-gray-500 max-w-[460px] mb-6 sm:mb-8 leading-snug mx-auto lg:mx-0">
+            <p className="text-[14px] sm:text-[17px] mt-5 mb-10 sm:mt-[-15px] text-gray-500 max-w-[460px] mb-6 sm:mb-8 leading-snug mx-auto lg:mx-0">
               Organize suas aulas e registre os checks em poucos toques.{" "}
               <span className="font-bold text-[#111]">Sem planilha, sem a direção cobrando atraso.</span>
             </p>

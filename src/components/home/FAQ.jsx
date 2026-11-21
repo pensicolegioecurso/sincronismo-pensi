@@ -17,13 +17,13 @@ export default function FAQ() {
           Perguntas <br />
           <span className="text-black px-2 inline-block mt-1 rounded-md">frequentes.</span>
         </h2>
-        <p className="text-xs sm:text-sm text-gray-500 font-medium max-w-[280px] leading-snug">
+        <p className="text-14 sm:text-sm text-gray-500 font-medium max-w-[280px] leading-snug">
           Tire suas dúvidas sobre o Sincronismo Pedagógico.
         </p>
       </div>
 
       {/* Perguntas alinhadas à direita */}
-      <div className="flex flex-col gap-2 max-w-[500px] ml-auto w-full">
+      <div className="flex flex-col gap-2 max-w-[500px] ml-auto w-full ">
         {perguntas.map((faq, i) => {
           const isOpen = openIndex === i;
           return (
@@ -31,7 +31,7 @@ export default function FAQ() {
               <button
                 onClick={() => setOpenIndex(isOpen ? null : i)}
                 aria-expanded={isOpen}
-                className="w-full flex items-center justify-between gap-3 px-4 py-3.5 text-[11px] sm:text-xs font-bold text-left text-pensi-dark"
+                className="w-full flex items-center justify-between gap-3 px-4 py-3.5 text-[14px] sm:text-xs font-bold text-left text-pensi-dark"
               >
                 {faq.q}
                 {isOpen ? <Minus size={14} className="shrink-0" /> : <Plus size={14} className="shrink-0" />}

@@ -51,7 +51,7 @@ export default function QuickAccess({ onNavigate }) {
             Acesso <br />
             <span className="text-black px-2 inline-block mt-1 rounded-md">rápido.</span>
           </h2>
-          <p className="text-xs sm:text-sm text-gray-500 font-medium max-w-[280px] ml-auto leading-snug">
+          <p className="text-14 sm:text-sm text-gray-500 font-medium max-w-[280px] ml-auto leading-snug">
             Selecione uma disciplina para visualizar o planejamento.
           </p>
         </div>
