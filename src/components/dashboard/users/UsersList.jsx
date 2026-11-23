@@ -1,85 +1,86 @@
-
-import { Users, UserPlus } from "lucide-react";
+import { useMemo } from "react";
+import { Users } from "lucide-react";
 import UserCard from "./UserCard";
+
+function chaveDia(ms) {
+  if (!ms) return "sem-data";
+  const d = new Date(ms);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+// "18 De Novembro" (acrescenta o ano quando não é o ano atual)
+function rotuloDia(ms) {
+  if (!ms) return "Sem data de cadastro";
+  const d = new Date(ms);
+  const texto = d
+    .toLocaleDateString("pt-BR", { day: "numeric", month: "long" })
+    .replace(/\b\p{L}/gu, (c) => c.toUpperCase());
+  return d.getFullYear() === new Date().getFullYear() ? texto : `${texto} ${d.getFullYear()}`;
+}
 
 export default function UsersList({
   users,
+  totalFiltrado,
+  totalGeral,
+  ativos,
+  inativos,
   podeGerenciar,
   ehDirecao,
-  onOpenCadastro,
   onOpenStatus,
   onOpenPermissions,
   onOpenProfile,
   onDelete,
 }) {
+  // Agrupa por dia de cadastro, preservando a ordem (já vem do mais recente para o mais antigo)
+  const grupos = useMemo(() => {
+    const mapa = new Map();
+    users.forEach((u) => {
+      const chave = chaveDia(u.criadoEmMs);
+      if (!mapa.has(chave)) mapa.set(chave, { chave, rotulo: rotuloDia(u.criadoEmMs), itens: [] });
+      mapa.get(chave).itens.push(u);
+    });
+    return [...mapa.values()];
+  }, [users]);
+
   return (
     <section className="w-full min-w-0">
-
-      {/* CABEÇALHO */}
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3 px-1">
-        <div className="flex items-center gap-2">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2 px-1">
+        <div className="flex flex-wrap items-center gap-3">
           <span className="text-[11px] font-black uppercase tracking-wider text-gray-800">
             Usuários cadastrados
           </span>
 
-          <span className="text-xs font-medium text-gray-400">
-            {users.length} {users.length === 1 ? "resultado" : "resultados"}
-          </span>
+          <div className="flex items-center gap-2 rounded-full border border-gray-100 bg-white px-3 py-1.5 text-[11px] font-bold text-gray-600 shadow-sm">
+            <span className="h-2 w-2 rounded-full bg-emerald-500" />
+            {ativos} ativos
+            <span className="mx-0.5 h-3 w-px bg-gray-200" />
+            <span className="h-2 w-2 rounded-full bg-gray-300" />
+            {inativos} inativos
+          </div>
         </div>
 
-        {podeGerenciar && (
-          <button
-            type="button"
-            onClick={onOpenCadastro}
-            className="flex items-center gap-2 rounded-lg border-2 border-black bg-pensi-yellow px-4 py-2.5 text-[10px] font-black uppercase tracking-wide shadow-[2px_2px_0px_#000] transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
-          >
-            <UserPlus size={15} strokeWidth={2.5} />
-            Adicionar usuário
-          </button>
-        )}
+        <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-500">
+          <span>Exibindo</span>
+          <span className="rounded-lg border border-gray-200 bg-gray-100 px-2 py-0.5 text-black">{totalFiltrado}</span>
+          <span>de {totalGeral}</span>
+        </div>
       </div>
 
-      {/* ESTADO VAZIO */}
       {users.length === 0 ? (
-        <div className="flex w-full flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-white px-5 py-14 text-center">
-          <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-lg border-2 border-black bg-gray-100">
-            <Users size={22} className="text-gray-600" />
+        <div className="mt-4 rounded-2xl border border-gray-100 bg-white p-8 text-center shadow-sm">
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl border border-gray-100 bg-gray-50">
+            <Users className="h-6 w-6 text-gray-400" />
           </div>
-
-          <h3 className="text-sm font-black uppercase text-gray-800">
-            Nenhum usuário encontrado
-          </h3>
-
-          <p className="mt-1 max-w-xs text-xs text-gray-500">
-            Não encontramos usuários com os filtros ou termos pesquisados.
-          </p>
+          <h3 className="text-sm font-bold uppercase text-gray-900">Nenhum usuário encontrado</h3>
+          <p className="mt-1.5 text-[11px] text-gray-500">Não há usuários para exibir com esses filtros.</p>
         </div>
       ) : (
-
-        /* GRID DE CARDS */
-        <div className="
-          grid
-          w-full
-          min-w-0
-          grid-cols-1
-          gap-5
-          md:grid-cols-2
-          2xl:grid-cols-3
-          auto-rows-fr
-          items-stretch
-        ">
-          {users.map((user) => (
-            <div
-              key={user.id}
-              className="
-                flex
-                h-full
-                min-w-0
-                [&>*]:h-full
-                [&>*]:w-full
-              "
-            >
+        grupos.map((grupo) => (
+          <div key={grupo.chave}>
+            <h3 className="mb-3 mt-6 px-2 text-sm font-bold text-gray-500">{grupo.rotulo}</h3>
+            {grupo.itens.map((user) => (
               <UserCard
+                key={user.id}
                 user={user}
                 podeGerenciar={podeGerenciar}
                 ehDirecao={ehDirecao}
@@ -88,9 +89,9 @@ export default function UsersList({
                 onOpenProfile={() => onOpenProfile(user)}
                 onDelete={() => onDelete(user)}
               />
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ))
       )}
     </section>
   );

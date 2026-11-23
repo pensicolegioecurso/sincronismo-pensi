@@ -26,7 +26,7 @@ export default function Hero({ onLogin, onRegister }) {
           <div className="flex flex-col items-center text-center lg:items-start lg:text-left">
             <p className="text-[14px] sm:text-[17px] mt-5 mb-10 sm:mt-[-15px] text-gray-500 max-w-[460px] mb-6 sm:mb-8 leading-snug mx-auto lg:mx-0">
               Organize suas aulas e registre os checks em poucos toques.{" "}
-              <span className="font-bold text-[#111]">Sem planilha, sem a direção cobrando atraso.</span>
+              <span className="font-bold text-[#111]">Sem planilha, sem estresse.</span>
             </p>
 
             <div className="flex flex-col sm:flex-row gap-3 w-full max-w-[340px] sm:max-w-none mb-6 sm:mb-8 mx-auto lg:mx-0">

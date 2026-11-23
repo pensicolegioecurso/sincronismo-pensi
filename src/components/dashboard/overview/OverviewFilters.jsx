@@ -1,150 +1,152 @@
+import { Search, ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
 
-import {
-  Filter,
-  RotateCcw,
-  MapPin,
-  CalendarDays,
-  Users,
-} from "lucide-react";
+const meses = [
+  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+];
 
 export default function OverviewFilters({
-  isDiretor,
-  isRegional,
-  unidadeFoco,
-  unidadesEscopo,
-  filtroRegional,
-  setFiltroRegional,
-  filtroUnidade,
-  setFiltroUnidade,
-  filtroPeriodo,
-  setFiltroPeriodo,
+  isDiretor, isRegional, unidadeFoco, unidadesEscopo,
+  filtroRegional, setFiltroRegional,
+  filtroUnidade, setFiltroUnidade,
+  filtroPeriodo, // Agora vem do Header
+  mesFiltro, setMesFiltro,
+  dataInicioCustom, setDataInicioCustom,
+  dataFimCustom, setDataFimCustom,
   temFiltrosAtivos,
+  busca,
+  setBusca,
   regionaisDisponiveis = [],
 }) {
-  const limparFiltros = () => {
-    setFiltroRegional("Todas");
-    setFiltroUnidade("Todas");
-    setFiltroPeriodo("geral");
+  
+  const handlePrev = () => {
+    const novaData = new Date(mesFiltro);
+    if (filtroPeriodo === "anual") {
+      novaData.setFullYear(novaData.getFullYear() - 1);
+    } else {
+      novaData.setMonth(novaData.getMonth() - 1);
+    }
+    setMesFiltro(novaData);
   };
 
-  const unidadesDisponiveis = isRegional
-    ? unidadesEscopo || []
-    : [];
+  const handleNext = () => {
+    const novaData = new Date(mesFiltro);
+    if (filtroPeriodo === "anual") {
+      novaData.setFullYear(novaData.getFullYear() + 1);
+    } else {
+      novaData.setMonth(novaData.getMonth() + 1);
+    }
+    setMesFiltro(novaData);
+  };
 
-  const mostrarFiltroRegional = !isDiretor && !isRegional;
-  const mostrarFiltroUnidade = !isDiretor && !isRegional;
+  // Manipulação de múltiplos selects
+  const handleRegionalChange = (val) => {
+    if (val === "Todas") setFiltroRegional([]);
+    else if (filtroRegional.includes(val)) setFiltroRegional(filtroRegional.filter(r => r !== val));
+    else setFiltroRegional([...filtroRegional, val]);
+  };
 
-  const selectClass =
-    "w-full min-w-0 appearance-none rounded-xl border-2 border-black bg-white px-3 py-2.5 text-sm font-bold text-black outline-none transition focus:bg-yellow-50";
+  const handleUnidadeChange = (val) => {
+    if (val === "Todas") setFiltroUnidade([]);
+    else if (filtroUnidade.includes(val)) setFiltroUnidade(filtroUnidade.filter(u => u !== val));
+    else setFiltroUnidade([...filtroUnidade, val]);
+  };
+
+  const unidadesDisponiveis = isRegional ? unidadesEscopo : (unidadesEscopo || []);
+  const labelPeriodo = filtroPeriodo === "anual" ? mesFiltro.getFullYear() : `${meses[mesFiltro.getMonth()]} ${mesFiltro.getFullYear()}`;
 
   return (
-    <section className="mb-6 rounded-2xl border-2 border-black bg-white p-4 shadow-[4px_4px_0px_#000]">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg border-2 border-black bg-pensi-yellow">
-            <Filter size={17} />
-          </div>
-
-          <div>
-            <h2 className="text-sm font-black uppercase tracking-wide">
-              Filtros
-            </h2>
-            <p className="text-xs font-medium text-gray-500">
-              Refine os indicadores exibidos
-            </p>
-          </div>
-        </div>
-
-        {temFiltrosAtivos && (
-          <button
-            type="button"
-            onClick={limparFiltros}
-            className="flex items-center gap-2 rounded-lg border-2 border-black bg-white px-3 py-2 text-xs font-black uppercase transition hover:bg-gray-100"
-          >
-            <RotateCcw size={14} />
-            Limpar filtros
-          </button>
-        )}
-      </div>
-
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {mostrarFiltroRegional && (
-          <div className="min-w-0">
-            <label className="mb-1.5 flex items-center gap-2 text-xs font-black uppercase text-gray-600">
-              <Users size={14} />
-              Regional
-            </label>
-
-            <select
-              value={filtroRegional}
-              onChange={(e) => setFiltroRegional(e.target.value)}
-              className={selectClass}
-            >
-              <option value="Todas">Todas as regionais</option>
-
-              {regionaisDisponiveis.map((regional) => (
-                <option key={regional} value={regional}>
-                  {regional}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-
-        {mostrarFiltroUnidade && (
-          <div className="min-w-0">
-            <label className="mb-1.5 flex items-center gap-2 text-xs font-black uppercase text-gray-600">
-              <MapPin size={14} />
-              Unidade
-            </label>
-
-            <select
-              value={filtroUnidade}
-              onChange={(e) => setFiltroUnidade(e.target.value)}
-              className={selectClass}
-            >
-              <option value="Todas">Todas as unidades</option>
-
-              {unidadesDisponiveis.map((unidade) => (
-                <option key={unidade} value={unidade}>
-                  {unidade}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-
-        <div className="min-w-0">
-          <label className="mb-1.5 flex items-center gap-2 text-xs font-black uppercase text-gray-600">
-            <CalendarDays size={14} />
-            Período
-          </label>
-
-          <select
-            value={filtroPeriodo}
-            onChange={(e) => setFiltroPeriodo(e.target.value)}
-            className={selectClass}
-          >
-            <option value="geral">Todo o período</option>
-            <option value="mes">Este mês</option>
-            <option value="hoje">Hoje</option>
-          </select>
+    <section className="mb-8 flex flex-col gap-4">
+      <div className="flex items-center gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+          <input 
+            type="text" 
+            placeholder="Buscar por unidade, regional..."
+            value={busca || ""}
+            onChange={(e) => setBusca?.(e.target.value)}
+            className="w-full bg-white border border-gray-100 shadow-sm rounded-2xl pl-11 pr-4 py-3.5 text-sm font-medium text-gray-800 outline-none focus:border-black transition"
+          />
         </div>
       </div>
 
-      {isDiretor && (
-        <div className="mt-2 flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 text-xs font-bold text-gray-600">
-          <MapPin size={14} />
-          Unidade: {unidadeFoco}
-        </div>
-      )}
+      <div className="flex flex-wrap items-center gap-3">
+        
+        {/* Condicional: Setinhas para Mensal/Anual, ou Caixinha para Período */}
+        {filtroPeriodo === "custom" ? (
+          <div className="flex items-center bg-white rounded-[20px] px-3 py-1.5 border border-gray-100 shadow-sm gap-2 h-[42px]">
+            <CalendarDays size={16} className="text-gray-400" />
+            <input 
+              type="date" 
+              value={dataInicioCustom} 
+              onChange={(e) => setDataInicioCustom(e.target.value)}
+              className="bg-transparent border-none text-xs font-bold outline-none cursor-pointer text-gray-700"
+            />
+            <span className="text-gray-400 text-xs font-bold">até</span>
+            <input 
+              type="date" 
+              value={dataFimCustom} 
+              onChange={(e) => setDataFimCustom(e.target.value)}
+              className="bg-transparent border-none text-xs font-bold outline-none cursor-pointer text-gray-700"
+            />
+          </div>
+        ) : (
+          <div className="flex items-center bg-white rounded-[20px] px-3 py-2 border border-gray-100 shadow-sm h-[42px]">
+            <button onClick={handlePrev} className="p-1 rounded-full hover:bg-gray-100 transition">
+              <ChevronLeft size={16} />
+            </button>
+            <span className="min-w-[120px] text-center text-sm font-bold text-gray-800 px-2">
+              {labelPeriodo}
+            </span>
+            <button onClick={handleNext} className="p-1 rounded-full hover:bg-gray-100 transition">
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        )}
 
-      {isRegional && (
-        <div className="mt-2 flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 text-xs font-bold text-gray-600">
-          <MapPin size={14} />
-          Unidades sob sua responsabilidade: {unidadesEscopo.length}
-        </div>
-      )}
+        {/* Filtros de Regional e Unidade (Múltiplos) */}
+        {!isDiretor && (
+          <>
+            {!isRegional && (
+              <div className="flex items-center bg-white rounded-[20px] px-4 py-2 text-sm font-bold border border-gray-100 shadow-sm h-[42px]">
+                <select 
+                  onChange={(e) => handleRegionalChange(e.target.value)} 
+                  value="Todas"
+                  className="bg-transparent border-none text-xs sm:text-sm font-bold outline-none cursor-pointer appearance-none text-center max-w-[120px] sm:max-w-none truncate"
+                >
+                  <option value="Todas">{filtroRegional.length === 0 ? "Todas as regionais" : `${filtroRegional.length} selecionada(s)`}</option>
+                  {regionaisDisponiveis.map((r) => {
+                    const nome = r.nome || r;
+                    return (
+                      <option key={nome} value={nome}>
+                        {filtroRegional.includes(nome) ? `✓ ${nome}` : nome}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+            )}
+
+            <div className="flex items-center bg-white rounded-[20px] px-4 py-2 text-sm font-bold border border-gray-100 shadow-sm h-[42px]">
+              <select 
+                onChange={(e) => handleUnidadeChange(e.target.value)} 
+                value="Todas"
+                className="bg-transparent border-none text-xs sm:text-sm font-bold outline-none cursor-pointer appearance-none text-center max-w-[120px] sm:max-w-none truncate"
+              >
+                <option value="Todas">{filtroUnidade.length === 0 ? "Todas as unidades" : `${filtroUnidade.length} selecionada(s)`}</option>
+                {unidadesDisponiveis.map((u) => {
+                  const nome = u.nome || u;
+                  return (
+                    <option key={nome} value={nome}>
+                      {filtroUnidade.includes(nome) ? `✓ ${nome}` : nome}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+          </>
+        )}
+      </div>
     </section>
   );
 }

@@ -38,7 +38,7 @@ export default function HowItWorks() {
               key={n}
               className={`group flex items-center gap-2 rounded-2xl px-5 sm:px-10 py-3.5 ${
                 destaque
-                  ? "bg-pensi-yellow text-black lg:translate-x-5 shadow-[0_10px_30px_rgba(245,197,66,0.25)]"
+                  ? "bg-pensi-yellow text-black lg:translate-x-5 "
                   : "bg-[#171717] text-white"
               }`}
             >

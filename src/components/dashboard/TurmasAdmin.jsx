@@ -32,6 +32,7 @@ import ImportClassesModal from "./config/ImportClassesModal";
 import RegionalModal from "./config/RegionalModal";
 import CalendarModal from "./config/CalendarModal";
 import CalendarExceptionsModal from "./config/CalendarExceptionsModal";
+import RemoveModal from "./config/RemoveModal";
 
 const TURNOS = ["M", "T"];
 
@@ -168,6 +169,8 @@ export default function TurmasAdmin({
   perfilAtivo,
   unidadeFoco,
   unidadesEscopo,
+  acaoPendente,
+  onAcaoConsumida,
 }) {
   const { todas: turmas = [], carregando: carregandoTurmas } = useTurmas();
 
@@ -236,6 +239,7 @@ export default function TurmasAdmin({
   const [modalRegional, setModalRegional] = useState(null);
   const [modalNovoCal, setModalNovoCal] = useState(false);
   const [modalExcecao, setModalExcecao] = useState(null);
+  const [modalRemover, setModalRemover] = useState(null); // "turma" | "unidade" | "calendario" | null
 
   const [novaUnidadeNome, setNovaUnidadeNome] = useState("");
 
@@ -894,6 +898,30 @@ export default function TurmasAdmin({
     setErro("");
   };
 
+  const fecharModalRemover = () => {
+    setModalRemover(null);
+    setErro("");
+  };
+
+  // Ações vindas do botão "+" da navbar
+  useEffect(() => {
+    if (!acaoPendente) return;
+
+    switch (acaoPendente.id) {
+      case "nova-turma": abrirNovaTurma(); break;
+      case "nova-unidade": abrirModalUnidade(); break;
+      case "importar-csv": setModalImportar(true); break;
+      case "novo-calendario": abrirNovoCalendario(); break;
+      case "remover-turma": setModalRemover("turma"); break;
+      case "remover-unidade": setModalRemover("unidade"); break;
+      case "remover-calendario": setModalRemover("calendario"); break;
+      default: break;
+    }
+
+    onAcaoConsumida?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [acaoPendente]);
+
   if (carregandoTurmas) {
     return (
       <div className="p-10 text-center text-sm font-bold">
@@ -903,26 +931,24 @@ export default function TurmasAdmin({
   }
 
   return (
-    <div className="w-full min-w-0 space-y-8 pb-10">
+    <div className="w-full min-w-0 space-y-8 pb-28">
 
-      <ConfigHeader
-        buttonClass={buttonClass}
-        podeGerenciar={podeGerenciar}
-        podeCriarUnidade={podeCriarUnidade}
-        ehDirecao={ehDirecao}
-        abrirNovaTurma={() => abrirNovaTurma()}
-        abrirNovaUnidade={abrirModalUnidade}
-      />
+      <ConfigHeader />
 
-      {erro && !modalUnidade && !modalTurma && !modalNovoCal && !modalExcecao && (
-        <div className="flex items-center gap-2 rounded-xl border-2 border-red-400 bg-red-50 p-3 text-sm font-bold text-red-700">
-          <AlertCircle size={17} />
-          {erro}
-          <button onClick={() => setErro("")} className="ml-auto">
-            <X size={16} />
-          </button>
-        </div>
-      )}
+      {erro &&
+        !modalUnidade &&
+        !modalTurma &&
+        !modalNovoCal &&
+        !modalExcecao &&
+        !modalRemover && (
+          <div className="flex items-center gap-2 rounded-xl border-2 border-red-400 bg-red-50 p-3 text-sm font-bold text-red-700">
+            <AlertCircle size={17} />
+            {erro}
+            <button onClick={() => setErro("")} className="ml-auto">
+              <X size={16} />
+            </button>
+          </div>
+        )}
 
       {sucesso && (
         <div className="flex items-center gap-2 rounded-xl border-2 border-green-500 bg-green-50 p-3 text-sm font-bold text-green-800">
@@ -945,7 +971,6 @@ export default function TurmasAdmin({
         ehRegional={ehRegional}
         ehDirecao={ehDirecao}
         podeGerenciar={podeGerenciar}
-        podeImportar={podeGerenciar && !ehDirecao}
         podeExcluirTurma={podeGerenciar}
         podeExcluirUnidade={podeExcluirUnidade}
         excluirUnidadeCompleta={excluirUnidadeCompleta}
@@ -954,14 +979,12 @@ export default function TurmasAdmin({
         unidadesAbertas={unidadesAbertas}
         setUnidadesAbertas={setUnidadesAbertas}
         excluirTurma={excluirTurma}
-        abrirImportacao={() => setModalImportar(true)}
         inputClass={inputClass}
         buttonClass={buttonClass}
       />
 
       <CalendarsSection
         podeGerenciar={podeGerenciar}
-        podeCriarCalendario={podeGerenciarCalendario}
         podeExcluirCalendario={podeGerenciarCalendario}
         ehDirecao={ehDirecao}
         ehRegional={ehRegional}
@@ -973,7 +996,6 @@ export default function TurmasAdmin({
         carregandoCal={carregandoCal}
         calendarios={calendarios}
         calcularDiasLetivos={calcularDiasLetivos}
-        abrirNovoCalendario={abrirNovoCalendario}
         abrirExcecoes={abrirExcecoes}
         excluirCalendario={excluirCalendario}
       />
@@ -1075,6 +1097,22 @@ export default function TurmasAdmin({
           podeAdicionarGeral={!ehDirecao && !ehRegional}
           ehDirecao={ehDirecao}
           ehRegional={ehRegional}
+        />
+      )}
+
+      {modalRemover && (
+        <RemoveModal
+          tipo={modalRemover}
+          onClose={fecharModalRemover}
+          turmas={turmasPermitidas}
+          unidades={unidadesPermitidas}
+          calendarios={calendarios}
+          excluirTurma={excluirTurma}
+          excluirUnidadeCompleta={excluirUnidadeCompleta}
+          excluirCalendario={excluirCalendario}
+          podeExcluirUnidade={podeExcluirUnidade}
+          erro={erro}
+          salvando={salvando}
         />
       )}
 

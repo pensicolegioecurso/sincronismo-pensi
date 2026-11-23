@@ -31,7 +31,7 @@ export default function FAQ() {
               <button
                 onClick={() => setOpenIndex(isOpen ? null : i)}
                 aria-expanded={isOpen}
-                className="w-full flex items-center justify-between gap-3 px-4 py-3.5 text-[14px] sm:text-xs font-bold text-left text-pensi-dark"
+                className="w-full flex items-center justify-between gap-3 px-4 py-3.5 text-[14px] sm:text-12 font-bold text-left text-pensi-dark"
               >
                 {faq.q}
                 {isOpen ? <Minus size={14} className="shrink-0" /> : <Plus size={14} className="shrink-0" />}

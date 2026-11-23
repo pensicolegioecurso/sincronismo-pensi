@@ -1,91 +1,103 @@
-// src/components/dashboard/feed/FeedFilters.jsx
-import { Search, X, Filter, ChevronDown, CheckCircle2 } from "lucide-react";
-
-const TEMPOS_LIST = [
-  { id: "geral", label: "Geral" },
-  { id: "hoje", label: "Hoje" },
-  { id: "mes", label: "Mês" },
-  { id: "ano", label: "Ano" },
-];
-
-const TIPOS = [
-  { id: "tudo", label: "Tudo" },
-  { id: "aula", label: "Aulas" },
-  { id: "justificativa", label: "Justificativas" },
-];
+import { Search, X, Filter, Globe, Building2 } from "lucide-react";
 
 export default function FeedFilters({
   busca, setBusca,
   filtroTipoFeed, setFiltroTipoFeed,
-  filtroTempo, setFiltroTempo,
   isFilterOpen, setIsFilterOpen, filterRef,
-  carregando, totalExibindo, totalGeral,
+  isAdminOrNucleo, isRegional, isProfessor,
+  filtroRegional, setFiltroRegional,
+  filtroUnidade, setFiltroUnidade,
+  regionaisDisponiveis = [],
+  unidadesDisponiveis = [],
 }) {
-  const temFiltrosAtivos = busca !== "" || filtroTipoFeed !== "tudo" || filtroTempo !== "geral";
-  const filtroLabel = filtroTipoFeed === "tudo" ? "Filtros" : filtroTipoFeed === "aula" ? "Aulas" : "Justificativas";
-  const limparFiltros = () => { setBusca(""); setFiltroTipoFeed("tudo"); setFiltroTempo("geral"); };
+  const handleRegionalChange = (val) => {
+    if (val === "Todas") setFiltroRegional([]);
+    else if (filtroRegional.includes(val)) setFiltroRegional(filtroRegional.filter(r => r !== val));
+    else setFiltroRegional([...filtroRegional, val]);
+  };
+
+  const handleUnidadeChange = (val) => {
+    if (val === "Todas") setFiltroUnidade([]);
+    else if (filtroUnidade.includes(val)) setFiltroUnidade(filtroUnidade.filter(u => u !== val));
+    else setFiltroUnidade([...filtroUnidade, val]);
+  };
 
   return (
-    <div className="bg-white border-2 border-black rounded-xl shadow-[3px_3px_0px_#000] p-3 mb-4">
-      <div className="flex flex-col xl:flex-row gap-2.5 items-stretch xl:items-center justify-between">
-        <div className="flex flex-col sm:flex-row gap-2.5 flex-1 items-stretch sm:items-center">
-          <div className="relative w-full sm:max-w-[250px]">
-            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input type="text" placeholder="Buscar matéria, turma, prof..." value={busca} onChange={(e) => setBusca(e.target.value)}
-              className="w-full h-[38px] bg-gray-50 border-2 border-black rounded-xl pl-9 pr-8 text-sm font-medium text-black outline-none placeholder:text-gray-400 focus:bg-pensi-yellow/20 transition-colors shadow-[2px_2px_0px_#000]" />
-            {busca && (
-              <button onClick={() => setBusca("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-black">
-                <X className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-          <div className="relative" ref={filterRef}>
-            <button onClick={() => setIsFilterOpen(!isFilterOpen)}
-              className={`flex items-center justify-center gap-1.5 px-3 h-[38px] border-2 border-black rounded-xl text-[11px] font-black uppercase tracking-wider shadow-[2px_2px_0px_#000] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all whitespace-nowrap ${filtroTipoFeed !== "tudo" ? "bg-pensi-yellow" : "bg-gray-50"}`}>
-              <Filter className="w-4 h-4" />
-              <span className="hidden sm:inline">{filtroLabel}</span>
-              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isFilterOpen ? "rotate-180" : ""}`} />
-            </button>
-            {isFilterOpen && (
-              <div className="absolute top-full mt-2 right-0 w-48 bg-white border-2 border-black rounded-xl shadow-[3px_3px_0px_#000] z-50 overflow-hidden">
-                {TIPOS.map((tipo) => (
-                  <button key={tipo.id} onClick={() => { setFiltroTipoFeed(tipo.id); setIsFilterOpen(false); }}
-                    className={`w-full text-left px-3 py-2 text-[11px] font-black uppercase tracking-wider flex items-center justify-between border-b-2 border-black/10 last:border-0 transition-colors ${filtroTipoFeed === tipo.id ? "bg-pensi-yellow" : "hover:bg-gray-100"}`}>
-                    <span>{tipo.label}</span>
-                    {filtroTipoFeed === tipo.id && <CheckCircle2 size={15} />}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3 h-[38px] bg-gray-50 border-2 border-black rounded-xl px-3 shadow-[2px_2px_0px_#000] shrink-0">
-          {TEMPOS_LIST.map((p) => {
-            const ativo = filtroTempo === p.id;
-            return (
-              <button key={p.id} onClick={() => setFiltroTempo(p.id)} className="flex items-center gap-1.5 group h-full" aria-pressed={ativo}>
-                <span className={`w-3 h-3 rounded-full border-2 border-black transition-all ${ativo ? "bg-pensi-yellow shadow-[1px_1px_0px_#000] scale-110" : "bg-white group-hover:bg-pensi-yellow/30"}`} />
-                <span className={`text-[10px] font-black uppercase tracking-wider ${ativo ? "text-black" : "text-gray-400"}`}>{p.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="flex flex-wrap items-center justify-between gap-2 mt-3 pt-3 border-t-2 border-dashed border-gray-200">
-        <div className="flex items-center gap-1.5">
-          <Filter className="w-3.5 h-3.5 text-gray-400" />
-          <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Exibindo</span>
-          <span className="bg-pensi-yellow border border-black rounded-lg px-2 py-0.5 text-[10px] font-black text-black">{carregando ? "..." : totalExibindo}</span>
-          <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">de {totalGeral}</span>
-        </div>
-        {temFiltrosAtivos && (
-          <button onClick={limparFiltros} className="text-[10px] font-black uppercase tracking-wider text-gray-500 hover:text-black underline underline-offset-2">
-            Remover filtros
+    <section className="mb-6 flex flex-wrap items-center gap-3 w-full">
+      {/* Busca expandida */}
+      <div className="relative flex-1 min-w-[200px]">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+        <input 
+          type="text" 
+          placeholder="Buscar matéria, turma, prof..."
+          value={busca || ""}
+          onChange={(e) => setBusca(e.target.value)}
+          className="w-full bg-white border border-gray-100 shadow-sm rounded-xl pl-9 pr-4 py-2.5 text-sm font-medium text-gray-800 outline-none focus:border-black transition"
+        />
+        {busca && (
+          <button onClick={() => setBusca("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-black">
+            <X size={14} />
           </button>
         )}
       </div>
-    </div>
+
+      {/* Botão de Filtro de Tipo */}
+      <div className="relative shrink-0" ref={filterRef}>
+        <button onClick={() => setIsFilterOpen(!isFilterOpen)}
+          className={`flex items-center justify-center w-11 h-11 border border-gray-100 rounded-xl shadow-sm bg-white transition ${filtroTipoFeed !== "tudo" ? "ring-2 ring-black text-black" : "text-gray-500 hover:text-black"}`}
+          title="Filtrar por tipo"
+        >
+          <Filter size={18} />
+        </button>
+        {isFilterOpen && (
+          <div className="absolute top-full mt-2 left-0 w-48 bg-white border border-gray-100 rounded-2xl shadow-lg z-50 overflow-hidden">
+            {[{id: "tudo", label: "Tudo"}, {id: "aula", label: "Aulas"}, {id: "justificativa", label: "Justificativas"}].map((tipo) => (
+              <button key={tipo.id} onClick={() => { setFiltroTipoFeed(tipo.id); setIsFilterOpen(false); }}
+                className={`w-full text-left px-4 py-3 text-xs font-bold border-b border-gray-100 last:border-0 transition-colors ${filtroTipoFeed === tipo.id ? "bg-gray-50 text-black" : "hover:bg-gray-50 text-gray-600"}`}>
+                {tipo.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Regionais (Apenas Ícone) */}
+      {isAdminOrNucleo && (
+        <div className="relative flex items-center justify-center w-11 h-11 bg-white border border-gray-100 rounded-xl shadow-sm shrink-0 text-gray-500 hover:text-black transition">
+          <Globe size={18} />
+          <select 
+            onChange={(e) => handleRegionalChange(e.target.value)} 
+            value="Todas" 
+            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+            title="Filtrar por regional"
+          >
+            <option value="Todas">Todas as regionais</option>
+            {regionaisDisponiveis.map((r) => {
+              const nome = r.nome || r;
+              return <option key={nome} value={nome}>{filtroRegional.includes(nome) ? `✓ ${nome}` : nome}</option>;
+            })}
+          </select>
+        </div>
+      )}
+
+      {/* Unidades (Apenas Ícone) */}
+      {!isProfessor && (
+        <div className="relative flex items-center justify-center w-11 h-11 bg-white border border-gray-100 rounded-xl shadow-sm shrink-0 text-gray-500 hover:text-black transition">
+          <Building2 size={18} />
+          <select 
+            onChange={(e) => handleUnidadeChange(e.target.value)} 
+            value="Todas" 
+            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+            title="Filtrar por unidade"
+          >
+            <option value="Todas">Todas as unidades</option>
+            {unidadesDisponiveis.map((u) => {
+              const nome = u.nome || u;
+              return <option key={nome} value={nome}>{filtroUnidade.includes(nome) ? `✓ ${nome}` : nome}</option>;
+            })}
+          </select>
+        </div>
+      )}
+    </section>
   );
 }

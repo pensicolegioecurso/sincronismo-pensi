@@ -1,94 +1,92 @@
-// Arquivo: src/components/dashboard/DashboardNavbar.jsx
+import { useState } from "react";
 import {
-  LayoutDashboard, Users, MessageSquare, LogOut, User, Home, Settings, Calendar,
+  LayoutDashboard, Users, MessageSquare, Home, Plus, LogOut,
 } from "lucide-react";
-import logoPensi from "../../assets/logoPensi.png";
+
+import MaisModal from "../dashboard/MaisModal"; // ⚠️ ajuste o caminho se precisar
 
 export default function DashboardNavbar({
-  activeTab,
-  setActiveTab,
-  onProfileOpen,
-  logout,
-  isAdmin = false,
-  isDirecao = false,
-  isNucleo = false,
-  showLogo = false,
+  activeTab, setActiveTab, onProfileOpen, logout,
+  isAdmin = false, isDirecao = false, isNucleo = false, isRegional = false,
+  perfilAtivo, unidadesEscopo, onUsuarioCadastrado,
 }) {
-  const isManager = isAdmin || isDirecao || isNucleo;
-  const podeConfigurar = isAdmin || isNucleo;
+  const [maisAberto, setMaisAberto] = useState(false);
+
+  const cargosPerfil = [
+    ...(Array.isArray(perfilAtivo?.cargos) ? perfilAtivo.cargos : []),
+    perfilAtivo?.cargo,
+  ].filter(Boolean).map((c) => String(c).toLowerCase());
+
+  const isManager =
+    isAdmin || isDirecao || isNucleo || isRegional ||
+    cargosPerfil.some((c) =>
+      ["admin", "administrador", "nucleo", "regional", "diretor", "direcao", "coordenador"].includes(c)
+    );
 
   const itens = isManager
     ? [
-        { key: "dashboard", icon: LayoutDashboard, title: "Visão Geral" },
-        { key: "usuarios", icon: Users, title: "Usuários" },
-        ...(podeConfigurar
-          ? [{ key: "turmas", icon: Settings, title: "Configurações e Cadastros" }]
-          : []),
-        ...(isDirecao && !podeConfigurar
-          ? [{ key: "calendario", icon: Calendar, title: "Calendário" }]
-          : []),
-        { key: "feed", icon: MessageSquare, title: "Feed" },
-      ]
+      { key: "dashboard", icon: LayoutDashboard, title: "Visão Geral" },
+      { key: "usuarios", icon: Users, title: "Usuários" },
+      { key: "feed", icon: MessageSquare, title: "Feed" },
+    ]
     : [
-        { key: "inicio", icon: Home, title: "Início" },
-        { key: "feed", icon: MessageSquare, title: "Feed" },
-      ];
+      { key: "inicio", icon: Home, title: "Início" },
+      { key: "feed", icon: MessageSquare, title: "Feed" },
+    ];
 
-  const botaoBase =
-    "flex items-center justify-center rounded-full p-2.5 transition-colors";
+  const todos = [...itens, { key: "__sair", icon: LogOut, title: "Sair", sair: true }];
+
+  const metade = Math.ceil(todos.length / 2);
+  const leftItems = todos.slice(0, metade);
+  const rightItems = todos.slice(metade);
+
+  const renderButton = ({ key, icon: Icon, title, sair }) => {
+    const isActive = !sair && activeTab === key;
+    return (
+      <button
+        key={key}
+        type="button"
+        onClick={() => (sair ? logout?.() : setActiveTab(key))}
+        className={`pointer-events-auto flex h-full flex-1 cursor-pointer flex-col items-center justify-center gap-1 py-1 text-[11px] font-semibold ${isActive ? "text-black" : sair ? "text-gray-400 active:text-rose-600" : "text-gray-400"
+          }`}
+      >
+        <Icon size={24} strokeWidth={2} className="pointer-events-none" />
+        <span className="pointer-events-none">{title}</span>
+      </button>
+    );
+  };
 
   return (
-    <nav className="fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center justify-center">
-      <div className="flex items-center gap-4 rounded-full border border-white/20 bg-[#1c1c1c]/75 px-5 py-3 shadow-lg backdrop-blur-xl sm:gap-6">
-        {showLogo && (
-          <>
-            <img src={logoPensi} alt="Logo Pensi" className="h-7 object-contain" />
-            <span className="h-6 w-px bg-white/20" />
-          </>
-        )}
+    <>
+      <div className="pointer-events-none fixed bottom-0 left-0 right-0 z-40 flex w-full justify-center">
+        <nav className="pointer-events-auto relative flex w-full max-w-[1100px] items-center justify-between rounded-t-[32px] bg-white px-2 pb-2 pt-3 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+          {leftItems.map(renderButton)}
 
-        {itens.map(({ key, icon: Icon, title }) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => setActiveTab(key)}
-            title={title}
-            aria-label={title}
-            className={`${botaoBase} ${
-              activeTab === key
-                ? "bg-white/10 text-pensi-yellow"
-                : "text-gray-400 hover:bg-white/5 hover:text-white"
-            }`}
-          >
-            <Icon
-              size={24}
-              className={activeTab === key ? "fill-pensi-yellow" : ""}
-            />
-          </button>
-        ))}
+          <div className="pointer-events-none relative flex h-16 w-16 shrink-0 justify-center">
+            <button
+              type="button"
+              onClick={() => setMaisAberto(true)}
+              aria-label="Mais"
+              className="pointer-events-auto absolute -top-9 flex h-16 w-16 cursor-pointer items-center justify-center rounded-full border-4 border-white bg-black shadow-xl transition-transform active:scale-90"
+            >
+              <Plus size={28} strokeWidth={2.5} color="#fff" className="pointer-events-none" />
+            </button>
+          </div>
 
-        <span className="h-6 w-px bg-white/20" />
-
-        <button
-          type="button"
-          onClick={onProfileOpen}
-          title="Perfil"
-          aria-label="Perfil"
-          className={`${botaoBase} text-gray-400 hover:bg-white/5 hover:text-white`}
-        >
-          <User size={24} />
-        </button>
-
-        <button
-          type="button"
-          onClick={logout}
-          title="Sair"
-          aria-label="Sair"
-          className={`${botaoBase} text-red-400 hover:bg-red-500/10 hover:text-red-300`}
-        >
-          <LogOut size={24} />
-        </button>
+          {rightItems.map(renderButton)}
+        </nav>
       </div>
-    </nav>
+
+      {maisAberto && (
+        <MaisModal
+          onClose={() => setMaisAberto(false)}
+          perfilAtivo={perfilAtivo}
+          unidadesEscopo={unidadesEscopo}
+          onProfileOpen={onProfileOpen}
+          logout={logout}
+          onUsuarioCadastrado={onUsuarioCadastrado}
+        />
+      )}
+    </>
   );
 }

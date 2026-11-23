@@ -1,63 +1,61 @@
-import { UserPlus } from "lucide-react";
+import { ArrowLeft, MessageCircle, Users, UserPlus } from "lucide-react";
 
+// Mesma estrutura do FeedHeader:
+// linha 1 -> voltar à esquerda / pílula com chat + família à direita
+// linha 2 -> título + subtítulo à esquerda / ação principal à direita
 export default function UsersHeader({
   ehRegional,
   ehDirecao,
   podeGerenciar,
+  onBack,
+  onChat,
+  onFamily,
   onOpenCadastro,
-  total,
-  inativos,
 }) {
+  const subtitulo = ehRegional
+    ? "Gestão regional."
+    : ehDirecao
+      ? "Gestão da unidade."
+      : "Gestão de acessos da plataforma.";
+
   return (
-    <section className="mb-5 mt-7 pb-4 border-b-2 border-black/40">
-      <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <span className="w-1.5 h-1.5 bg-pensi-yellow border border-black rounded-full" />
-            <span className="text-[10px] font-black uppercase tracking-[0.22em] text-gray-500">
-              {ehRegional ? "Gestão regional" : ehDirecao ? "Gestão da unidade" : "Gestão de acessos"}
-            </span>
-          </div>
+    <header className="mb-6">
+      <div className="mb-8 flex items-center justify-between">
+        <button
+          onClick={onBack}
+          className="flex h-11 w-11 items-center justify-center rounded-full border border-gray-100 bg-white text-black shadow-sm transition-transform active:scale-95"
+        >
+          <ArrowLeft size={18} strokeWidth={2.5} />
+        </button>
 
-          <h1 className="text-2xl sm:text-3xl font-black text-black tracking-tight leading-none">
-            Usuários<span className="text-pensi-yellow">.</span>
-          </h1>
-
-          <p className="text-xs text-gray-500 mt-2 max-w-xl leading-relaxed">
-            Gerencie usuários, cargos e permissões.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2 self-start lg:self-auto">
-          {podeGerenciar && (
-            <button
-              onClick={onOpenCadastro}
-              className="flex items-center gap-1.5 px-3 py-2 bg-pensi-yellow border-2 border-black rounded-md text-[10px] font-black uppercase shadow-[2px_2px_0px_#000] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] transition-all"
-            >
-              <UserPlus className="w-4 h-4" />
-              Cadastrar usuário
-            </button>
-          )}
-
-          <div className="bg-white border-2 border-black rounded-md px-3 py-2 shadow-[2px_2px_0px_#000]">
-            <span className="block text-[9px] font-black uppercase tracking-widest text-gray-400">
-              Total
-            </span>
-            <span className="text-lg font-black text-black tabular-nums">
-              {total.toString().padStart(2, "0")}
-            </span>
-          </div>
-
-          <div className="bg-pensi-yellow border-2 border-black rounded-md px-3 py-2 shadow-[2px_2px_0px_#000]">
-            <span className="block text-[9px] font-black uppercase tracking-widest text-black/60">
-              Inativos
-            </span>
-            <span className="text-lg font-black text-black tabular-nums">
-              {inativos.toString().padStart(2, "0")}
-            </span>
-          </div>
+        <div className="flex gap-1 rounded-[22px] border border-gray-100 bg-white px-2 py-1 shadow-sm">
+          <button onClick={onChat} className="flex h-9 w-9 items-center justify-center rounded-full text-black transition hover:bg-gray-50">
+            <MessageCircle size={18} />
+          </button>
+          <button onClick={onFamily} className="flex h-9 w-9 items-center justify-center rounded-full text-black transition hover:bg-gray-50">
+            <Users size={18} />
+          </button>
         </div>
       </div>
-    </section>
+
+      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
+        <div className="flex min-w-0 flex-col">
+          <h1 className="text-3xl font-black uppercase leading-tight tracking-tight text-gray-900 sm:text-4xl">
+            USUÁRIOS
+          </h1>
+          <span className="mt-1 text-sm font-bold uppercase tracking-wide text-gray-400">{subtitulo}</span>
+        </div>
+
+        {podeGerenciar && (
+          <button
+            onClick={onOpenCadastro}
+            className="flex shrink-0 items-center justify-center gap-2 rounded-full bg-pensi-yellow px-5 py-2.5 text-xs font-black uppercase shadow-sm transition-all hover:brightness-95 active:scale-95"
+          >
+            <UserPlus size={16} strokeWidth={2.5} />
+            Adicionar usuário
+          </button>
+        )}
+      </div>
+    </header>
   );
 }

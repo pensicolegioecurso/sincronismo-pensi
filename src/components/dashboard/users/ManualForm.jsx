@@ -1,21 +1,11 @@
-
 import { useState, useMemo } from "react";
-import {
-  salvarUsuarioComCPF,
-  verificarCPFDisponivel,
-} from "../../../services/cpfService";
+import { salvarUsuarioComCPF, verificarCPFDisponivel } from "../../../services/cpfService";
 import { criarUsuarioSecundario } from "../../../services/criarUsuarioSecundario";
 import { DISCIPLINAS_POR_ANO } from "../../../data/disciplinas";
 import { useTurmas } from "../../../hooks/useTurmas";
 import { useUnidades } from "../../../hooks/useUnidades";
-import {
-  Mail,
-  Lock,
-  User,
-  MapPin,
-  CreditCard,
-  CheckCircle2,
-} from "lucide-react";
+import { Mail, Lock, User, MapPin, CreditCard, CheckCircle2 } from "lucide-react";
+import { inputClass, labelClass, btnPrimary, btnSecondary, optionClass, chipClass, panelClass } from "./ui";
 
 const CARGOS_ATRIBUIVEIS = [
   { id: "diretor", label: "Diretor" },
@@ -25,8 +15,7 @@ const CARGOS_ATRIBUIVEIS = [
   { id: "professor", label: "Professor" },
 ];
 
-const DOMINIO_PERMITIDO =
-  import.meta.env.VITE_DOMINIO_PERMITIDO || "@pensi.com.br";
+const DOMINIO_PERMITIDO = import.meta.env.VITE_DOMINIO_PERMITIDO || "@pensi.com.br";
 
 function validarEmail(email) {
   const dominio = DOMINIO_PERMITIDO.replace(/^@/, "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -35,28 +24,18 @@ function validarEmail(email) {
 
 function validarCPF(valor) {
   const cpf = valor.replace(/\D/g, "");
-
   if (cpf.length !== 11 || /^(\d)\1{10}$/.test(cpf)) return false;
 
   let soma = 0;
-
-  for (let i = 0; i < 9; i++) {
-    soma += Number(cpf[i]) * (10 - i);
-  }
-
+  for (let i = 0; i < 9; i++) soma += Number(cpf[i]) * (10 - i);
   let digito = (soma * 10) % 11;
   if (digito === 10) digito = 0;
   if (digito !== Number(cpf[9])) return false;
 
   soma = 0;
-
-  for (let i = 0; i < 10; i++) {
-    soma += Number(cpf[i]) * (11 - i);
-  }
-
+  for (let i = 0; i < 10; i++) soma += Number(cpf[i]) * (11 - i);
   digito = (soma * 10) % 11;
   if (digito === 10) digito = 0;
-
   return digito === Number(cpf[10]);
 }
 
@@ -69,27 +48,9 @@ function formatarCPF(valor) {
     .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
 }
 
-const inputClass =
-  "w-full rounded-lg border-2 border-black bg-white px-3 py-2.5 text-xs font-semibold text-black outline-none transition-all placeholder:text-gray-400 focus:bg-yellow-50 focus:shadow-[2px_2px_0px_#000]";
-
-const labelClass =
-  "mb-1.5 block text-[9px] font-black uppercase tracking-widest text-gray-600";
-
-const botaoClass =
-  "rounded-lg border-2 border-black px-3 py-2 text-[10px] font-black uppercase transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none";
-
-export default function ManualForm({
-  onClose,
-  onSuccess,
-  perfilAtivo,
-  unidadesEscopo,
-  setErro,
-}) {
+export default function ManualForm({ onClose, onSuccess, perfilAtivo, unidadesEscopo, setErro }) {
   const { todasUnidades } = useUnidades();
-
-  const { getSeriesPorUnidades, getTurmasPorUnidadesESeries } = useTurmas({
-    somenteAtivas: true,
-  });
+  const { getSeriesPorUnidades, getTurmasPorUnidadesESeries } = useTurmas({ somenteAtivas: true });
 
   const [step, setStep] = useState(1);
   const [nome, setNome] = useState("");
@@ -103,27 +64,14 @@ export default function ManualForm({
   const [loading, setLoading] = useState(false);
 
   const perfilNormalizado = String(perfilAtivo || "").toLowerCase();
-
   const ehRegionalLogado = perfilNormalizado === "regional";
-
-  const ehDiretorOuCoordenadorLogado = [
-    "diretor",
-    "direcao",
-    "coordenador",
-  ].includes(perfilNormalizado);
+  const ehDiretorOuCoordenadorLogado = ["diretor", "direcao", "coordenador"].includes(perfilNormalizado);
 
   const unidadesDoEscopo = useMemo(() => {
-    if (Array.isArray(unidadesEscopo)) {
-      return unidadesEscopo;
-    }
-
+    if (Array.isArray(unidadesEscopo)) return unidadesEscopo;
     if (typeof unidadesEscopo === "string") {
-      return unidadesEscopo
-        .split(",")
-        .map((u) => u.trim())
-        .filter(Boolean);
+      return unidadesEscopo.split(",").map((u) => u.trim()).filter(Boolean);
     }
-
     return [];
   }, [unidadesEscopo]);
 
@@ -142,10 +90,7 @@ export default function ManualForm({
       });
       return acc;
     }, {});
-
-    return Object.entries(todas).sort((a, b) =>
-      a[1].localeCompare(b[1], "pt-BR")
-    );
+    return Object.entries(todas).sort((a, b) => a[1].localeCompare(b[1], "pt-BR"));
   }, []);
 
   const precisaDisciplinas = cargos.includes("professor");
@@ -153,40 +98,40 @@ export default function ManualForm({
   const ehNucleo = cargos.includes("nucleo");
 
   // Diretor e coordenador usam automaticamente a própria unidade.
-  const unidadesEfetivas = ehDiretorOuCoordenadorLogado
-    ? unidadesDoEscopo
-    : ehNucleo
-      ? []
-      : unidades;
+  const unidadesEfetivas = ehDiretorOuCoordenadorLogado ? unidadesDoEscopo : ehNucleo ? [] : unidades;
 
   // Núcleo não precisa atribuir unidade ao usuário cadastrado.
-  const precisaSelecionarUnidade =
-    !ehDiretorOuCoordenadorLogado && !ehNucleo;
+  const precisaSelecionarUnidade = !ehDiretorOuCoordenadorLogado && !ehNucleo;
 
   const pares = useMemo(() => {
     if (!precisaDisciplinas) return [];
-
     const lista = [];
-
     disciplinas.forEach((disciplina) => {
-      unidadesEfetivas.forEach((unidade) => {
-        lista.push({ disciplina, unidade });
-      });
+      unidadesEfetivas.forEach((unidade) => lista.push({ disciplina, unidade }));
     });
-
     return lista;
   }, [disciplinas, unidadesEfetivas, precisaDisciplinas]);
 
-  const toggleItem = (setList, item) => {
-    setList((prev) =>
-      prev.includes(item)
-        ? prev.filter((valor) => valor !== item)
-        : [...prev, item]
-    );
-  };
+  // Ordem real das etapas conforme o perfil (corrige "Etapa 4 de 3" e o botão Voltar)
+  const ordem = ehDiretorOuCoordenadorLogado
+    ? [1, 4, ...(pares.length > 0 ? [5] : [])]
+    : ehNucleo
+      ? [1, 2, ...(precisaDisciplinas ? [4] : [])]
+      : [1, 2, 3, ...(precisaDisciplinas ? [4, 5] : [])];
 
-  const setSelecao = (chave, valor) => {
-    setSelecoesPorPar((prev) => ({ ...prev, [chave]: valor }));
+  const totalEtapas = ordem.length;
+  const etapaAtual = Math.max(1, ordem.indexOf(step) + 1);
+  const ehUltimaEtapa = step === ordem[ordem.length - 1];
+
+  const toggleItem = (setList, item) =>
+    setList((prev) => (prev.includes(item) ? prev.filter((v) => v !== item) : [...prev, item]));
+
+  const setSelecao = (chave, valor) => setSelecoesPorPar((prev) => ({ ...prev, [chave]: valor }));
+
+  const voltar = () => {
+    const idx = ordem.indexOf(step);
+    if (idx > 0) setStep(ordem[idx - 1]);
+    else onClose();
   };
 
   const handleSubmitManual = async () => {
@@ -198,19 +143,12 @@ export default function ManualForm({
       const cpfNormalizado = cpf.replace(/\D/g, "");
 
       if (ehDiretorOuCoordenadorLogado && unidadesEfetivas.length === 0) {
-        throw new Error(
-          "Não foi possível identificar a unidade do Diretor/Coordenador."
-        );
+        throw new Error("Não foi possível identificar a unidade do Diretor/Coordenador.");
       }
 
-      await verificarCPFDisponivel(cpfNormalizado, {
-        permitirPreCadastro: true,
-      });
+      await verificarCPFDisponivel(cpfNormalizado, { permitirPreCadastro: true });
 
-      const novoUid = await criarUsuarioSecundario(
-        emailNormalizado,
-        senha
-      );
+      const novoUid = await criarUsuarioSecundario(emailNormalizado, senha);
 
       const turmasPorUnidade = {};
       const todasSeries = new Set();
@@ -219,19 +157,13 @@ export default function ManualForm({
         const partes = chave.split("|");
         const unidade = partes.slice(1).join("|");
 
-        if (!turmasPorUnidade[unidade]) {
-          turmasPorUnidade[unidade] = [];
-        }
+        if (!turmasPorUnidade[unidade]) turmasPorUnidade[unidade] = [];
 
         (selecao.turmas || []).forEach((turma) => {
-          if (!turmasPorUnidade[unidade].includes(turma)) {
-            turmasPorUnidade[unidade].push(turma);
-          }
+          if (!turmasPorUnidade[unidade].includes(turma)) turmasPorUnidade[unidade].push(turma);
         });
 
-        (selecao.series || []).forEach((serie) => {
-          todasSeries.add(serie);
-        });
+        (selecao.series || []).forEach((serie) => todasSeries.add(serie));
       });
 
       const turmasString = Object.entries(turmasPorUnidade)
@@ -243,61 +175,33 @@ export default function ManualForm({
         nome: nome.trim(),
         email: emailNormalizado,
         cpf: cpfNormalizado,
-
-        cargos: ehDiretorOuCoordenadorLogado
-          ? ["professor"]
-          : cargos,
-
+        cargos: ehDiretorOuCoordenadorLogado ? ["professor"] : cargos,
         disciplinas: precisaDisciplinas ? disciplinas : [],
         unidade: unidadesEfetivas.join(","),
-
-        series: precisaDisciplinas
-          ? [...todasSeries].join(",")
-          : "",
-
+        series: precisaDisciplinas ? [...todasSeries].join(",") : "",
         turmas: precisaDisciplinas ? turmasString : "",
-
         unidadesComando: ehRegional ? unidadesEfetivas : [],
         unidadesInativas: [],
         turmasInativas: [],
-
-        // Controle de primeiro acesso
         origem: "cadastro-manual",
         primeiroAcessoConcluido: false,
-
         criadoEm: new Date(),
         status: "Ativo",
       };
 
-      await salvarUsuarioComCPF(
-        novoUid,
-        payload,
-        "cadastro-manual"
-      );
+      await salvarUsuarioComCPF(novoUid, payload, "cadastro-manual");
 
       onSuccess?.();
-
     } catch (err) {
       console.error("Erro ao cadastrar usuário:", err);
 
-      if (err.code === "cpf/ja-vinculado") {
-        setErro("Este CPF já está vinculado a outro usuário.");
-      } else if (err.code === "cpf/ja-cadastrado") {
-        setErro("Este CPF já está cadastrado.");
-      } else if (err.code === "cpf/invalido") {
-        setErro("O CPF informado é inválido.");
-      } else if (err.code === "auth/email-already-in-use") {
-        setErro("Este e-mail já está cadastrado.");
-      } else if (err.code === "auth/weak-password") {
-        setErro("A senha deve ter pelo menos 6 caracteres.");
-      } else if (err.code === "permission-denied") {
-        setErro("Você não tem permissão para cadastrar este usuário.");
-      } else {
-        setErro(
-          err.message ||
-          "Não foi possível cadastrar. Verifique os dados e tente novamente."
-        );
-      }
+      if (err.code === "cpf/ja-vinculado") setErro("Este CPF já está vinculado a outro usuário.");
+      else if (err.code === "cpf/ja-cadastrado") setErro("Este CPF já está cadastrado.");
+      else if (err.code === "cpf/invalido") setErro("O CPF informado é inválido.");
+      else if (err.code === "auth/email-already-in-use") setErro("Este e-mail já está cadastrado.");
+      else if (err.code === "auth/weak-password") setErro("A senha deve ter pelo menos 6 caracteres.");
+      else if (err.code === "permission-denied") setErro("Você não tem permissão para cadastrar este usuário.");
+      else setErro(err.message || "Não foi possível cadastrar. Verifique os dados e tente novamente.");
     } finally {
       setLoading(false);
     }
@@ -310,28 +214,12 @@ export default function ManualForm({
       if (!nome.trim() || !email.trim() || !senha || !cpf.trim()) {
         return setErro("Preencha todos os campos obrigatórios.");
       }
-
-      if (!validarEmail(email)) {
-        return setErro(
-          `Use um e-mail válido com o domínio ${DOMINIO_PERMITIDO}.`
-        );
-      }
-
-      if (senha.length < 6) {
-        return setErro("A senha deve ter no mínimo 6 caracteres.");
-      }
-
-      if (!validarCPF(cpf)) {
-        return setErro("O CPF informado é inválido. Confira os números.");
-      }
+      if (!validarEmail(email)) return setErro(`Use um e-mail válido com o domínio ${DOMINIO_PERMITIDO}.`);
+      if (senha.length < 6) return setErro("A senha deve ter no mínimo 6 caracteres.");
+      if (!validarCPF(cpf)) return setErro("O CPF informado é inválido. Confira os números.");
 
       if (ehDiretorOuCoordenadorLogado) {
-        if (unidadesDoEscopo.length === 0) {
-          return setErro(
-            "Não foi possível identificar a unidade do seu perfil."
-          );
-        }
-
+        if (unidadesDoEscopo.length === 0) return setErro("Não foi possível identificar a unidade do seu perfil.");
         setCargos(["professor"]);
         setUnidades(unidadesDoEscopo);
         setStep(4);
@@ -343,16 +231,11 @@ export default function ManualForm({
     }
 
     if (step === 2) {
-      if (cargos.length === 0) {
-        return setErro("Selecione ao menos um cargo.");
-      }
+      if (cargos.length === 0) return setErro("Selecione ao menos um cargo.");
 
       if (ehNucleo) {
-        if (precisaDisciplinas) {
-          setStep(4);
-        } else {
-          handleSubmitManual();
-        }
+        if (precisaDisciplinas) setStep(4);
+        else handleSubmitManual();
         return;
       }
 
@@ -361,23 +244,15 @@ export default function ManualForm({
     }
 
     if (step === 3) {
-      if (unidades.length === 0) {
-        return setErro("Selecione ao menos uma unidade.");
-      }
+      if (unidades.length === 0) return setErro("Selecione ao menos uma unidade.");
 
-      if (precisaDisciplinas) {
-        setStep(4);
-      } else {
-        handleSubmitManual();
-      }
-
+      if (precisaDisciplinas) setStep(4);
+      else handleSubmitManual();
       return;
     }
 
     if (step === 4) {
-      if (disciplinas.length === 0) {
-        return setErro("Selecione ao menos uma disciplina.");
-      }
+      if (disciplinas.length === 0) return setErro("Selecione ao menos uma disciplina.");
 
       if (pares.length === 0) {
         handleSubmitManual();
@@ -393,14 +268,8 @@ export default function ManualForm({
         const chave = `${par.disciplina}|${par.unidade}`;
         const selecao = selecoesPorPar[chave];
 
-        if (
-          !selecao ||
-          !selecao.series?.length ||
-          !selecao.turmas?.length
-        ) {
-          return setErro(
-            `Preencha séries e turmas de ${par.disciplina} em ${par.unidade}.`
-          );
+        if (!selecao || !selecao.series?.length || !selecao.turmas?.length) {
+          return setErro(`Preencha séries e turmas de ${par.disciplina} em ${par.unidade}.`);
         }
       }
 
@@ -408,60 +277,49 @@ export default function ManualForm({
     }
   };
 
-  const totalEtapas = ehDiretorOuCoordenadorLogado
-    ? (pares.length > 0 ? 3 : 2)
-    : ehNucleo
-      ? (precisaDisciplinas
-          ? (unidadesEfetivas.length > 0 ? 4 : 3)
-          : 2)
-      : precisaDisciplinas
-        ? 5
-        : 3;
+  const titulos = { 1: "Dados pessoais", 2: "Cargos e acessos", 3: "Unidade(s) de atuação", 4: "Disciplinas lecionadas", 5: "Séries e turmas" };
+  const descricoes = {
+    1: "Informe os dados de identificação e acesso do usuário.",
+    2: "Selecione os cargos que serão atribuídos ao usuário.",
+    3: "Selecione ao menos uma unidade para vincular ao usuário.",
+    4: "Selecione as disciplinas vinculadas ao professor.",
+    5: "Configure as séries e turmas de cada disciplina e unidade.",
+  };
 
   return (
     <div className="space-y-5">
+      {/* Progresso */}
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">
-            Etapa {step} de {totalEtapas}
+          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+            Etapa {etapaAtual} de {totalEtapas}
           </p>
-
           <div className="mt-2 flex gap-1">
             {Array.from({ length: totalEtapas }).map((_, index) => (
               <span
                 key={index}
-                className={`h-1.5 w-8 rounded-full border border-black ${
-                  index < step ? "bg-pensi-yellow" : "bg-white"
-                }`}
+                className={`h-1.5 w-8 rounded-full ${index < etapaAtual ? "bg-pensi-yellow" : "bg-gray-200"}`}
               />
             ))}
           </div>
         </div>
+      </div>
 
-        <span className="rounded-md border-2 border-black bg-white px-2 py-1 text-[9px] font-black uppercase">
-          Cadastro manual
-        </span>
+      <div>
+        <h3 className="text-sm font-black uppercase text-gray-900">{titulos[step]}</h3>
+        <p className="mt-1 text-xs text-gray-500">{descricoes[step]}</p>
       </div>
 
       {step === 1 && (
         <div className="animate-fade-in space-y-4">
           <div>
-            <h3 className="text-sm font-black uppercase text-black">
-              1. Dados pessoais
-            </h3>
-            <p className="mt-1 text-[10px] font-medium text-gray-500">
-              Informe os dados de identificação e acesso do usuário.
-            </p>
-          </div>
-
-          <div>
             <label className={labelClass}>Nome completo *</label>
             <div className="relative">
-              <User className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+              <User className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <input
                 value={nome}
                 onChange={(e) => setNome(e.target.value)}
-                className={`${inputClass} pl-9`}
+                className={`${inputClass} pl-10`}
                 placeholder="Nome completo do usuário"
                 autoComplete="name"
               />
@@ -471,17 +329,17 @@ export default function ManualForm({
           <div>
             <label className={labelClass}>E-mail institucional *</label>
             <div className="relative">
-              <Mail className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+              <Mail className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className={`${inputClass} pl-9`}
+                className={`${inputClass} pl-10`}
                 placeholder="nome@pensi.com.br"
                 autoComplete="email"
               />
             </div>
-            <p className="mt-1 text-[9px] font-semibold text-gray-400">
+            <p className="mt-1 text-[11px] font-medium text-gray-400">
               Apenas e-mails institucionais {DOMINIO_PERMITIDO}.
             </p>
           </div>
@@ -490,11 +348,11 @@ export default function ManualForm({
             <div>
               <label className={labelClass}>CPF *</label>
               <div className="relative">
-                <CreditCard className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+                <CreditCard className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                 <input
                   value={cpf}
                   onChange={(e) => setCpf(formatarCPF(e.target.value))}
-                  className={`${inputClass} pl-9`}
+                  className={`${inputClass} pl-10`}
                   placeholder="000.000.000-00"
                   inputMode="numeric"
                   maxLength={14}
@@ -505,12 +363,12 @@ export default function ManualForm({
             <div>
               <label className={labelClass}>Senha inicial *</label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+                <Lock className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                 <input
                   value={senha}
                   onChange={(e) => setSenha(e.target.value)}
                   type="password"
-                  className={`${inputClass} pl-9`}
+                  className={`${inputClass} pl-10`}
                   placeholder="Mínimo 6 caracteres"
                   autoComplete="new-password"
                 />
@@ -518,9 +376,9 @@ export default function ManualForm({
             </div>
           </div>
 
-          <div className="rounded-lg border-2 border-[#D7E7FF] bg-[#EEF5FF] p-3">
-            <p className="text-[10px] font-bold text-blue-900">
-              <CheckCircle2 className="mr-1 inline h-3.5 w-3.5" />
+          <div className="flex items-center gap-2 rounded-xl border border-sky-100 bg-sky-50 p-3">
+            <CheckCircle2 className="h-4 w-4 shrink-0 text-sky-700" />
+            <p className="text-[11px] font-bold text-sky-900">
               O CPF será validado antes de avançar e salvo no cadastro do usuário.
             </p>
           </div>
@@ -528,273 +386,140 @@ export default function ManualForm({
       )}
 
       {step === 2 && (
-        <div className="animate-fade-in space-y-3">
-          <div>
-            <h3 className="text-sm font-black uppercase text-black">
-              2. Cargos e acessos
-            </h3>
-            <p className="mt-1 text-[10px] font-medium text-gray-500">
-              Selecione os cargos que serão atribuídos ao usuário.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            {cargosPermitidos.map((cargo) => (
-              <label
-                key={cargo.id}
-                className={`flex cursor-pointer items-center gap-3 rounded-lg border-2 p-3 transition-all ${
-                  cargos.includes(cargo.id)
-                    ? "border-black bg-pensi-yellow shadow-[2px_2px_0px_#000]"
-                    : "border-gray-300 bg-white hover:border-black"
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  checked={cargos.includes(cargo.id)}
-                  onChange={() => toggleItem(setCargos, cargo.id)}
-                  className="h-4 w-4 accent-black"
-                />
-                <span className="text-xs font-black uppercase">
-                  {cargo.label}
-                </span>
-              </label>
-            ))}
-          </div>
+        <div className="animate-fade-in grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {cargosPermitidos.map((cargo) => (
+            <label key={cargo.id} className={optionClass(cargos.includes(cargo.id))}>
+              <input
+                type="checkbox"
+                checked={cargos.includes(cargo.id)}
+                onChange={() => toggleItem(setCargos, cargo.id)}
+                className="h-4 w-4 accent-black"
+              />
+              <span className="text-sm font-bold text-gray-900">{cargo.label}</span>
+            </label>
+          ))}
         </div>
       )}
 
       {step === 3 && precisaSelecionarUnidade && (
         <div className="animate-fade-in space-y-3">
-          <div>
-            <h3 className="text-sm font-black uppercase text-black">
-              3. Unidade(s) de atuação
-            </h3>
-            <p className="mt-1 text-[10px] font-medium text-gray-500">
-              Selecione ao menos uma unidade para vincular ao usuário.
-            </p>
-          </div>
-
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {unidadesDisponiveis.map((unidade) => (
-              <label
-                key={unidade}
-                className={`flex cursor-pointer items-center gap-3 rounded-lg border-2 p-3 transition-all ${
-                  unidades.includes(unidade)
-                    ? "border-black bg-pensi-yellow shadow-[2px_2px_0px_#000]"
-                    : "border-gray-300 bg-white hover:border-black"
-                }`}
-              >
+              <label key={unidade} className={optionClass(unidades.includes(unidade))}>
                 <input
                   type="checkbox"
                   checked={unidades.includes(unidade)}
                   onChange={() => toggleItem(setUnidades, unidade)}
                   className="h-4 w-4 accent-black"
                 />
-                <MapPin className="h-3.5 w-3.5 shrink-0" />
-                <span className="text-[11px] font-black">{unidade}</span>
+                <MapPin className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+                <span className="text-xs font-bold text-gray-900">{unidade}</span>
               </label>
             ))}
           </div>
 
           {unidadesDisponiveis.length === 0 && (
-            <p className="rounded-lg border-2 border-red-300 bg-red-50 p-3 text-[10px] font-bold text-red-700">
+            <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-bold text-rose-700">
               Nenhuma unidade disponível para seleção.
             </p>
           )}
 
-          <p className="text-[9px] font-semibold text-gray-400">
-            {unidades.length} unidade(s) selecionada(s).
-          </p>
+          <p className="text-[11px] font-semibold text-gray-400">{unidades.length} unidade(s) selecionada(s).</p>
         </div>
       )}
 
       {step === 4 && (
-        <div className="animate-fade-in space-y-4">
-          <div>
-            <h3 className="text-sm font-black uppercase text-black">
-              4. Disciplinas lecionadas
-            </h3>
-            <p className="mt-1 text-[10px] font-medium text-gray-500">
-              Selecione as disciplinas vinculadas ao professor.
-            </p>
-          </div>
-
-          <div className="grid max-h-[300px] grid-cols-2 gap-2 overflow-y-auto p-1 sm:grid-cols-3">
-            {disciplinasLista.map(([key, nomeDisciplina]) => (
-              <label
-                key={key}
-                className={`flex cursor-pointer items-center gap-2 rounded-lg border-2 p-2 transition-all ${
-                  disciplinas.includes(key)
-                    ? "border-black bg-pensi-yellow"
-                    : "border-gray-300 bg-white hover:border-black"
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  checked={disciplinas.includes(key)}
-                  onChange={() => toggleItem(setDisciplinas, key)}
-                  className="h-3.5 w-3.5 accent-black"
-                />
-                <span className="truncate text-[10px] font-bold">
-                  {nomeDisciplina}
-                </span>
-              </label>
-            ))}
-          </div>
+        <div className="animate-fade-in grid max-h-[320px] grid-cols-2 gap-2 overflow-y-auto p-1 sm:grid-cols-3">
+          {disciplinasLista.map(([key, nomeDisciplina]) => (
+            <label key={key} className={optionClass(disciplinas.includes(key))}>
+              <input
+                type="checkbox"
+                checked={disciplinas.includes(key)}
+                onChange={() => toggleItem(setDisciplinas, key)}
+                className="h-3.5 w-3.5 accent-black"
+              />
+              <span className="truncate text-[11px] font-bold text-gray-900">{nomeDisciplina}</span>
+            </label>
+          ))}
         </div>
       )}
 
       {step === 5 && (
-        <div className="animate-fade-in space-y-4">
-          <div>
-            <h3 className="text-sm font-black uppercase text-black">
-              5. Séries e turmas
-            </h3>
-            <p className="mt-1 text-[10px] font-medium text-gray-500">
-              Configure as séries e turmas de cada disciplina e unidade.
-            </p>
-          </div>
+        <div className="animate-fade-in space-y-3">
+          {pares.map(({ disciplina, unidade }) => {
+            const chave = `${disciplina}|${unidade}`;
+            const selecao = selecoesPorPar[chave] || { series: [], turmas: [] };
+            const seriesDisponiveis = getSeriesPorUnidades([unidade]);
+            const turmasDisponiveis = getTurmasPorUnidadesESeries([unidade], selecao.series);
 
-          <div className="space-y-3">
-            {pares.map(({ disciplina, unidade }) => {
-              const chave = `${disciplina}|${unidade}`;
-
-              const selecao = selecoesPorPar[chave] || {
-                series: [],
-                turmas: [],
-              };
-
-              const seriesDisponiveis = getSeriesPorUnidades([unidade]);
-
-              const turmasDisponiveis = getTurmasPorUnidadesESeries(
-                [unidade],
-                selecao.series
-              );
-
-              return (
-                <div
-                  key={chave}
-                  className="rounded-xl border-2 border-black bg-white p-3 shadow-[3px_3px_0px_#000]"
-                >
-                  <div className="mb-3 flex items-center justify-between gap-2">
-                    <div>
-                      <p className="text-[11px] font-black uppercase">
-                        {disciplina}
-                      </p>
-                      <p className="text-[9px] font-bold uppercase text-gray-400">
-                        {unidade}
-                      </p>
-                    </div>
-                    <MapPin className="h-4 w-4 shrink-0 text-gray-400" />
+            return (
+              <div key={chave} className={panelClass}>
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-black uppercase text-gray-900">{disciplina}</p>
+                    <p className="truncate text-[10px] font-bold uppercase text-gray-400">{unidade}</p>
                   </div>
+                  <MapPin className="h-4 w-4 shrink-0 text-gray-300" />
+                </div>
 
-                  <p className="mb-2 text-[9px] font-black uppercase tracking-wider text-gray-500">
-                    Séries
-                  </p>
+                <p className="mb-2 text-[10px] font-black uppercase tracking-wider text-gray-500">Séries</p>
+                <div className="mb-4 flex flex-wrap gap-1.5">
+                  {seriesDisponiveis.map((serie) => (
+                    <button
+                      key={serie}
+                      type="button"
+                      onClick={() => {
+                        const novasSeries = selecao.series.includes(serie)
+                          ? selecao.series.filter((i) => i !== serie)
+                          : [...selecao.series, serie];
 
-                  <div className="mb-4 flex flex-wrap gap-1.5">
-                    {seriesDisponiveis.map((serie) => (
+                        const turmasValidas = getTurmasPorUnidadesESeries([unidade], novasSeries).map((t) => t.turma);
+                        const novasTurmas = selecao.turmas.filter((t) => turmasValidas.includes(t));
+
+                        setSelecao(chave, { series: novasSeries, turmas: novasTurmas });
+                      }}
+                      className={chipClass(selecao.series.includes(serie))}
+                    >
+                      {serie}
+                    </button>
+                  ))}
+                </div>
+
+                <p className="mb-2 text-[10px] font-black uppercase tracking-wider text-gray-500">Turmas</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {turmasDisponiveis.length === 0 ? (
+                    <span className="text-[11px] italic text-gray-400">Selecione as séries primeiro.</span>
+                  ) : (
+                    turmasDisponiveis.map((turma) => (
                       <button
-                        key={serie}
+                        key={turma.turma}
                         type="button"
                         onClick={() => {
-                          const novasSeries = selecao.series.includes(serie)
-                            ? selecao.series.filter((item) => item !== serie)
-                            : [...selecao.series, serie];
-
-                          const turmasValidas =
-                            getTurmasPorUnidadesESeries(
-                              [unidade],
-                              novasSeries
-                            ).map((turma) => turma.turma);
-
-                          const novasTurmas = selecao.turmas.filter((turma) =>
-                            turmasValidas.includes(turma)
-                          );
-
-                          setSelecao(chave, {
-                            series: novasSeries,
-                            turmas: novasTurmas,
-                          });
+                          const novasTurmas = selecao.turmas.includes(turma.turma)
+                            ? selecao.turmas.filter((i) => i !== turma.turma)
+                            : [...selecao.turmas, turma.turma];
+                          setSelecao(chave, { ...selecao, turmas: novasTurmas });
                         }}
-                        className={`${botaoClass} ${
-                          selecao.series.includes(serie)
-                            ? "bg-pensi-yellow shadow-[2px_2px_0px_#000]"
-                            : "bg-white hover:bg-gray-100"
-                        }`}
+                        className={chipClass(selecao.turmas.includes(turma.turma))}
                       >
-                        {serie}
+                        {turma.turma}
                       </button>
-                    ))}
-                  </div>
-
-                  <p className="mb-2 text-[9px] font-black uppercase tracking-wider text-gray-500">
-                    Turmas
-                  </p>
-
-                  <div className="flex flex-wrap gap-1.5">
-                    {turmasDisponiveis.length === 0 ? (
-                      <span className="text-[10px] italic text-gray-400">
-                        Selecione as séries primeiro.
-                      </span>
-                    ) : (
-                      turmasDisponiveis.map((turma) => (
-                        <button
-                          key={turma.turma}
-                          type="button"
-                          onClick={() => {
-                            const novasTurmas = selecao.turmas.includes(
-                              turma.turma
-                            )
-                              ? selecao.turmas.filter(
-                                  (item) => item !== turma.turma
-                                )
-                              : [...selecao.turmas, turma.turma];
-
-                            setSelecao(chave, {
-                              ...selecao,
-                              turmas: novasTurmas,
-                            });
-                          }}
-                          className={`${botaoClass} ${
-                            selecao.turmas.includes(turma.turma)
-                              ? "bg-pensi-yellow shadow-[2px_2px_0px_#000]"
-                              : "bg-white hover:bg-gray-100"
-                          }`}
-                        >
-                          {turma.turma}
-                        </button>
-                      ))
-                    )}
-                  </div>
+                    ))
+                  )}
                 </div>
-              );
-            })}
-          </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
-      <div className="flex gap-3 border-t-2 border-gray-200 pt-4">
-        <button
-          type="button"
-          onClick={() => (step > 1 ? setStep(step - 1) : onClose())}
-          disabled={loading}
-          className="flex-1 rounded-lg border-2 border-black bg-white py-3 text-[10px] font-black uppercase shadow-[3px_3px_0px_#000] transition-all hover:bg-gray-100 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none disabled:opacity-50"
-        >
+      <div className="flex gap-3 border-t border-gray-100 pt-4">
+        <button type="button" onClick={voltar} disabled={loading} className={`${btnSecondary} flex-1`}>
           {step > 1 ? "Voltar" : "Cancelar"}
         </button>
 
-        <button
-          type="button"
-          onClick={avancar}
-          disabled={loading}
-          className="flex-1 rounded-lg border-2 border-black bg-pensi-yellow py-3 text-[10px] font-black uppercase shadow-[3px_3px_0px_#000] transition-all hover:brightness-95 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none disabled:opacity-50"
-        >
-          {loading
-            ? "Processando..."
-            : step === totalEtapas
-              ? "Finalizar cadastro"
-              : "Próximo"}
+        <button type="button" onClick={avancar} disabled={loading} className={`${btnPrimary} flex-1`}>
+          {loading ? "Processando..." : ehUltimaEtapa ? "Finalizar cadastro" : "Próximo"}
         </button>
       </div>
     </div>

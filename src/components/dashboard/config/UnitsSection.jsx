@@ -5,7 +5,6 @@ import {
   ChevronDown,
   ChevronUp,
   Trash2,
-  Upload,
   Eye,
   EyeOff,
 } from "lucide-react";
@@ -15,13 +14,9 @@ export default function UnitsSection({
   turmasFiltradas,
   totalTurmas,
   busca,
-  setBusca,
   filtroUnidade,
-  setFiltroUnidade,
   ehRegional,
-  ehDirecao,
   podeGerenciar,
-  podeImportar,
   podeExcluirTurma,
   podeExcluirUnidade,
   excluirUnidadeCompleta,
@@ -30,13 +25,8 @@ export default function UnitsSection({
   unidadesAbertas,
   setUnidadesAbertas,
   excluirTurma,
-  abrirImportacao,
-  inputClass,
   buttonClass,
 }) {
-  const mostrarImportar =
-    typeof podeImportar === "boolean" ? podeImportar : podeGerenciar;
-
   const mostrarExcluirTurma =
     typeof podeExcluirTurma === "boolean" ? podeExcluirTurma : podeGerenciar;
 
@@ -61,34 +51,13 @@ export default function UnitsSection({
 
         <div className="flex flex-wrap gap-2">
           {podeGerenciar && (
-            <>
-              {mostrarImportar && (
-                <button
-                  onClick={abrirImportacao}
-                  className={`${buttonClass} bg-blue-200`}
-                >
-                  <Upload size={14} />
-                  Importar CSV
-                </button>
-              )}
-
-              <button
-                onClick={() =>
-                  setSecaoUnidadesVisivel((atual) => !atual)
-                }
-                className={`${buttonClass} bg-white`}
-              >
-                {secaoUnidadesVisivel ? (
-                  <EyeOff size={14} />
-                ) : (
-                  <Eye size={14} />
-                )}
-
-                {secaoUnidadesVisivel
-                  ? "Ocultar unidades"
-                  : "Exibir unidades"}
-              </button>
-            </>
+            <button
+              onClick={() => setSecaoUnidadesVisivel((atual) => !atual)}
+              className={`${buttonClass} bg-white`}
+            >
+              {secaoUnidadesVisivel ? <EyeOff size={14} /> : <Eye size={14} />}
+              {secaoUnidadesVisivel ? "Ocultar unidades" : "Exibir unidades"}
+            </button>
           )}
         </div>
       </div>
@@ -123,7 +92,7 @@ export default function UnitsSection({
                           [unidade]: !aberto,
                         }))
                       }
-                      className="flex flex-1 items-center gap-3 text-left transition hover:opacity-80 min-w-0"
+                      className="flex min-w-0 flex-1 items-center gap-3 text-left transition hover:opacity-80"
                     >
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border-2 border-black bg-pensi-yellow">
                         <Building2 size={19} />

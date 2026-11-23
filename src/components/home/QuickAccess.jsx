@@ -43,7 +43,7 @@ export default function QuickAccess({ onNavigate }) {
   }, [disciplinas, paginaAtual, itensPorPagina]);
 
   return (
-    <section id="acesso-rapido" className="py-14 sm:py-20 px-4 max-w-[930px] mx-auto">
+    <section id="acesso-rapido" className="py-14 sm:py-20 px-4 max-w-[930px] mx-auto mt-[-90px]">
       {/* Cabeçalho */}
       <div className="flex flex-col md:flex-row-reverse justify-between items-end mb-8 sm:mb-10 gap-4 sm:gap-5">
         <div className="text-right">

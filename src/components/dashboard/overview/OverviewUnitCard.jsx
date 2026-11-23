@@ -1,299 +1,132 @@
-
 import { useMemo, useState } from "react";
-
 import {
-  Building2,
-  ChevronUp,
-  ChevronDown,
-  CheckCircle2,
-  AlertCircle,
-  Clock,
-  History,
-  X,
-  Filter,
-  CalendarDays,
-  GraduationCap,
-  User,
+  Building2, ChevronUp, ChevronDown, CheckCircle2, AlertCircle, Clock, History, X, Filter, CalendarDays, GraduationCap, User,
 } from "lucide-react";
 
 function formatarTipo(tipo) {
   if (!tipo) return "Atividade";
-
-  return String(tipo)
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (letra) => letra.toUpperCase());
+  return String(tipo).replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
 }
 
-function StatusHistorico({ status }) {
-  const configuracoes = {
-    realizado: {
-      texto: "Realizada",
-      classe: "bg-green-100 text-green-800 border-green-300",
-      icone: CheckCircle2,
-    },
-    justificado: {
-      texto: "Justificada",
-      classe: "bg-yellow-100 text-yellow-800 border-yellow-300",
-      icone: AlertCircle,
-    },
-    pendente: {
-      texto: "Pendente",
-      classe: "bg-red-100 text-red-800 border-red-300",
-      icone: Clock,
-    },
+function StatusBadge({ status }) {
+  const map = {
+    realizado: { text: "Realizada", color: "bg-emerald-50 text-emerald-700", icon: CheckCircle2 },
+    justificado: { text: "Justificada", color: "bg-sky-50 text-sky-700", icon: AlertCircle },
+    pendente: { text: "Pendente", color: "bg-rose-50 text-rose-700", icon: Clock },
   };
-
-  const config = configuracoes[status] || configuracoes.pendente;
-  const Icone = config.icone;
-
+  const cfg = map[status] || map.pendente;
+  const Icon = cfg.icon;
   return (
-    <span
-      className={`inline-flex items-center gap-1 border rounded-md px-2 py-1 text-[9px] font-black uppercase ${config.classe}`}
-    >
-      <Icone size={11} />
-      {config.texto}
+    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold ${cfg.color}`}>
+      <Icon size={12} /> {cfg.text}
     </span>
   );
 }
 
-export default function OverviewUnitCard({
-  u,
-  isExpanded,
-  onToggle,
-  onClose,
-}) {
+export default function OverviewUnitCard({ u, isExpanded, onToggle, onClose }) {
   const [filtroTurma, setFiltroTurma] = useState("Todas");
-
-  const temPendencia = u.p > 0;
 
   const historicoFiltrado = useMemo(() => {
     return (u.historico || [])
-      .filter((item) => {
-        if (filtroTurma === "Todas") return true;
-
-        return item.turma === filtroTurma;
-      })
+      .filter((item) => filtroTurma === "Todas" || item.turma === filtroTurma)
       .sort((a, b) => b.data.localeCompare(a.data));
   }, [u.historico, filtroTurma]);
 
   return (
-    <div
-      className={`bg-white border-2 border-black rounded-xl shadow-[2px_2px_0px_#000] overflow-hidden transition-all duration-200 ${
-        isExpanded
-          ? "md:col-span-2 xl:col-span-3"
-          : "hover:shadow-[4px_4px_0px_#000]"
-      }`}
-    >
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={isExpanded}
-        className="w-full text-left p-3.5 hover:bg-gray-50 transition-colors"
-      >
-        <div className="flex items-center gap-3">
-          <div className="relative w-10 h-10 shrink-0 bg-pensi-yellow border-2 border-black rounded-lg flex items-center justify-center shadow-[2px_2px_0px_#000]">
-            <Building2 className="w-5 h-5 text-black" />
-
-            <span
-              className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border-2 border-black ${
-                temPendencia ? "bg-red-500" : "bg-green-500"
-              }`}
-            />
-          </div>
-
-          <div className="flex-1 min-w-0">
-            <div className="flex flex-wrap items-center gap-2 mb-1">
-              <p className="font-black text-black text-sm uppercase truncate">
-                {u.nome}
-              </p>
-            </div>
-
-            <p className="text-[10px] text-gray-500 font-semibold uppercase">
-              Regional:{" "}
-              <span className="text-gray-800">
-                {u.regional || "Sem regional"}
-              </span>
-            </p>
-          </div>
-
-          <div className="w-8 h-8 shrink-0 border-2 border-black rounded-lg flex items-center justify-center bg-gray-50">
-            {isExpanded ? (
-              <ChevronUp className="w-4 h-4" />
-            ) : (
-              <ChevronDown className="w-4 h-4" />
-            )}
-          </div>
+    <div className={`overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.02)] transition-all ${isExpanded ? "col-span-1 md:col-span-2 xl:col-span-3" : ""}`}>
+      <button onClick={onToggle} className="flex w-full items-center gap-3 p-4 text-left hover:bg-gray-50 transition sm:p-5">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gray-50 text-gray-700">
+          <Building2 size={20} strokeWidth={1.5} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-bold text-gray-900">{u.nome}</p>
+          <p className="mt-0.5 truncate text-[11px] font-medium text-gray-500">
+            Regional: {u.regional || "Sem regional"}
+          </p>
+        </div>
+        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-50 text-gray-500">
+          {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </div>
       </button>
 
       {isExpanded && (
-        <div className="border-t-2 border-black p-4 bg-gray-50 animate-fade-in">
-          <div className="flex items-center justify-between gap-2.5 mb-4">
+        <div className="border-t border-gray-100 bg-[#fbfbfb] p-4 sm:p-6">
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
             <div>
-              <span className="text-[9px] font-black uppercase tracking-widest text-gray-500">
-                Detalhamento
-              </span>
-
-              <h3 className="text-sm font-black uppercase mt-0.5">
-                {u.nome}
-              </h3>
-
-              <p className="text-[10px] text-gray-500 font-semibold mt-1">
-                Regional responsável: {u.regional || "Não identificada"}
-              </p>
+              <h3 className="text-base font-bold text-gray-900">{u.nome}</h3>
+              <p className="mt-0.5 text-xs text-gray-500">Regional: {u.regional || "Não identificada"}</p>
             </div>
-
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex items-center gap-1.5 bg-white border-2 border-black rounded-xl px-3 py-2 text-[10px] font-black uppercase shadow-[2px_2px_0px_#000] hover:bg-gray-100"
-            >
-              <X className="w-3.5 h-3.5" />
-              Fechar
+            <button onClick={onClose} className="flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold text-gray-500 hover:bg-white hover:text-black transition">
+              <X size={14} /> Fechar
             </button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
-            <div className="bg-green-100 border-2 border-black rounded-xl p-4 shadow-[2px_2px_0px_#000]">
-              <div className="flex items-center justify-between">
-                <span className="text-[9px] font-black uppercase tracking-wider">
-                  Realizadas
-                </span>
-                <CheckCircle2 className="w-4 h-4 text-green-700" />
-              </div>
-
-              <p className="text-3xl font-black mt-2">{u.c}</p>
+          <div className="mb-6 grid grid-cols-3 gap-2 sm:gap-4">
+            <div className="rounded-2xl bg-white border border-gray-100 p-4 shadow-sm">
+              <span className="block text-[10px] font-bold text-gray-500 uppercase">Realizadas</span>
+              <span className="mt-1 block text-2xl font-bold text-emerald-600">{u.c}</span>
             </div>
-
-            <div className="bg-yellow-100 border-2 border-black rounded-xl p-4 shadow-[2px_2px_0px_#000]">
-              <div className="flex items-center justify-between">
-                <span className="text-[9px] font-black uppercase tracking-wider">
-                  Justificadas
-                </span>
-                <AlertCircle className="w-4 h-4 text-yellow-700" />
-              </div>
-
-              <p className="text-3xl font-black mt-2">{u.j}</p>
+            <div className="rounded-2xl bg-white border border-gray-100 p-4 shadow-sm">
+              <span className="block text-[10px] font-bold text-gray-500 uppercase">Justificadas</span>
+              <span className="mt-1 block text-2xl font-bold text-sky-600">{u.j}</span>
             </div>
-
-            <div className="bg-red-100 border-2 border-black rounded-xl p-4 shadow-[2px_2px_0px_#000]">
-              <div className="flex items-center justify-between">
-                <span className="text-[9px] font-black uppercase tracking-wider">
-                  Pendentes
-                </span>
-                <Clock className="w-4 h-4 text-red-700" />
-              </div>
-
-              <p className="text-3xl font-black mt-2">{u.p}</p>
+            <div className="rounded-2xl bg-white border border-gray-100 p-4 shadow-sm">
+              <span className="block text-[10px] font-bold text-gray-500 uppercase">Pendentes</span>
+              <span className="mt-1 block text-2xl font-bold text-rose-600">{u.p}</span>
             </div>
           </div>
 
-          <div className="bg-white border-2 border-black rounded-xl overflow-hidden">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-3 bg-gray-100 border-b-2 border-black">
+          <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white">
+            <div className="flex flex-col items-start justify-between gap-3 border-b border-gray-100 bg-gray-50/50 p-4 sm:flex-row sm:items-center">
               <div className="flex items-center gap-2">
-                <History className="w-4 h-4" />
-
+                <History className="text-gray-400" size={16} />
                 <div>
-                  <h4 className="text-[10px] font-black uppercase tracking-widest">
-                    Histórico da unidade
-                  </h4>
-
-                  <p className="text-[9px] text-gray-500 font-medium mt-0.5">
-                    {historicoFiltrado.length} registros encontrados
-                  </p>
+                  <h4 className="text-sm font-bold text-gray-900">Histórico</h4>
+                  <p className="text-[11px] text-gray-500">{historicoFiltrado.length} registros</p>
                 </div>
               </div>
-
-              <div className="flex items-center gap-2">
-                <Filter className="w-3.5 h-3.5 text-gray-500 shrink-0" />
-
-                <select
-                  value={filtroTurma}
-                  onChange={(e) => setFiltroTurma(e.target.value)}
-                  className="h-9 min-w-0 max-w-full bg-white border-2 border-black rounded-lg px-2.5 text-[10px] font-bold outline-none focus:bg-[#FFFDF2]"
-                >
+              <div className="flex items-center gap-2 rounded-xl bg-white px-3 py-1.5 border border-gray-200">
+                <Filter className="text-gray-400" size={13} />
+                <select value={filtroTurma} onChange={(e) => setFiltroTurma(e.target.value)} className="bg-transparent text-xs font-semibold text-gray-700 outline-none">
                   <option value="Todas">Todas as turmas</option>
-
-                  {(u.turmas || []).map((turma) => (
-                    <option key={turma} value={turma}>
-                      {turma}
-                    </option>
-                  ))}
+                  {(u.turmas || []).map((t) => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
             </div>
 
             {historicoFiltrado.length === 0 ? (
-              <div className="p-8 text-center">
-                <History className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-
-                <p className="text-[11px] font-black uppercase text-gray-500">
-                  Nenhum registro encontrado
-                </p>
-
-                <p className="text-[10px] text-gray-400 mt-1">
-                  Não existem atividades para o filtro selecionado.
-                </p>
-              </div>
+              <div className="p-8 text-center text-sm text-gray-400">Nenhum registro encontrado.</div>
             ) : (
-              <div className="p-4">
+              <div className="p-4 sm:p-5">
                 <div className="relative space-y-0">
-                  {historicoFiltrado.map((item, index) => (
-                    <div
-                      key={item.id}
-                      className="relative flex gap-3 pb-5 last:pb-0"
-                    >
+                  {historicoFiltrado.map((item, idx) => (
+                    <div key={item.id} className="relative flex gap-4 pb-6 last:pb-0">
+                      {/* Linha vertical e Ícone */}
                       <div className="relative flex flex-col items-center shrink-0">
-                        <div
-                          className={`w-8 h-8 rounded-full border-2 border-black flex items-center justify-center z-10 ${
-                            item.status === "realizado"
-                              ? "bg-green-100"
-                              : item.status === "justificado"
-                              ? "bg-yellow-100"
-                              : "bg-red-100"
-                          }`}
-                        >
-                          {item.status === "realizado" ? (
-                            <CheckCircle2 className="w-4 h-4 text-green-700" />
-                          ) : item.status === "justificado" ? (
-                            <AlertCircle className="w-4 h-4 text-yellow-700" />
-                          ) : (
-                            <Clock className="w-4 h-4 text-red-700" />
-                          )}
+                        <div className={`z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white border-2 ${
+                          item.status === "realizado" ? "border-emerald-200" :
+                          item.status === "justificado" ? "border-sky-200" : "border-rose-200"
+                        }`}>
+                          {item.status === "realizado" ? <CheckCircle2 size={14} className="text-emerald-500" /> :
+                           item.status === "justificado" ? <AlertCircle size={14} className="text-sky-500" /> :
+                           <Clock size={14} className="text-rose-500" />}
                         </div>
-
-                        {index !== historicoFiltrado.length - 1 && (
-                          <div className="absolute top-8 bottom-0 w-0.5 bg-gray-200" />
-                        )}
+                        {idx !== historicoFiltrado.length - 1 && <div className="absolute top-8 bottom-0 w-px bg-gray-100" />}
                       </div>
 
-                      <div className="flex-1 min-w-0 bg-white border border-gray-200 rounded-lg p-3">
-                        <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                          <div className="flex items-center gap-1.5">
-                            <CalendarDays className="w-3.5 h-3.5 text-gray-400" />
-
-                            <span className="text-[10px] font-black text-gray-700">
-                              {item.dataFormatada}
-                            </span>
-                          </div>
-
-                          <StatusHistorico status={item.status} />
+                      {/* Conteúdo */}
+                      <div className="flex-1 pt-1">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="flex items-center gap-1.5 text-xs font-bold text-gray-800">
+                            <CalendarDays size={12} className="text-gray-400" />
+                            {item.dataFormatada}
+                          </span>
+                          <StatusBadge status={item.status} />
                         </div>
-
-                        <h5 className="text-[11px] font-black uppercase text-gray-900">
-                          {formatarTipo(item.tipo)}
-                        </h5>
-
-                        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2">
-                          <span className="flex items-center gap-1 text-[9px] font-semibold text-gray-500">
-                            <GraduationCap size={12} />
-                            {item.turma || "Sem turma"}
-                          </span>
-
-                          <span className="flex items-center gap-1 text-[9px] font-semibold text-gray-500">
-                            <User size={11} />
-                            {item.responsavel || "Não identificado"}
-                          </span>
+                        <p className="mt-1 text-sm font-semibold text-gray-900">{formatarTipo(item.tipo)}</p>
+                        <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] font-medium text-gray-500">
+                          <span className="flex items-center gap-1"><GraduationCap size={13} /> {item.turma || "Sem turma"}</span>
+                          <span className="flex items-center gap-1"><User size={12} /> {item.responsavel || "Não identificado"}</span>
                         </div>
                       </div>
                     </div>

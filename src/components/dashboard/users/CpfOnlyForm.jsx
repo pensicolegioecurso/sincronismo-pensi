@@ -1,21 +1,7 @@
-
 import { useState } from "react";
-
-import {
-  CreditCard,
-  CheckCircle2,
-  AlertCircle,
-  ShieldCheck,
-} from "lucide-react";
-
-import {
-  cadastrarCPFIsolado,
-  validarCPF,
-  formatarCPF,
-} from "../../../services/cpfService";
-
-const inputClass =
-  "w-full rounded-lg border-2 border-black bg-white px-3 py-3 text-sm font-bold text-black outline-none transition-all placeholder:text-gray-400 focus:bg-yellow-50 focus:shadow-[2px_2px_0px_#000]";
+import { CreditCard, CheckCircle2, ShieldCheck } from "lucide-react";
+import { cadastrarCPFIsolado, validarCPF, formatarCPF } from "../../../services/cpfService";
+import { inputClass, labelClass, btnPrimary, btnSecondary, panelClass } from "./ui";
 
 export default function CpfOnlyForm({ onClose, onSuccess, setErro }) {
   const [cpf, setCpf] = useState("");
@@ -24,7 +10,6 @@ export default function CpfOnlyForm({ onClose, onSuccess, setErro }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     setErro("");
     setSucesso(false);
 
@@ -39,18 +24,13 @@ export default function CpfOnlyForm({ onClose, onSuccess, setErro }) {
 
     try {
       await cadastrarCPFIsolado(cpfNormalizado);
-
       setSucesso(true);
       setCpf("");
-
       onSuccess?.();
     } catch (err) {
       console.error("Erro ao cadastrar CPF:", err);
 
-      if (
-        err.code === "cpf/ja-cadastrado" ||
-        err.code === "cpf/ja-vinculado"
-      ) {
+      if (err.code === "cpf/ja-cadastrado" || err.code === "cpf/ja-vinculado") {
         setErro(err.message);
       } else if (err.code === "permission-denied") {
         setErro("Você não tem permissão para cadastrar este CPF.");
@@ -65,36 +45,24 @@ export default function CpfOnlyForm({ onClose, onSuccess, setErro }) {
   return (
     <form onSubmit={handleSubmit} className="animate-fade-in space-y-5">
       <div>
-        <h3 className="text-sm font-black uppercase text-black">
-          Cadastro exclusivo de CPF
-        </h3>
-
-        <p className="mt-1 text-[10px] font-medium leading-relaxed text-gray-500">
-          Cadastre previamente um CPF sem precisar criar uma conta ou
-          informar os dados completos do usuário.
+        <h3 className="text-sm font-black uppercase text-gray-900">Cadastro exclusivo de CPF</h3>
+        <p className="mt-1 text-xs leading-relaxed text-gray-500">
+          Cadastre previamente um CPF sem precisar criar uma conta ou informar os dados completos do usuário.
         </p>
       </div>
 
-      <div className="rounded-xl border-2 border-black bg-white p-4 shadow-[3px_3px_0px_#000]">
+      <div className={panelClass}>
         <div className="mb-4 flex items-center gap-3">
-          <div className="rounded-lg border-2 border-black bg-pensi-yellow p-2">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-pensi-yellow">
             <CreditCard className="h-5 w-5" />
           </div>
-
           <div>
-            <h4 className="text-[11px] font-black uppercase">
-              Identificação
-            </h4>
-            <p className="text-[9px] font-medium text-gray-400">
-              Apenas o número do CPF
-            </p>
+            <h4 className="text-xs font-black uppercase text-gray-900">Identificação</h4>
+            <p className="text-[11px] font-medium text-gray-400">Apenas o número do CPF</p>
           </div>
         </div>
 
-        <label className="mb-2 block text-[9px] font-black uppercase tracking-widest text-gray-600">
-          CPF *
-        </label>
-
+        <label className={labelClass}>CPF *</label>
         <input
           type="text"
           value={cpf}
@@ -109,54 +77,34 @@ export default function CpfOnlyForm({ onClose, onSuccess, setErro }) {
           className={inputClass}
           autoFocus
         />
-
-        <p className="mt-2 text-[9px] font-medium text-gray-400">
+        <p className="mt-2 text-[11px] font-medium text-gray-400">
           O CPF será validado automaticamente antes de ser salvo.
         </p>
       </div>
 
-      <div className="rounded-lg border-2 border-blue-200 bg-blue-50 p-3">
-        <div className="flex items-start gap-2">
-          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-blue-700" />
-
-          <div>
-            <p className="text-[10px] font-black uppercase text-blue-900">
-              Cadastro independente
-            </p>
-
-            <p className="mt-1 text-[9px] font-medium leading-relaxed text-blue-800">
-              Este procedimento salva o CPF na coleção exclusiva de
-              CPFs. Nenhum usuário ou acesso ao sistema será criado.
-            </p>
-          </div>
+      <div className="flex items-start gap-2 rounded-2xl border border-sky-100 bg-sky-50 p-3">
+        <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-sky-700" />
+        <div>
+          <p className="text-[11px] font-black uppercase text-sky-900">Cadastro independente</p>
+          <p className="mt-1 text-[11px] leading-relaxed text-sky-800">
+            Este procedimento salva o CPF na coleção exclusiva de CPFs. Nenhum usuário ou acesso ao
+            sistema será criado.
+          </p>
         </div>
       </div>
 
       {sucesso && (
-        <div className="flex items-center gap-2 rounded-lg border-2 border-green-500 bg-green-50 p-3">
-          <CheckCircle2 className="h-4 w-4 shrink-0 text-green-700" />
-
-          <p className="text-[10px] font-bold text-green-800">
-            CPF cadastrado com sucesso!
-          </p>
+        <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+          <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-700" />
+          <p className="text-xs font-bold text-emerald-800">CPF cadastrado com sucesso!</p>
         </div>
       )}
 
-      <div className="flex gap-3 border-t-2 border-gray-200 pt-4">
-        <button
-          type="button"
-          onClick={onClose}
-          disabled={loading}
-          className="flex-1 rounded-lg border-2 border-black bg-white py-3 text-[10px] font-black uppercase shadow-[3px_3px_0px_#000] transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none disabled:opacity-50"
-        >
+      <div className="flex gap-3 border-t border-gray-100 pt-4">
+        <button type="button" onClick={onClose} disabled={loading} className={`${btnSecondary} flex-1`}>
           Fechar
         </button>
-
-        <button
-          type="submit"
-          disabled={loading || !cpf}
-          className="flex-1 rounded-lg border-2 border-black bg-pensi-yellow py-3 text-[10px] font-black uppercase shadow-[3px_3px_0px_#000] transition-all hover:brightness-95 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none disabled:opacity-50"
-        >
+        <button type="submit" disabled={loading || !cpf} className={`${btnPrimary} flex-1`}>
           {loading ? "Salvando..." : "Cadastrar CPF"}
         </button>
       </div>

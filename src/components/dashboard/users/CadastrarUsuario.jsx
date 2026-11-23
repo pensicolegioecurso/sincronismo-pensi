@@ -1,24 +1,18 @@
-
 import { useState } from "react";
+import { AlertCircle, UserRound, FileSpreadsheet, CreditCard, UserPlus } from "lucide-react";
 
-import {
-  X,
-  AlertCircle,
-  UserRound,
-  FileSpreadsheet,
-  CreditCard,
-} from "lucide-react";
-
+import ModalShell from "./ModalShell";
 import ManualForm from "./ManualForm";
 import CsvImport from "./CsvImport";
 import CpfOnlyForm from "./CpfOnlyForm";
 
-export default function CadastrarUsuario({
-  onClose,
-  onSuccess,
-  perfilAtivo,
-  unidadesEscopo,
-}) {
+const ABAS = [
+  { id: "cpf", label: "Somente CPF", icon: CreditCard },
+  { id: "manual", label: "Cadastro manual", icon: UserRound },
+  { id: "planilha", label: "Importar CSV", icon: FileSpreadsheet },
+];
+
+export default function CadastrarUsuario({ onClose, onSuccess, perfilAtivo, unidadesEscopo }) {
   const [abaAtiva, setAbaAtiva] = useState("cpf");
   const [erro, setErro] = useState("");
 
@@ -28,119 +22,49 @@ export default function CadastrarUsuario({
   };
 
   return (
-    <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fade-in">
-      <div className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border-[3px] border-black bg-[#F7F7F5] shadow-[8px_8px_0px_#000]">
-
-        <header className="shrink-0 border-b-[3px] border-black bg-white px-5 py-4">
-          <div className="mb-4 flex items-center justify-between">
-            <div>
-              <div className="mb-2 flex gap-1.5">
-                <span className="h-2.5 w-2.5 rounded-full border border-black bg-[#F5B800]" />
-                <span className="h-2.5 w-2.5 rounded-full border border-black bg-[#D7E7FF]" />
-                <span className="h-2.5 w-2.5 rounded-full border border-black bg-[#F4D5E5]" />
-              </div>
-
-              <h2 className="text-base font-black uppercase tracking-tight text-black">
-                Cadastrar usuário
-              </h2>
-
-              <p className="mt-0.5 text-[10px] font-bold uppercase tracking-wider text-gray-500">
-                Novo acesso ao sistema Pensi
-              </p>
-            </div>
-
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="Fechar"
-              className="rounded-lg border-2 border-black bg-white p-2 shadow-[2px_2px_0px_#000] transition-all hover:bg-gray-100 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-
-            <button
-              type="button"
-              onClick={() => trocarAba("cpf")}
-              className={`flex items-center justify-center gap-2 rounded-lg border-2 border-black px-2 py-2.5 text-[9px] font-black uppercase transition-all ${
-                abaAtiva === "cpf"
-                  ? "bg-pensi-yellow shadow-[3px_3px_0px_#000]"
-                  : "bg-white text-gray-500 hover:bg-gray-100"
-              }`}
-            >
-              <CreditCard className="h-3.5 w-3.5" />
-              Somente CPF
-            </button>
-
-            <button
-              type="button"
-              onClick={() => trocarAba("manual")}
-              className={`flex items-center justify-center gap-2 rounded-lg border-2 border-black px-2 py-2.5 text-[9px] font-black uppercase transition-all ${
-                abaAtiva === "manual"
-                  ? "bg-pensi-yellow shadow-[3px_3px_0px_#000]"
-                  : "bg-white text-gray-500 hover:bg-gray-100"
-              }`}
-            >
-              <UserRound className="h-3.5 w-3.5" />
-              Cadastro manual
-            </button>
-
-            <button
-              type="button"
-              onClick={() => trocarAba("planilha")}
-              className={`flex items-center justify-center gap-2 rounded-lg border-2 border-black px-2 py-2.5 text-[9px] font-black uppercase transition-all ${
-                abaAtiva === "planilha"
-                  ? "bg-pensi-yellow shadow-[3px_3px_0px_#000]"
-                  : "bg-white text-gray-500 hover:bg-gray-100"
-              }`}
-            >
-              <FileSpreadsheet className="h-3.5 w-3.5" />
-              Importar CSV
-            </button>
-
-          </div>
-        </header>
-
-        <main className="flex-1 overflow-y-auto p-5">
-          {erro && (
-            <div className="mb-4 flex items-start gap-2 rounded-lg border-2 border-red-500 bg-red-50 p-3">
-              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-700" />
-
-              <p className="text-[11px] font-bold text-red-800">
-                {erro}
-              </p>
-            </div>
-          )}
-
-          {abaAtiva === "cpf" && (
-            <CpfOnlyForm
-              onClose={onClose}
-              onSuccess={onSuccess}
-              setErro={setErro}
-            />
-          )}
-
-          {abaAtiva === "manual" && (
-            <ManualForm
-              onClose={onClose}
-              onSuccess={onSuccess}
-              perfilAtivo={perfilAtivo}
-              unidadesEscopo={unidadesEscopo}
-              setErro={setErro}
-            />
-          )}
-
-          {abaAtiva === "planilha" && (
-            <CsvImport
-              onClose={onClose}
-              onSuccess={onSuccess}
-              setErro={setErro}
-            />
-          )}
-        </main>
+    <ModalShell
+      title="Cadastrar usuário"
+      subtitle="Novo acesso ao sistema Pensi"
+      icon={UserPlus}
+      maxWidth="max-w-2xl"
+      onClose={onClose}
+    >
+      <div className="mb-5 flex rounded-full bg-gray-100 p-1">
+        {ABAS.map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => trocarAba(id)}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-full px-2 py-2 text-[11px] font-bold transition-colors ${
+              abaAtiva === id ? "bg-white text-black shadow-sm" : "text-gray-500 hover:text-gray-800"
+            }`}
+          >
+            <Icon className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">{label}</span>
+          </button>
+        ))}
       </div>
-    </div>
+
+      {erro && (
+        <div className="mb-4 flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-600" />
+          <p className="text-xs font-bold text-rose-800">{erro}</p>
+        </div>
+      )}
+
+      {abaAtiva === "cpf" && <CpfOnlyForm onClose={onClose} onSuccess={onSuccess} setErro={setErro} />}
+
+      {abaAtiva === "manual" && (
+        <ManualForm
+          onClose={onClose}
+          onSuccess={onSuccess}
+          perfilAtivo={perfilAtivo}
+          unidadesEscopo={unidadesEscopo}
+          setErro={setErro}
+        />
+      )}
+
+      {abaAtiva === "planilha" && <CsvImport onClose={onClose} onSuccess={onSuccess} setErro={setErro} />}
+    </ModalShell>
   );
 }
