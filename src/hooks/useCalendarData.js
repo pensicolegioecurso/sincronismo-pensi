@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { DISCIPLINAS_POR_ANO } from "../data/disciplinas";
+import { DISCIPLINAS_POR_ANO } from "../utils/disciplinas";
 import { getAba, getAbas, loadGvizSheet } from "../services/api";
 import { norm, nh, resolverReferencia } from "../utils/formatters";
 

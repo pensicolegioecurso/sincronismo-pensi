@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useAuth } from "../hooks/useAuth";
-import { DISCIPLINAS_POR_ANO } from "../data/disciplinas";
+import { DISCIPLINAS_POR_ANO } from "../utils/disciplinas";
 import { UNIDADES } from "../data/unidades";
 import { useTurmas } from "../hooks/useTurmas";
 import { validarEmailInstitucional } from "../utils/validators";

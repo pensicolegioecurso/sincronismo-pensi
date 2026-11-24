@@ -20,6 +20,17 @@ export default function DashboardPage({ onNavigate, perfilAtivo }) {
 
   const [activeTab, setActiveTab] = useState(isTeacher ? "inicio" : "dashboard");
   const [profileOpen, setProfileOpen] = useState(false);
+  const handleNavigate = (card) => {
+    if (!card) return;
+
+    onNavigate(
+      "calendar",
+      card.key,
+      card.ano || "2026",
+      card.unidade,
+      card.turma
+    );
+  };
 
   useEffect(() => {
     setActiveTab(isTeacher ? "inicio" : "dashboard");
@@ -78,7 +89,7 @@ export default function DashboardPage({ onNavigate, perfilAtivo }) {
         )}
 
         {isTeacher && activeTab === "inicio" && (
-          <StartTab onNavigate={onNavigate} />
+          <StartTab onNavigate={handleNavigate} />
         )}
 
         {activeTab === "feed" && (
@@ -108,6 +119,8 @@ export default function DashboardPage({ onNavigate, perfilAtivo }) {
         isAdmin={isAdmin}
         isNucleo={isNucleo}
         isDirecao={isRegional || isDirection}
+        perfilAtivo={{ cargo: perfilAtivo }}
+        onNavigate={handleNavigate}
       />
 
       <ProfileModal

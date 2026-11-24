@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import {
   X, ChevronLeft, ChevronRight, Search, Trash2, Upload, CheckCircle2,
   UserPlus, UserMinus, GraduationCap, Building2, CalendarPlus, CalendarX,
-  UserCheck, User, FileSpreadsheet,
+  UserCheck, User, FileSpreadsheet, Layers, PlusCircle
 } from "lucide-react";
 
 import {
@@ -14,35 +14,25 @@ import { onAuthStateChanged } from "firebase/auth";
 import { db, auth } from "../../services/firebase";
 import { useTurmas } from "../../hooks/useTurmas";
 import { useUnidades } from "../../hooks/useUnidades";
+import { useSegmentos } from "../../hooks/useSegmentos"; // <--- Importação do novo Hook
 
 // ⚠️ AJUSTE este caminho para onde está o seu CadastrarUsuario.jsx
 import CadastrarUsuario from "./users/CadastrarUsuario";
 
 const TURNOS = ["M", "T"];
 
-const SERIES_DISPONIVEIS = [
+const SERIES_FALLBACK = [
   "Infantil 2", "Infantil 3", "Infantil 4", "Infantil 5",
   "1º ano", "2º ano", "3º ano", "4º ano", "5º ano",
   "6º ano", "7º ano", "8º ano", "9º ano",
   "1ª série ENEM e Vestibulares", "2ª série ENEM e Vestibulares",
   "3ª série ENEM e Vestibulares", "Pré-ENEM e Vestibulares",
-  "1º ano bilíngue", "2º ano bilíngue", "3º ano bilíngue",
-  "4º ano bilíngue", "5º Ano Bilíngue", "6º ano bilíngue",
-  "7º ano bilíngue", "8º ano bilíngue", "9º ano bilíngue",
-  "Infantil 2 bilíngue", "Infantil 3 bilíngue",
-  "Infantil 4 bilíngue", "Infantil 5 bilíngue",
-  "1ª série medicina", "2ª série medicina", "3ª série Medicina",
-  "Medicina", "9º ano preparatório militar",
-  "1ª série preparatória militar", "2ª série preparatória militar",
-  "3ª série IME/ITA", "IME/ITA", "Preparatório CN",
-  "3ª série AFA/EN/EFOMM", "AFA/EN/EFOMM",
-  "Curso Pré IME/ITA 1", "Curso Pré IME/ITA 2",
-].sort((a, b) => a.localeCompare(b, "pt-BR"));
+];
 
 const field =
-  "w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-[15px] outline-none focus:border-black";
+  "w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-[15px] outline-none focus:border-black transition-colors";
 const btnPrimary =
-  "w-full rounded-full bg-black py-4 font-semibold text-white disabled:opacity-30";
+  "w-full rounded-full bg-black py-4 font-semibold text-white disabled:opacity-30 transition-all active:scale-[0.98]";
 
 /* ---------- helpers ---------- */
 
@@ -116,34 +106,11 @@ function Chip({ ativo, onClick, children }) {
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-full px-4 py-2 text-sm font-semibold ${
-        ativo ? "bg-black text-white" : "bg-[#f2f2f2]"
+      className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+        ativo ? "bg-black text-white" : "bg-[#f2f2f2] text-gray-700 hover:bg-gray-200"
       }`}
     >
       {children}
-    </button>
-  );
-}
-
-function Opcao({ icon: Icon, label, desc, onClick, perigo }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="flex w-full items-center gap-4 rounded-2xl bg-[#f2f2f2] px-4 py-3 text-left transition-transform active:scale-[0.99]"
-    >
-      <span
-        className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white ${
-          perigo ? "text-rose-600" : "text-black"
-        }`}
-      >
-        <Icon size={20} />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block font-semibold">{label}</span>
-        {desc && <span className="block text-sm text-gray-400">{desc}</span>}
-      </span>
-      <ChevronRight size={18} className="shrink-0 text-gray-300" />
     </button>
   );
 }
@@ -158,7 +125,7 @@ function ItemLista({ titulo, subtitulo, onClick, excluir, desabilitado }) {
         className="min-w-0 flex-1 text-left"
       >
         <span className="block truncate font-semibold">{titulo}</span>
-        {subtitulo && <span className="block truncate text-sm text-gray-400">{subtitulo}</span>}
+        {subtitulo && <span className="block truncate text-sm text-gray-500">{subtitulo}</span>}
       </button>
       {excluir && (
         <button
@@ -166,7 +133,7 @@ function ItemLista({ titulo, subtitulo, onClick, excluir, desabilitado }) {
           onClick={excluir}
           disabled={desabilitado}
           title="Excluir"
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-rose-600 disabled:opacity-30"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-rose-600 disabled:opacity-30 hover:bg-rose-50 transition-colors"
         >
           <Trash2 size={16} />
         </button>
@@ -179,29 +146,17 @@ function Vazio({ children }) {
   return <p className="py-8 text-center text-sm text-gray-400">{children}</p>;
 }
 
-function Busca({ value, onChange }) {
-  return (
-    <div className="mb-3 flex items-center gap-3 rounded-2xl bg-[#f2f2f2] px-4 py-3">
-      <Search size={18} className="text-gray-400" />
-      <input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder="Buscar..."
-        className="flex-1 bg-transparent text-[16px] outline-none"
-      />
-    </div>
-  );
-}
-
 /* ---------- componente principal ---------- */
 
 export default function MaisModal({
   onClose, perfilAtivo: _perfilDoPai, unidadesEscopo, onProfileOpen, onUsuarioCadastrado,
 }) {
-    const { todas: turmas = [] } = useTurmas();
+  const { todas: turmas = [] } = useTurmas();
   const { todasUnidades = [], criarUnidade, excluirUnidade } = useUnidades();
+  
+  // Usando o novo Hook
+  const { segmentos, criarSegmento, excluirSegmento } = useSegmentos();
 
-  /* ---------- perfil (lido direto do Firestore) ---------- */
   const [perfilAtivo, setPerfilAtivo] = useState(null);
   const [perfilCarregando, setPerfilCarregando] = useState(true);
 
@@ -231,7 +186,6 @@ export default function MaisModal({
     };
   }, []);
 
-  /* ---------- permissões (sem perfil = sem acesso) ---------- */
   const cargos = useMemo(() => normalizarCargos(perfilAtivo), [perfilAtivo]);
   const ehAdmin = cargos.includes("admin") || cargos.includes("administrador");
   const ehNucleo = cargos.includes("nucleo");
@@ -241,11 +195,11 @@ export default function MaisModal({
 
   const adminNucleo = ehAdmin || ehNucleo;
   const gerente = adminNucleo || ehRegional || ehDirecao;
-  // admin, núcleo e regional: turma, remover exceção, remover usuário
   const podeTurma = adminNucleo || ehRegional;
 
   const unidadesComando = useMemo(() => normalizarUnidadesComando(perfilAtivo), [perfilAtivo]);
   const unidadesDireção = useMemo(() => unidadesDoUsuario(perfilAtivo), [perfilAtivo]);
+  const unidadePerfil = useMemo(() => obterUnidadePerfil(perfilAtivo), [perfilAtivo]);
 
   const unidadesPermitidas = useMemo(() => {
     if (adminNucleo) return todasUnidades;
@@ -271,6 +225,7 @@ export default function MaisModal({
   const [salvando, setSalvando] = useState(false);
   const [busca, setBusca] = useState("");
 
+  const [novoSegmento, setNovoSegmento] = useState("");
   const [novaUnidadeNome, setNovaUnidadeNome] = useState("");
   const [novaTurma, setNovaTurma] = useState({ unidade: "", serie: "", turno: "M", turma: "" });
   const [novoCal, setNovoCal] = useState({ nome: "", inicio: "", fim: "" });
@@ -343,9 +298,13 @@ export default function MaisModal({
   }, [tela]);
 
   const calSel = calendarios.find((c) => c.id === calSelId) || null;
-
   const unidadesExc = adminNucleo ? ["Todas", ...unidadesPermitidas] : unidadesPermitidas;
   const unidadeAtual = unidExc || unidadesExc[0] || "";
+
+  // Usa os segmentos do hook, ou o fallback se estiver vazio
+  const listaSeries = segmentos.length > 0 
+    ? segmentos.map(s => s.nome) 
+    : SERIES_FALLBACK;
 
   /* ---------- ações ---------- */
 
@@ -356,6 +315,7 @@ export default function MaisModal({
     setRegSel(null);
     setCsvData([]);
     setCsvErros([]);
+    setNovoSegmento("");
   };
 
   const ir = (id) => {
@@ -383,6 +343,44 @@ export default function MaisModal({
     setTela(null);
     setSucesso(msg);
     setTimeout(() => setSucesso(""), 3500);
+  };
+
+  const adicionarSegmento = async () => {
+    setErro("");
+    if (!adminNucleo) {
+      setErro("Apenas Admin e Núcleo podem cadastrar segmentos.");
+      return;
+    }
+    const nome = normalizarNome(novoSegmento);
+    if (!nome) {
+      setErro("Informe o nome do segmento.");
+      return;
+    }
+    setSalvando(true);
+    try {
+      await criarSegmento(nome);
+      concluir("Segmento cadastrado com sucesso.");
+    } catch (e) {
+      console.error(e);
+      setErro(e.message || "Erro ao cadastrar segmento.");
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  const handleExcluirSegmento = async (id, nome) => {
+    setErro("");
+    if (!adminNucleo) {
+      setErro("Apenas Admin e Núcleo podem excluir segmentos.");
+      return;
+    }
+    if (!window.confirm(`Excluir o segmento "${nome}"?`)) return;
+    try {
+      await excluirSegmento(id);
+    } catch (e) {
+      console.error(e);
+      setErro("Erro ao excluir segmento.");
+    }
   };
 
   const adicionarTurma = async () => {
@@ -753,31 +751,35 @@ export default function MaisModal({
   /* ---------- menu ---------- */
 
   const ADD = [
-    { id: "usuario", icon: UserPlus, label: "Adicionar usuário", desc: "Novo acesso ao sistema", ok: gerente },
-    { id: "turma", icon: GraduationCap, label: "Nova turma", desc: "Cadastrar turma em uma unidade", ok: podeTurma },
-    { id: "excecao", icon: CalendarX, label: "Exceção no calendário", desc: "Feriados, recessos e dias sem aula", ok: gerente },
-    { id: "unidade", icon: Building2, label: "Nova unidade", desc: "Cadastrar uma unidade", ok: adminNucleo },
-    { id: "csv", icon: FileSpreadsheet, label: "Importar turmas (CSV)", desc: "Várias turmas de uma vez", ok: adminNucleo },
-    { id: "calendario", icon: CalendarPlus, label: "Novo calendário", desc: "Criar calendário acadêmico", ok: adminNucleo },
-    { id: "regional", icon: UserCheck, label: "Atribuir unidades", desc: "Vincular unidades a um regional", ok: adminNucleo },
+    { id: "usuario", icon: UserPlus, label: "Adicionar usuário", desc: "Novo acesso", ok: gerente },
+    { id: "turma", icon: GraduationCap, label: "Nova turma", desc: "Cadastrar turma", ok: podeTurma },
+    { id: "excecao", icon: CalendarX, label: "Nova exceção", desc: "Feriados/Recessos", ok: gerente },
+    { id: "unidade", icon: Building2, label: "Nova unidade", desc: "Cadastrar unidade", ok: adminNucleo },
+    { id: "segmento", icon: Layers, label: "Novo segmento", desc: "Adicionar série", ok: adminNucleo },
+    { id: "csv", icon: FileSpreadsheet, label: "Importar CSV", desc: "Várias turmas", ok: adminNucleo },
+    { id: "calendario", icon: CalendarPlus, label: "Novo calendário", desc: "Calendário acadêmico", ok: adminNucleo },
+    { id: "regional", icon: UserCheck, label: "Atribuir unidades", desc: "Vincular regional", ok: adminNucleo },
   ].filter((a) => a.ok);
 
   const REM = [
-    { id: "r-excecao", icon: CalendarX, label: "Remover exceção", desc: "Excluir um dia de exceção", ok: podeTurma },
-    { id: "r-turma", icon: GraduationCap, label: "Remover turma", desc: "Escolher e excluir uma turma", ok: podeTurma },
-    { id: "r-usuario", icon: UserMinus, label: "Remover usuário", desc: "Excluir um usuário", ok: podeTurma },
-    { id: "r-unidade", icon: Building2, label: "Remover unidade", desc: "Exclui a unidade e suas turmas", ok: adminNucleo },
-    { id: "r-calendario", icon: CalendarX, label: "Remover calendário", desc: "Excluir um calendário", ok: adminNucleo },
+    { id: "r-excecao", icon: CalendarX, label: "Remover exceção", desc: "Excluir dia", ok: podeTurma },
+    { id: "r-turma", icon: GraduationCap, label: "Remover turma", desc: "Excluir turma", ok: podeTurma },
+    { id: "r-usuario", icon: UserMinus, label: "Remover usuário", desc: "Excluir usuário", ok: podeTurma },
+    { id: "r-segmento", icon: Layers, label: "Remover segmento", desc: "Excluir série", ok: adminNucleo },
+    { id: "r-unidade", icon: Building2, label: "Remover unidade", desc: "Excluir unidade", ok: adminNucleo },
+    { id: "r-calendario", icon: CalendarX, label: "Remover calendário", desc: "Excluir calendário", ok: adminNucleo },
   ].filter((a) => a.ok);
 
   const TITULOS = {
     turma: "Nova turma", unidade: "Nova unidade", csv: "Importar turmas",
     calendario: "Novo calendário", excecao: "Nova exceção", regional: "Atribuir unidades",
+    segmento: "Novo segmento",
     "r-turma": "Remover turma", "r-unidade": "Remover unidade",
     "r-calendario": "Remover calendário", "r-excecao": "Remover exceção",
-    "r-usuario": "Remover usuário",
+    "r-usuario": "Remover usuário", "r-segmento": "Remover segmento",
   };
-    if (perfilCarregando) {
+
+  if (perfilCarregando) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
         <div className="rounded-[28px] bg-white px-8 py-6 text-sm font-semibold" onClick={(e) => e.stopPropagation()}>
@@ -853,16 +855,25 @@ export default function MaisModal({
 
   const mostrarRemover = modo === "remover" && REM.length > 0;
 
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-      onClick={onClose}
+  const ServicoBotao = ({ icon: Icon, label, onClick, perigo }) => (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex flex-col items-center justify-center gap-2 rounded-2xl bg-white p-3 shadow-sm border border-gray-100 hover:shadow-md transition-all active:scale-95"
     >
+      <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${perigo ? "bg-rose-50 text-rose-600" : "bg-blue-50 text-blue-600"}`}>
+        <Icon size={24} strokeWidth={1.5} />
+      </div>
+      <span className="text-center text-[11px] font-semibold text-gray-700 leading-tight">{label}</span>
+    </button>
+  );
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div
-        className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-[28px] bg-white p-5"
+        className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-[28px] bg-white p-5 pb-8"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* cabeçalho */}
         <div className="mb-4 flex items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2">
             {tela && (
@@ -870,12 +881,12 @@ export default function MaisModal({
                 type="button"
                 onClick={acaoVoltar}
                 aria-label="Voltar"
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#f2f2f2]"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#f2f2f2] hover:bg-gray-200 transition-colors"
               >
                 <ChevronLeft size={18} />
               </button>
             )}
-            <h2 className="truncate text-xl font-extrabold">
+            <h2 className="truncate text-xl font-extrabold text-gray-900">
               {tela ? TITULOS[tela] : "Mais"}
             </h2>
           </div>
@@ -883,7 +894,7 @@ export default function MaisModal({
             type="button"
             onClick={onClose}
             aria-label="Fechar"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#f2f2f2]"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#f2f2f2] hover:bg-gray-200 transition-colors"
           >
             <X size={18} />
           </button>
@@ -901,53 +912,103 @@ export default function MaisModal({
           </div>
         )}
 
-        {/* ============ MENU INICIAL ============ */}
+        {/* ============ MENU INICIAL (NOVO LAYOUT) ============ */}
         {!tela && (
-          <>
-            {gerente && (
-              <>
-                {REM.length > 0 && (
-                  <div className="mb-5 flex rounded-2xl bg-[#f2f2f2] p-1">
-                    {[["adicionar", "Adicionar"], ["remover", "Remover"]].map(([id, label]) => (
-                      <button
-                        key={id}
-                        type="button"
-                        onClick={() => setModo(id)}
-                        className={`flex-1 rounded-xl py-3 font-semibold ${
-                          modo === id ? "bg-white shadow-sm" : "text-gray-400"
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
+          <div className="flex flex-col gap-6">
+            <div className="flex items-center gap-3 rounded-full bg-[#f2f2f2] px-4 py-3 text-gray-500">
+              <Search size={18} />
+              <span className="text-sm">Do que você precisa?</span>
+            </div>
+
+            {REM.length > 0 && (
+              <div className="flex gap-3 overflow-x-auto pb-2 snap-x">
+                <button
+                  type="button"
+                  onClick={() => setModo("adicionar")}
+                  className={`relative flex min-w-[200px] flex-1 snap-start flex-col justify-between overflow-hidden rounded-2xl p-4 text-left transition-all ${
+                    modo === "adicionar" 
+                      ? "bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-lg" 
+                      : "bg-gray-100 text-gray-500"
+                  }`}
+                >
+                  <div className="relative z-10">
+                    <h3 className="text-lg font-bold leading-tight">Adicionar</h3>
+                    <p className={`text-xs ${modo === "adicionar" ? "text-indigo-100" : "text-gray-400"}`}>Criar novos registros</p>
                   </div>
-                )}
+                  <div className="mt-4 flex items-center gap-1 text-xs font-semibold relative z-10">
+                    Acessar <ChevronRight size={14} />
+                  </div>
+                  <div className="absolute -right-4 -bottom-4 opacity-10">
+                    <PlusCircle size={80} />
+                  </div>
+                </button>
 
-                <div className="flex flex-col gap-2">
-                  {(mostrarRemover ? REM : ADD).map((a) => (
-                    <Opcao
-                      key={a.id}
-                      icon={mostrarRemover ? Trash2 : a.icon}
-                      perigo={mostrarRemover}
-                      label={a.label}
-                      desc={a.desc}
-                      onClick={() => ir(a.id)}
-                    />
-                  ))}
-                </div>
-
-                <div className="my-5 border-t border-gray-100" />
-              </>
+                <button
+                  type="button"
+                  onClick={() => setModo("remover")}
+                  className={`relative flex min-w-[200px] flex-1 snap-start flex-col justify-between overflow-hidden rounded-2xl p-4 text-left transition-all ${
+                    modo === "remover" 
+                      ? "bg-gradient-to-br from-blue-600 to-cyan-500 text-white shadow-lg" 
+                      : "bg-gray-100 text-gray-500"
+                  }`}
+                >
+                  <div className="relative z-10">
+                    <h3 className="text-lg font-bold leading-tight">Remover</h3>
+                    <p className={`text-xs ${modo === "remover" ? "text-blue-100" : "text-gray-400"}`}>Excluir registros</p>
+                  </div>
+                  <div className="mt-4 flex items-center gap-1 text-xs font-semibold relative z-10">
+                    Acessar <ChevronRight size={14} />
+                  </div>
+                  <div className="absolute -right-4 -bottom-4 opacity-10">
+                    <Trash2 size={80} />
+                  </div>
+                </button>
+              </div>
             )}
+
+            <div>
+              <h3 className="mb-3 text-lg font-bold text-gray-900">Serviços</h3>
+              <div className="grid grid-cols-4 gap-3">
+                {(mostrarRemover ? REM : ADD).map((a) => (
+                  <ServicoBotao
+                    key={a.id}
+                    icon={mostrarRemover ? Trash2 : a.icon}
+                    label={a.label}
+                    perigo={mostrarRemover}
+                    onClick={() => ir(a.id)}
+                  />
+                ))}
+              </div>
+            </div>
 
             <button
               type="button"
               onClick={() => { onClose(); onProfileOpen?.(); }}
-              className="flex w-full items-center justify-center gap-2 rounded-full bg-[#f2f2f2] py-4 font-semibold"
+              className="mt-2 flex w-full items-center justify-center gap-2 rounded-full bg-[#f2f2f2] py-4 font-semibold text-gray-700 hover:bg-gray-200 transition-colors"
             >
-              <User size={18} /> Perfil
+              <User size={18} /> Meu Perfil
             </button>
-          </>
+          </div>
+        )}
+
+        {/* ============ NOVO SEGMENTO ============ */}
+        {tela === "segmento" && (
+          <div>
+            <Label>Nome do segmento / série</Label>
+            <input
+              autoFocus
+              value={novoSegmento}
+              onChange={(e) => setNovoSegmento(e.target.value)}
+              placeholder="Ex.: 1ª série Ensino Médio"
+              className={field}
+            />
+            <p className="mt-2 text-sm text-gray-400">
+              Este item aparecerá na lista de seleção ao criar turmas e exceções.
+            </p>
+            <button type="button" onClick={adicionarSegmento} disabled={salvando} className={`${btnPrimary} mt-5`}>
+              {salvando ? "Salvando..." : "Cadastrar segmento"}
+            </button>
+          </div>
         )}
 
         {/* ============ NOVA TURMA ============ */}
@@ -963,14 +1024,14 @@ export default function MaisModal({
               {unidadesPermitidas.map((u) => <option key={u} value={u}>{u}</option>)}
             </select>
 
-            <Label>Série</Label>
+            <Label>Série / Segmento</Label>
             <select
               value={novaTurma.serie}
               onChange={(e) => setNovaTurma((a) => ({ ...a, serie: e.target.value }))}
               className={field}
             >
               <option value="">Selecione uma série</option>
-              {SERIES_DISPONIVEIS.map((s) => <option key={s} value={s}>{s}</option>)}
+              {listaSeries.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
 
             <Label>Turno</Label>
@@ -1034,7 +1095,7 @@ export default function MaisModal({
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-[#f2f2f2] py-4 font-semibold"
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-[#f2f2f2] py-4 font-semibold hover:bg-gray-200 transition-colors"
             >
               <Upload size={18} /> Selecionar arquivo CSV
             </button>
@@ -1057,7 +1118,7 @@ export default function MaisModal({
                   {csvData.map((item, i) => (
                     <div key={i} className="rounded-2xl bg-[#f2f2f2] px-4 py-2">
                       <p className="font-semibold">{item.turma}</p>
-                      <p className="text-sm text-gray-400">
+                      <p className="text-sm text-gray-500">
                         {item.unidade} · {item.serie} · {item.turno === "M" ? "Manhã" : "Tarde"}
                       </p>
                     </div>
@@ -1155,10 +1216,10 @@ export default function MaisModal({
 
             {excecao.tipo === "serie" && (
               <>
-                <Label>Série</Label>
+                <Label>Série / Segmento</Label>
                 <select value={excecao.serie} onChange={(e) => setExcecao((a) => ({ ...a, serie: e.target.value }))} className={field}>
                   <option value="">Selecione uma série</option>
-                  {SERIES_DISPONIVEIS.map((s) => <option key={s} value={s}>{s}</option>)}
+                  {listaSeries.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
               </>
             )}
@@ -1220,8 +1281,8 @@ export default function MaisModal({
                     onClick={() =>
                       setUnidadesTemp((at) => (sel ? at.filter((i) => i !== u) : [...at, u]))
                     }
-                    className={`flex items-center justify-between rounded-2xl px-4 py-3 text-left font-semibold ${
-                      sel ? "bg-black text-white" : "bg-[#f2f2f2]"
+                    className={`flex items-center justify-between rounded-2xl px-4 py-3 text-left font-semibold transition-colors ${
+                      sel ? "bg-black text-white" : "bg-[#f2f2f2] hover:bg-gray-200"
                     }`}
                   >
                     {u}
@@ -1239,7 +1300,15 @@ export default function MaisModal({
         {/* ============ REMOVER TURMA ============ */}
         {tela === "r-turma" && (
           <div>
-            <Busca value={busca} onChange={setBusca} />
+            <div className="mb-3 flex items-center gap-3 rounded-2xl bg-[#f2f2f2] px-4 py-3">
+              <Search size={18} className="text-gray-400" />
+              <input
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                placeholder="Buscar turma..."
+                className="flex-1 bg-transparent text-[16px] outline-none"
+              />
+            </div>
             <div className="flex max-h-[50vh] flex-col gap-2 overflow-y-auto">
               {turmasRemover.map((t) => (
                 <ItemLista
@@ -1257,7 +1326,15 @@ export default function MaisModal({
         {/* ============ REMOVER USUÁRIO ============ */}
         {tela === "r-usuario" && (
           <div>
-            <Busca value={busca} onChange={setBusca} />
+            <div className="mb-3 flex items-center gap-3 rounded-2xl bg-[#f2f2f2] px-4 py-3">
+              <Search size={18} className="text-gray-400" />
+              <input
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                placeholder="Buscar usuário..."
+                className="flex-1 bg-transparent text-[16px] outline-none"
+              />
+            </div>
             <div className="flex max-h-[50vh] flex-col gap-2 overflow-y-auto">
               {usuariosRemover.map((u) => (
                 <ItemLista
@@ -1277,7 +1354,15 @@ export default function MaisModal({
         {/* ============ REMOVER UNIDADE ============ */}
         {tela === "r-unidade" && (
           <div>
-            <Busca value={busca} onChange={setBusca} />
+            <div className="mb-3 flex items-center gap-3 rounded-2xl bg-[#f2f2f2] px-4 py-3">
+              <Search size={18} className="text-gray-400" />
+              <input
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                placeholder="Buscar unidade..."
+                className="flex-1 bg-transparent text-[16px] outline-none"
+              />
+            </div>
             <div className="flex max-h-[50vh] flex-col gap-2 overflow-y-auto">
               {unidadesRemover.map((u) => {
                 const qtd = turmas.filter((t) => t.unidade === u).length;
@@ -1292,6 +1377,26 @@ export default function MaisModal({
                 );
               })}
               {unidadesRemover.length === 0 && <Vazio>Nada encontrado.</Vazio>}
+            </div>
+          </div>
+        )}
+
+        {/* ============ REMOVER SEGMENTO ============ */}
+        {tela === "r-segmento" && (
+          <div>
+            <div className="flex max-h-[50vh] flex-col gap-2 overflow-y-auto">
+              {segmentos.length === 0 ? (
+                <Vazio>Nenhum segmento cadastrado no banco.</Vazio>
+              ) : (
+                segmentos.map((s) => (
+                  <ItemLista
+                    key={s.id}
+                    titulo={s.nome}
+                    subtitulo="Série / Segmento"
+                    excluir={() => handleExcluirSegmento(s.id, s.nome)}
+                  />
+                ))
+              )}
             </div>
           </div>
         )}

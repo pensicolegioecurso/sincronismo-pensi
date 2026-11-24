@@ -3,12 +3,13 @@ import {
   LayoutDashboard, Users, MessageSquare, Home, Plus, LogOut,
 } from "lucide-react";
 
-import MaisModal from "../dashboard/MaisModal"; // ⚠️ ajuste o caminho se precisar
+import MaisModal from "./MaisModal"; // ⚠️ ajuste o caminho se precisar
+import MaisProfessorModal from "./MaisProfessorModal"; // ⚠️ mesma pasta do MaisModal
 
 export default function DashboardNavbar({
   activeTab, setActiveTab, onProfileOpen, logout,
   isAdmin = false, isDirecao = false, isNucleo = false, isRegional = false,
-  perfilAtivo, unidadesEscopo, onUsuarioCadastrado,
+  perfilAtivo, unidadesEscopo, onUsuarioCadastrado, onNavigate,
 }) {
   const [maisAberto, setMaisAberto] = useState(false);
 
@@ -77,7 +78,7 @@ export default function DashboardNavbar({
         </nav>
       </div>
 
-      {maisAberto && (
+      {maisAberto && isManager && (
         <MaisModal
           onClose={() => setMaisAberto(false)}
           perfilAtivo={perfilAtivo}
@@ -85,6 +86,14 @@ export default function DashboardNavbar({
           onProfileOpen={onProfileOpen}
           logout={logout}
           onUsuarioCadastrado={onUsuarioCadastrado}
+        />
+      )}
+
+      {maisAberto && !isManager && (
+        <MaisProfessorModal
+          onClose={() => setMaisAberto(false)}
+          onNavigate={onNavigate}
+          onProfileOpen={onProfileOpen}
         />
       )}
     </>

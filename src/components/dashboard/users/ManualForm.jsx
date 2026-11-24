@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { salvarUsuarioComCPF, verificarCPFDisponivel } from "../../../services/cpfService";
 import { criarUsuarioSecundario } from "../../../services/criarUsuarioSecundario";
-import { DISCIPLINAS_POR_ANO } from "../../../data/disciplinas";
+import { DISCIPLINAS_POR_ANO } from "../../../utils/disciplinas";
 import { useTurmas } from "../../../hooks/useTurmas";
 import { useUnidades } from "../../../hooks/useUnidades";
 import { Mail, Lock, User, MapPin, CreditCard, CheckCircle2 } from "lucide-react";

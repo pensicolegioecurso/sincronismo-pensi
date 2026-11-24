@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { useCalendarData } from "../hooks/useCalendarData";
 import { useCalendario } from "../hooks/useCalendario";
-import { DISCIPLINAS_POR_ANO } from "../data/disciplinas";
+import { DISCIPLINAS_POR_ANO } from "../utils/disciplinas";
 import { NOMES_MES } from "../utils/formatters";
 import { salvarCheck, gerarIdCheck } from "../services/firestoreChecks";
 import Loading from "../components/Loading";

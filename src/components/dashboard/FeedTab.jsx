@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "../../services/firebase";
-import { DISCIPLINAS_POR_ANO } from "../../data/disciplinas";
+import { DISCIPLINAS_POR_ANO } from "../../utils/disciplinas";
 import FeedHeader from "./feed/FeedHeader";
 import FeedFilters from "./feed/FeedFilters";
 import FeedList from "./feed/FeedList";

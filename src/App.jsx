@@ -311,6 +311,18 @@ export default function App() {
     );
   }
 
+  const handleNavigate = (card) => {
+  if (!card) return;
+
+  onNavigate(
+    "calendar",
+    card.key,
+    card.ano || "2026",
+    card.unidade,
+    card.turma
+  );
+};
+
   return (
     <div className="min-h-screen flex flex-col bg-[#f8f9fa]">
       {precisaEscolherCargo && (

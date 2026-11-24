@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { getRelatorio } from "../services/api";
 import { normalizarProfessor, normalizarCheck, nomeDisciplina, formatarDataHora } from "../utils/formatters";
-import { DISCIPLINAS_POR_ANO } from "../data/disciplinas";
+import { DISCIPLINAS_POR_ANO } from "../utils/disciplinas";
 
 export function useReports() {
   const [professores, setProfessores] = useState([]);
