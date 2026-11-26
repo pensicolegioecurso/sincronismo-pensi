@@ -9,7 +9,10 @@ import TurmasAdmin from "../components/dashboard/TurmasAdmin";
 import DirecaoCalendario from "../components/dashboard/DirecaoCalendario";
 import StartTab from "../components/dashboard/StartTab";
 import FeedTab from "../components/dashboard/FeedTab";
-import { ArrowUp } from "lucide-react";
+import TeacherProfileModal from "../components/dashboard/TeacherProfileModal";
+import DirectMessagesModal from "../components/dashboard/DirectMessagesModal";
+import { arrayUnion, doc, updateDoc } from "firebase/firestore";
+import { db } from "../services/firebase";
 
 const DIRECTION_ROLES = ["diretor", "direcao", "coordenador"];
 const ADMIN_MANAGER_ROLES = ["admin", "nucleo", "regional"];
@@ -20,6 +23,17 @@ export default function DashboardPage({ onNavigate, perfilAtivo }) {
 
   const [activeTab, setActiveTab] = useState(isTeacher ? "inicio" : "dashboard");
   const [profileOpen, setProfileOpen] = useState(false);
+  const [teacherProfile, setTeacherProfile] = useState(null);
+  const [directOpen, setDirectOpen] = useState(false);
+  const [directTarget, setDirectTarget] = useState(null);
+  const [atalhosInicio, setAtalhosInicio] = useState([]);
+  const [atalhosPessoa, setAtalhosPessoa] = useState([]);
+  const abrirDirects = (contacto = null) => {
+    setProfileOpen(false);
+    setTeacherProfile(null);
+    setDirectTarget(contacto);
+    setDirectOpen(true);
+  };
   const handleNavigate = (card) => {
     if (!card) return;
 
@@ -35,6 +49,32 @@ export default function DashboardPage({ onNavigate, perfilAtivo }) {
   useEffect(() => {
     setActiveTab(isTeacher ? "inicio" : "dashboard");
   }, [perfilAtivo, isTeacher]);
+
+  useEffect(() => {
+    setAtalhosInicio(user?.atalhosInicio || []);
+    setAtalhosPessoa(user?.atalhosPessoa || []);
+  }, [user?.uid]);
+
+  const adicionarAtalhoPessoa = async (profile) => {
+    if (!user?.uid || !profile?.id || profile.id === user.uid) return;
+    const atalho = {
+      id: profile.id,
+      nome: profile.nome || "Professor",
+      email: profile.email || "",
+      unidade: profile.unidade || "",
+      turmas: profile.turmas || "",
+      disciplinas: profile.disciplinas || [],
+      unidadesInativas: profile.unidadesInativas || [],
+      turmasInativas: profile.turmasInativas || [],
+      criadoEm: profile.criadoEm || null,
+    };
+    try {
+      await updateDoc(doc(db, "users", user.uid), { atalhosPessoa: arrayUnion(atalho) });
+      setAtalhosPessoa((atuais) => atuais.some((item) => item.id === atalho.id) ? atuais : [...atuais, atalho]);
+    } catch (error) {
+      console.error("Erro ao adicionar atalho de pessoa:", error);
+    }
+  };
 
   const isAdmin = perfilAtivo === "admin";
   const isNucleo = perfilAtivo === "nucleo";
@@ -65,6 +105,10 @@ export default function DashboardPage({ onNavigate, perfilAtivo }) {
           <AdminOverview
             unidadeFoco={unidadeFoco}
             unidadesEscopo={unidadesEscopo}
+            currentUser={user}
+            onProfileOpen={() => setProfileOpen(true)}
+            onDirects={isAdmin ? undefined : () => abrirDirects()}
+            atalhosInicio={atalhosInicio}
           />
         )}
 
@@ -73,6 +117,8 @@ export default function DashboardPage({ onNavigate, perfilAtivo }) {
             unidadesEscopo={unidadesEscopo}
             perfilAtivo={perfilAtivo}
             currentUser={user}
+            onProfileOpen={(profile) => profile?.id ? setTeacherProfile(profile) : setProfileOpen(true)}
+            onDirects={isAdmin ? undefined : () => abrirDirects()}
           />
         )}
 
@@ -89,7 +135,15 @@ export default function DashboardPage({ onNavigate, perfilAtivo }) {
         )}
 
         {isTeacher && activeTab === "inicio" && (
-          <StartTab onNavigate={handleNavigate} />
+          <StartTab
+            onNavigate={handleNavigate}
+            onDirects={() => abrirDirects()}
+            onOpenProfile={() => setProfileOpen(true)}
+            onOpenTab={setActiveTab}
+            atalhosInicio={atalhosInicio}
+            atalhosPessoa={atalhosPessoa}
+            onOpenPerson={(profile) => setTeacherProfile(profile)}
+          />
         )}
 
         {activeTab === "feed" && (
@@ -98,18 +152,11 @@ export default function DashboardPage({ onNavigate, perfilAtivo }) {
             perfilAtivo={perfilAtivo}
             unidadeFoco={unidadeFoco}
             unidadesEscopo={unidadesEscopo}
+            onProfileOpen={() => setProfileOpen(true)}
+            onDirects={() => abrirDirects()}
           />
         )}
       </main>
-
-      {isTeacher && (
-        <button
-          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-          className="fixed bottom-28 right-6 z-50 p-3 bg-white border-[2px] border-black text-gray-900 rounded-full shadow-[3px_3px_0px_0px_#000] hover:-translate-y-1 hover:bg-gray-50 transition-all animate-fade-in"
-        >
-          <ArrowUp className="w-5 h-5" strokeWidth={3} />
-        </button>
-      )}
 
       <DashboardNavbar
         activeTab={activeTab}
@@ -120,13 +167,21 @@ export default function DashboardPage({ onNavigate, perfilAtivo }) {
         isNucleo={isNucleo}
         isDirecao={isRegional || isDirection}
         perfilAtivo={{ cargo: perfilAtivo }}
+        unidadesEscopo={unidadesEscopo}
         onNavigate={handleNavigate}
+        user={{ ...user, atalhosPessoa }}
+        onShortcutsChange={setAtalhosInicio}
+        onPersonShortcutsChange={setAtalhosPessoa}
       />
 
       <ProfileModal
         open={profileOpen}
         onClose={() => setProfileOpen(false)}
       />
+      {teacherProfile && (
+        <TeacherProfileModal user={teacherProfile} onClose={() => setTeacherProfile(null)} onDirectMessage={!isAdmin && teacherProfile.id !== user?.uid ? abrirDirects : undefined} onAddShortcut={teacherProfile.id !== user?.uid ? adicionarAtalhoPessoa : undefined} />
+      )}
+      {directOpen && <DirectMessagesModal user={user} perfilAtivo={perfilAtivo} initialContact={directTarget} onClose={() => { setDirectOpen(false); setDirectTarget(null); }} />}
     </div>
   );
 }

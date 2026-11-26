@@ -25,7 +25,7 @@ export function useSegmentos() {
     return unsub;
   }, []);
 
-  const criarSegmento = async (nome) => {
+  const criarSegmento = async (nome, unidades = []) => {
     if (!nome || !nome.trim()) throw new Error("Nome inválido");
     const nomeFormatado = nome.trim().replace(/\s+/g, " ");
     
@@ -36,6 +36,7 @@ export function useSegmentos() {
 
     await addDoc(collection(db, "segmentos_db"), {
       nome: nomeFormatado,
+      unidades: [...new Set(unidades)].filter(Boolean),
       criadoEm: serverTimestamp(),
     });
   };

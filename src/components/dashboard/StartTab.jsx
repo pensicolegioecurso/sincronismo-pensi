@@ -2,7 +2,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useAuth } from "../../hooks/useAuth";
 import { useCalendario } from "../../hooks/useCalendario";
-import { DISCIPLINAS_POR_ANO } from "../../utils/disciplinas";
+import { useMaterias } from "../../hooks/useMaterias";
 import {
   extrairSerieTurma,
   normalizarTurma,
@@ -11,8 +11,9 @@ import {
 import { obterTurmasAtivas } from "../../utils/turmasAtivas";
 
 import StartHeader from "./start/StartHeader";
-import StartFilters from "./start/StartFilters";
 import StartStats from "./start/StartStats";
+import { ChatModal } from "../../features/chat/components/ChatModal";
+import { useChatModal } from "../../features/chat/hooks/useChatModal";
 
 function converterData(valor) {
   if (!valor) return null;
@@ -62,12 +63,20 @@ function pertenceAoPeriodo(data, filtroTempo, hoje) {
 export default function StartTab({
   onBack,
   onChat,
+  onDirects,
+  onOpenProfile,
+  onOpenTab,
+  atalhosInicio = [],
+  atalhosPessoa = [],
+  onOpenPerson,
   onFamily,
   onDownloadPDF,
   familyMode,
 }) {
   const { user, checksSet } = useAuth();
+  const { materias } = useMaterias();
   const { isDiaLetivo, calendarios } = useCalendario();
+  const chat = useChatModal();
 
   const [viewMode, setViewMode] = useState("materias");
   const [filtroUnidade, setFiltroUnidade] = useState("Todas");
@@ -404,11 +413,12 @@ export default function StartTab({
 
   const minhasDisciplinas = useMemo(() => {
     if (!user) return [];
-    const base = DISCIPLINAS_POR_ANO["2026"] || {};
+    const base = Object.fromEntries(materias.map((item) => [item.key, item]));
     const lista = [];
 
     userDisciplinas.forEach((key) => {
-      const nome = base[key]?.nome || key;
+      if (!base[key]) return;
+      const nome = base[key].nome;
       Object.entries(turmasAtivasPorUnidade).forEach(([unidade, turmas]) => {
         if (!turmas.length) return;
         lista.push({ key, nome, ano: "2026", unidade, turmas });
@@ -416,7 +426,7 @@ export default function StartTab({
     });
 
     return lista;
-  }, [user, userDisciplinas, turmasAtivasPorUnidade]);
+  }, [user, userDisciplinas, turmasAtivasPorUnidade, materias]);
 
   const disciplinasFiltradas = useMemo(
     () =>
@@ -426,30 +436,6 @@ export default function StartTab({
     [minhasDisciplinas, filtroUnidade]
   );
 
-  // Só usado para o contador do StartFilters (os cards agora ficam no + do menu).
-  const totalItens = useMemo(() => {
-    const q = busca.trim().toLowerCase();
-    let total = 0;
-
-    disciplinasFiltradas.forEach((disciplina) => {
-      if (viewMode === "materias") {
-        if (!q || disciplina.nome.toLowerCase().includes(q)) total += 1;
-      } else {
-        disciplina.turmas.forEach((turma) => {
-          if (
-            !q ||
-            turma.toLowerCase().includes(q) ||
-            disciplina.nome.toLowerCase().includes(q)
-          ) {
-            total += 1;
-          }
-        });
-      }
-    });
-
-    return total;
-  }, [disciplinasFiltradas, viewMode, busca]);
-
   useEffect(() => {
     if (filtroUnidade !== "Todas" && !userUnidades.includes(filtroUnidade)) {
       setFiltroUnidade("Todas");
@@ -458,22 +444,10 @@ export default function StartTab({
 
   return (
     <div className="w-full min-w-0 pb-10 animate-fade-in">
-      <div className="mx-auto max-w-4xl px-4 sm:px-6 pt-6">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6">
         <StartHeader
           user={user}
           viewMode={viewMode}
-          totalMaterias={userDisciplinas.length}
-          totalTurmas={userTurmas.length}
-          onBack={onBack}
-          onChat={onChat}
-          onFamily={onFamily}
-          onDownloadPDF={onDownloadPDF}
-          familyMode={familyMode}
-        />
-
-        <StartFilters
-          viewMode={viewMode}
-          setViewMode={setViewMode}
           busca={busca}
           setBusca={setBusca}
           filtroUnidade={filtroUnidade}
@@ -481,9 +455,29 @@ export default function StartTab({
           filtroTempo={filtroTempo}
           setFiltroTempo={setFiltroTempo}
           unidadesDisponiveis={unidadesDisponiveis}
-          totalExibindo={totalItens}
-          totalGeral={totalItens}
+          setViewMode={setViewMode}
+          onBack={onBack}
+          onChat={onChat || chat.abrir}
+          onDirects={onDirects}
+          onProfile={onOpenProfile}
+          onFamily={onFamily}
+          onDownloadPDF={onDownloadPDF}
+          familyMode={familyMode}
         />
+
+        {(atalhosInicio.length > 0 || atalhosPessoa.length > 0) && (
+          <div className="mb-5 flex flex-wrap gap-2" aria-label="Atalhos">
+            {atalhosInicio.map((atalho) => {
+              const config = {
+                feed: { label: "Feed", action: () => onOpenTab?.("feed") },
+                directs: { label: "Meus directs", action: onDirects },
+                profile: { label: "Meu perfil", action: onOpenProfile },
+              }[atalho];
+              return config ? <button key={atalho} type="button" onClick={config.action} className="rounded-full border border-gray-200 bg-white px-4 py-2 text-xs font-bold text-gray-700 shadow-sm transition hover:border-amber-300 hover:bg-amber-50">{config.label}</button> : null;
+            })}
+            {atalhosPessoa.map((pessoa) => <button key={pessoa.id} type="button" onClick={() => onOpenPerson?.(pessoa)} className="rounded-full border border-gray-200 bg-white px-4 py-2 text-xs font-bold text-gray-700 shadow-sm transition hover:border-amber-300 hover:bg-amber-50">Perfil: {pessoa.nome}</button>)}
+          </div>
+        )}
 
         <StartStats
           carregando={carregandoStats}
@@ -496,6 +490,7 @@ export default function StartTab({
           Toque no <b>+</b> para ver suas matérias, turmas e unidades.
         </p>
       </div>
+      <ChatModal aberto={chat.aberto} onClose={chat.fechar} />
     </div>
   );
 }

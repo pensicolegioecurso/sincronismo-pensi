@@ -5,7 +5,7 @@ export default function CalendarHeader({
   user, abas, opcoesProfessor,
   turmaSelecionada, setTurmaSelecionada,
   serie, setSerie,
-  mostrarSeletor, turmaPreSelecionada, unicaOpcao,
+  mostrarSeletor, turmaPreSelecionada, unicaOpcao, modoConferencia = false,
 }) {
   return (
     <div className="sticky top-6 z-40 max-w-[1200px] mx-auto px-6 pt-2">
@@ -33,9 +33,9 @@ export default function CalendarHeader({
           {mostrarSeletor && (
             <div className="bg-pensi-yellow rounded-full px-4 py-2.5">
               <select
-                value={user ? turmaSelecionada : serie}
+                value={user && !modoConferencia ? turmaSelecionada : serie}
                 onChange={(e) => {
-                  if (user) {
+                  if (user && !modoConferencia) {
                     const turma = e.target.value;
                     const opcao = opcoesProfessor.find((o) => o.turma === turma);
                     setTurmaSelecionada(turma);
@@ -44,7 +44,7 @@ export default function CalendarHeader({
                 }}
                 className="bg-transparent font-black text-[#111111] text-[13px] uppercase focus:outline-none cursor-pointer"
               >
-                {user ? opcoesProfessor.map((o) => <option key={o.turma} value={o.turma}>{o.serie} - {o.turma}</option>) : abas.map((a) => <option key={a} value={a}>{a}</option>)}
+                {user && !modoConferencia ? opcoesProfessor.map((o) => <option key={`${o.unidade}-${o.turma}`} value={o.turma}>{o.serie} - {o.turma}</option>) : abas.map((a) => <option key={a.id || a} value={a.id || a}>{a.rotulo || a}</option>)}
               </select>
             </div>
           )}

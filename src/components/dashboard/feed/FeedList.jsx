@@ -150,7 +150,7 @@ function ComentariosPost({ post, aberto, user }) {
   );
 }
 
-function FeedPost({ post, comentariosAbertos, toggleComentarios, user, qtdComentarios }) {
+function FeedPost({ post, comentariosAbertos, toggleComentarios, user, qtdComentarios, perfil, favorito, onToggleFavorito, onProfileOpen }) {
   const aberto = !!comentariosAbertos[post.id];
   const inicialProf = post.professor ? post.professor.charAt(0).toUpperCase() : "P";
   const handle = `@${post.professor?.toLowerCase().replace(/\s/g, '') || 'user'}`;
@@ -165,7 +165,9 @@ function FeedPost({ post, comentariosAbertos, toggleComentarios, user, qtdComent
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1 text-[15px]">
-          <span className="font-bold text-gray-900 truncate">{post.professor}</span>
+          <button type="button" onClick={() => perfil && onProfileOpen?.(perfil)} className="font-bold text-gray-900 truncate hover:underline disabled:no-underline" disabled={!perfil}>
+            {post.professor}
+          </button>
           <span className="text-gray-500 truncate">{handle}</span>
           <span className="text-gray-400 text-xs px-1">·</span>
           <span className="text-gray-500 shrink-0 text-sm">{post.dataHoraFormatada}</span>
@@ -203,7 +205,12 @@ function FeedPost({ post, comentariosAbertos, toggleComentarios, user, qtdComent
           </div>
         </div>
 
-        <div className="flex items-center mt-3">
+        <div className="flex items-center mt-3 gap-2">
+          {post.professorUid && post.professorUid !== user?.uid && (
+            <button type="button" onClick={() => onToggleFavorito?.(post.professorUid)} className={`rounded-full px-3 py-2 text-xs font-bold transition ${favorito ? "bg-amber-100 text-amber-800" : "text-gray-500 hover:bg-gray-100"}`} aria-pressed={favorito}>
+              {favorito ? "★ Favorito" : "☆ Favoritar"}
+            </button>
+          )}
           <button onClick={() => toggleComentarios(post.id)} className="flex items-center gap-1.5 text-gray-500 hover:text-black transition group">
             <div className="p-2 rounded-full group-hover:bg-gray-100 transition"><MessageSquare size={18} /></div>
             <span className="text-xs font-bold">{qtdComentarios > 0 ? `${qtdComentarios} Comentários` : "Comentar"}</span>
@@ -216,7 +223,7 @@ function FeedPost({ post, comentariosAbertos, toggleComentarios, user, qtdComent
   );
 }
 
-export default function FeedList({ carregando, posts, comentariosAbertos, toggleComentarios, user, contagemComentarios }) {
+export default function FeedList({ carregando, posts, comentariosAbertos, toggleComentarios, user, contagemComentarios, perfis = {}, favoritos = [], onToggleFavorito, onProfileOpen }) {
   return (
     <div className="divide-y divide-gray-300/70 w-full">
       {/* Substituído o Spinner pelo Skeleton */}
@@ -243,6 +250,10 @@ export default function FeedList({ carregando, posts, comentariosAbertos, toggle
           toggleComentarios={toggleComentarios} 
           user={user} 
           qtdComentarios={contagemComentarios[post.id] || 0}
+          perfil={perfis[post.professorUid]}
+          favorito={favoritos.includes(post.professorUid)}
+          onToggleFavorito={onToggleFavorito}
+          onProfileOpen={onProfileOpen}
         />
       ))}
     </div>

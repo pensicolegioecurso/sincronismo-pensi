@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import {
   X, ChevronLeft, ChevronRight, Search, BookOpen, GraduationCap, Building2, User,
   LayoutGrid, Settings
@@ -6,7 +6,11 @@ import {
 
 import { useAuth } from "../../hooks/useAuth";
 import { DISCIPLINAS_POR_ANO } from "../../utils/disciplinas";
+import { useMaterias } from "../../hooks/useMaterias";
 import { obterTurmasAtivas } from "../../utils/turmasAtivas";
+import { extrairSerieTurma, normalizarTurma } from "../../utils/turmas";
+import { collection, onSnapshot } from "firebase/firestore";
+import { db } from "../../services/firebase";
 
 const ABAS = [
   ["materia", "Matéria", BookOpen],
@@ -39,58 +43,77 @@ function Vazio({ children }) {
 
 export default function MaisProfessorModal({ onClose, onNavigate }) {
   const { user } = useAuth();
+  const { materias } = useMaterias();
   const [aba, setAba] = useState("materia");
   const [busca, setBusca] = useState("");
   const [unidadeSel, setUnidadeSel] = useState(null);
+  const [sincronismos, setSincronismos] = useState([]);
+
+  useEffect(() => onSnapshot(collection(db, "sincronismos"), (snapshot) => {
+    setSincronismos(snapshot.docs.map((item) => ({ id: item.id, ...item.data() })).filter((item) => item.ativo !== false));
+  }, (error) => console.error("Erro ao carregar sincronismos:", error)), []);
 
   const turmasPorUnidade = useMemo(() => obterTurmasAtivas(user), [user]);
 
   const disciplinas = useMemo(() => {
-    if (!user || !Array.isArray(user.disciplinas)) return [];
-    const base = DISCIPLINAS_POR_ANO["2026"] || {};
-    return user.disciplinas.filter(Boolean).map((key) => ({
-      key,
-      nome: base[key]?.nome || key,
-    }));
-  }, [user]);
+    if (!user) return [];
+    const disciplinasDoUsuario = Array.isArray(user.disciplinas) ? user.disciplinas : [];
+    const base = Object.fromEntries(materias.map((item) => [item.key, item]));
+    const serieTurmas = new Set(Object.values(turmasPorUnidade).flat().map((turma) => extrairSerieTurma(turma) || normalizarTurma(turma)));
+    const sincronismosVisiveis = sincronismos.filter((item) => (item.segmentos || []).some((segmento) => serieTurmas.has(extrairSerieTurma(segmento) || normalizarTurma(segmento))));
+    const chaves = new Set([...disciplinasDoUsuario.filter((key) => key && base[key]), ...sincronismosVisiveis.map((item) => item.materia).filter((key) => base[key])]);
+    return [...chaves].flatMap((key) => {
+      const anos = new Set(sincronismosVisiveis.filter((item) => item.materia === key).map((item) => String(item.ano)));
+      Object.entries(DISCIPLINAS_POR_ANO).forEach(([ano, lista]) => {
+        if (lista[key] && disciplinasDoUsuario.includes(key) && !sincronismos.some((item) => item.materia === key && String(item.ano) === ano)) anos.add(ano);
+      });
+      return [...anos].map((ano) => ({ key, ano, nome: base[key]?.nome || key }));
+    });
+  }, [user, sincronismos, materias, turmasPorUnidade]);
 
   const cardsMateria = useMemo(() => {
     const lista = [];
     disciplinas.forEach((d) => {
       Object.entries(turmasPorUnidade).forEach(([unidade, turmas]) => {
+        const syncsDoAno = sincronismos.filter((item) => item.materia === d.key && String(item.ano) === d.ano);
+        const segmentos = syncsDoAno.flatMap((item) => item.segmentos || []).map((item) => extrairSerieTurma(item) || normalizarTurma(item));
+        if (syncsDoAno.length && !turmas.some((turma) => segmentos.includes(extrairSerieTurma(turma) || normalizarTurma(turma)))) return;
         lista.push({
-          id: `${d.key}-${unidade}`,
+          id: `${d.key}-${d.ano}-${unidade}`,
           nome: d.nome,
           unidade,
           turma: null,
           qtdTurmas: turmas.length,
           key: d.key,
-          ano: "2026",
+          ano: d.ano,
         });
       });
     });
     return lista;
-  }, [disciplinas, turmasPorUnidade]);
+  }, [disciplinas, turmasPorUnidade, sincronismos]);
 
   const cardsTurma = useMemo(() => {
     const lista = [];
     disciplinas.forEach((d) => {
       Object.entries(turmasPorUnidade).forEach(([unidade, turmas]) => {
         turmas.forEach((turma) => {
+          const syncsDoAno = sincronismos.filter((item) => item.materia === d.key && String(item.ano) === d.ano);
+          const segmentos = syncsDoAno.flatMap((item) => item.segmentos || []).map((item) => extrairSerieTurma(item) || normalizarTurma(item));
+          if (syncsDoAno.length && !segmentos.includes(extrairSerieTurma(turma) || normalizarTurma(turma))) return;
           lista.push({
-            id: `${d.key}-${unidade}-${turma}`,
+            id: `${d.key}-${d.ano}-${unidade}-${turma}`,
             nome: d.nome,
             unidade,
             turma,
             qtdTurmas: null,
             key: d.key,
-            ano: "2026",
+            ano: d.ano,
           });
         });
       });
     });
     return lista;
-  }, [disciplinas, turmasPorUnidade]);
+  }, [disciplinas, turmasPorUnidade, sincronismos]);
 
   const unidades = useMemo(
     () =>

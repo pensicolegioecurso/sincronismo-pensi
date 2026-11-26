@@ -1,17 +1,45 @@
 import { useState, useMemo, useEffect } from "react";
 import { useAuth } from "../../hooks/useAuth";
 import { DISCIPLINAS_POR_ANO } from "../../utils/disciplinas";
+import { collection, onSnapshot } from "firebase/firestore";
+import { db } from "../../services/firebase";
+import { useMaterias } from "../../hooks/useMaterias";
+import { obterTurmasAtivas } from "../../utils/turmasAtivas";
+import { extrairSerieTurma, normalizarTurma } from "../../utils/turmas";
 import SubjectCard from "../SubjectCard";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const ITENS_DESKTOP = 6;
-const ANOS = ["2026", "2027"];
+const ANOS_BASE = Object.keys(DISCIPLINAS_POR_ANO);
 
 export default function QuickAccess({ onNavigate }) {
   const { user } = useAuth();
-  const [ano, setAno] = useState("2026");
+  const [ano, setAno] = useState(String(new Date().getFullYear()));
   const [pagina, setPagina] = useState(1);
   const [isMobile, setIsMobile] = useState(false);
+  const [sincronismos, setSincronismos] = useState([]);
+  const [erroSincronismos, setErroSincronismos] = useState(false);
+  const { materias } = useMaterias();
+  const turmasAtivas = useMemo(() => Object.values(obterTurmasAtivas(user)).flat(), [user]);
+
+  useEffect(() => {
+    if (!user?.uid) {
+      setSincronismos([]);
+      setErroSincronismos(false);
+      return undefined;
+    }
+    return onSnapshot(collection(db, "sincronismos"), (snapshot) => {
+      setErroSincronismos(false);
+      setSincronismos(snapshot.docs.map((item) => ({ id: item.id, ...item.data() })).filter((item) => item.ativo !== false));
+    }, (error) => {
+      console.error("Erro ao carregar sincronismos:", error);
+      setErroSincronismos(true);
+    });
+  }, [user?.uid]);
+
+  const anos = useMemo(() => [...new Set([...ANOS_BASE, String(new Date().getFullYear()), String(new Date().getFullYear() + 1), ...sincronismos.map((item) => String(item.ano))])].sort((a, b) => Number(a) - Number(b)), [sincronismos]);
+  const cargosGestao = ["admin", "administrador", "nucleo", "regional", "diretor", "direcao", "coordenador"];
+  const ehGestor = user?.cargos?.some((cargo) => cargosGestao.includes(String(cargo).toLowerCase())) || cargosGestao.includes(String(user?.cargo || "").toLowerCase());
 
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 639px)");
@@ -24,11 +52,23 @@ export default function QuickAccess({ onNavigate }) {
   const itensPorPagina = isMobile ? 1 : ITENS_DESKTOP;
 
   const disciplinas = useMemo(() => {
-    const base = DISCIPLINAS_POR_ANO[ano] || {};
-    const keys = Object.keys(base);
-    if (!user) return keys;
-    return keys.filter((key) => (user.disciplinas || []).includes(key));
-  }, [ano, user]);
+    const materiasValidas = new Set(materias.map((item) => item.key));
+    const sincronismosDoAno = sincronismos.filter((item) => String(item.ano) === String(ano) && materiasValidas.has(item.materia));
+    if (String(ano) === "2026") return [...new Set([...Object.keys(DISCIPLINAS_POR_ANO["2026"] || {}), ...sincronismosDoAno.map((item) => item.materia)])];
+    const serieTurmas = new Set(turmasAtivas.map((turma) => extrairSerieTurma(turma) || normalizarTurma(turma)));
+    const unidadesUsuario = [...new Set([
+      ...String(user?.unidade || "").split(","),
+      ...(Array.isArray(user?.unidadesComando) ? user.unidadesComando : String(user?.unidadesComando || "").split(",")),
+    ].map((item) => String(item).trim().toLocaleLowerCase("pt-BR")).filter(Boolean))];
+    const sincronismosVisiveis = !user || ehGestor ? sincronismosDoAno : sincronismosDoAno.filter((item) => {
+      const unidadeOk = item.todasUnidades !== false || (Array.isArray(item.unidades) && item.unidades.some((unidade) => unidadesUsuario.includes(String(unidade).trim().toLocaleLowerCase("pt-BR"))));
+      const segmentoOk = ehGestor || !turmasAtivas.length || (item.segmentos || []).some((segmento) => serieTurmas.has(extrairSerieTurma(segmento) || normalizarTurma(segmento)));
+      return unidadeOk && segmentoOk;
+    });
+    return [...new Set(sincronismosVisiveis.map((item) => item.materia))];
+  }, [ano, user, ehGestor, sincronismos, materias, turmasAtivas]);
+
+  const materiasPorChave = useMemo(() => Object.fromEntries(materias.map((item) => [item.key, item.nome])), [materias]);
 
   const totalPaginas = Math.ceil(disciplinas.length / itensPorPagina);
   const paginaAtual = Math.min(pagina, Math.max(totalPaginas, 1));
@@ -62,7 +102,7 @@ export default function QuickAccess({ onNavigate }) {
           role="group"
           aria-label="Filtrar por ano"
         >
-          {ANOS.map((a) => (
+          {anos.map((a) => (
             <button
               key={a}
               onClick={() => { setAno(a); setPagina(1); }}
@@ -74,15 +114,18 @@ export default function QuickAccess({ onNavigate }) {
               {a}
             </button>
           ))}
+          <input aria-label="Outro ano" type="number" min="2026" step="1" value={ano} onChange={(event) => { setAno(event.target.value); setPagina(1); }} className="w-20 rounded-full border border-gray-300 bg-white px-3 py-1.5 text-xs font-bold text-center" />
         </div>
       </div>
+
+      {erroSincronismos && <p role="status" className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-900">Não foi possível carregar os sincronismos salvos. As regras publicadas no Firebase precisam permitir a leitura da coleção <code>sincronismos</code>.</p>}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
         {disciplinasPaginadas.length === 0 && (
           <p className="text-gray-400 font-medium py-8 col-span-full">Nenhuma disciplina disponível.</p>
         )}
         {disciplinasPaginadas.map((key) => {
-          const nome = DISCIPLINAS_POR_ANO[ano][key].nome;
+          const nome = materiasPorChave[key] || sincronismos.find((item) => item.materia === key)?.materiaNome || DISCIPLINAS_POR_ANO[ano]?.[key]?.nome || key;
           const card = { id: `${ano}-${key}`, nome, unidade: null, turma: null, qtdTurmas: null, key, ano };
           return (
             <SubjectCard key={`${ano}-${paginaAtual}-${key}`} card={card} onClick={() => onNavigate("calendar", key, ano)} />

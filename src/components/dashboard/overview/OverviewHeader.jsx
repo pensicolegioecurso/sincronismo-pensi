@@ -1,4 +1,4 @@
-import { ArrowLeft, MessageCircle, FileSpreadsheet, Search, Filter, ChevronDown, X, CalendarDays } from "lucide-react";
+import { ArrowLeft, MessageCircle, MessagesSquare, FileSpreadsheet, Search, Filter, ChevronDown, X, CalendarDays, Menu } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 
 const meses = [
@@ -10,7 +10,8 @@ export default function OverviewHeader({
   isDiretor,
   currentUser,
   onBack,
-  onChat, 
+  onProfile,
+  onChat, onDirects,
   onReports,
   chatAberto,
   busca, setBusca,
@@ -23,6 +24,7 @@ export default function OverviewHeader({
   regionaisDisponiveis, unidadesDisponiveis
 }) {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const filterRef = useRef(null);
 
   useEffect(() => {
@@ -179,14 +181,21 @@ export default function OverviewHeader({
         </div>
 
         {/* DIREITA: Chat, Relatórios e Avatar */}
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="hidden items-center gap-2 shrink-0 sm:flex">
           {/* FORÇANDO O BOTÃO A SER UM BUTTON NATIVO E CHAMAR A FUNÇÃO */}
-          <button
+          {onDirects && <button
             type="button"
-            onClick={() => {
-              console.log("Clicou no chat!");
-              if(onChat) onChat();
-            }}
+            onClick={onDirects}
+            aria-label="Abrir meus directs"
+            title="Meus directs"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-50 text-gray-600 transition hover:bg-gray-200"
+          >
+            <MessagesSquare size={18} />
+          </button>}
+          <button
+            onClick={onChat}
+            aria-label={chatAberto ? "Fechar chat" : "Abrir chat"}
+            title="Chat"
             className={`relative flex h-9 w-9 items-center justify-center rounded-full transition ${
               chatAberto ? "bg-gradient-to-br from-indigo-500 to-fuchsia-500 text-white shadow-md" : "bg-gray-50 text-gray-600 hover:bg-gray-200"
             }`}
@@ -205,9 +214,19 @@ export default function OverviewHeader({
           
           <div className="w-[1px] h-6 bg-gray-200 mx-1"></div>
 
-          <button className="w-9 h-9 rounded-full bg-black text-white overflow-hidden flex items-center justify-center font-bold text-sm hover:opacity-80 transition-all">
+          <button type="button" onClick={onProfile} aria-label="Abrir meu perfil" title="Meu perfil" className="w-9 h-9 rounded-full bg-black text-white overflow-hidden flex items-center justify-center font-bold text-sm hover:opacity-80 transition-all">
             {currentUser?.nome ? currentUser.nome.charAt(0).toUpperCase() : "U"}
           </button>
+        </div>
+
+        <div className="relative sm:hidden">
+          <button type="button" onClick={() => setIsMenuOpen((open) => !open)} aria-label="Abrir menu" className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-gray-700"><Menu size={19} /></button>
+          {isMenuOpen && <div className="absolute right-0 top-12 z-50 w-52 rounded-2xl border border-gray-100 bg-white p-2 shadow-xl">
+            {onDirects && <button type="button" onClick={() => { setIsMenuOpen(false); onDirects(); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold hover:bg-gray-50"><MessagesSquare size={17}/>Meus directs</button>}
+            <button type="button" onClick={() => { setIsMenuOpen(false); onChat?.(); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold hover:bg-gray-50"><MessageCircle size={17}/>Chat</button>
+            <button type="button" onClick={() => { setIsMenuOpen(false); onReports?.(); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold hover:bg-gray-50"><FileSpreadsheet size={17}/>Relatórios</button>
+            <button type="button" onClick={() => { setIsMenuOpen(false); onProfile?.(); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold hover:bg-gray-50">Meu perfil</button>
+          </div>}
         </div>
 
       </div>

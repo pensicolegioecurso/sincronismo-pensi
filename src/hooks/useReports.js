@@ -2,8 +2,10 @@ import { useState, useCallback } from "react";
 import { getRelatorio } from "../services/api";
 import { normalizarProfessor, normalizarCheck, nomeDisciplina, formatarDataHora } from "../utils/formatters";
 import { DISCIPLINAS_POR_ANO } from "../utils/disciplinas";
+import { useMaterias } from "./useMaterias";
 
 export function useReports() {
+  const { materias } = useMaterias();
   const [professores, setProfessores] = useState([]);
   const [checks, setChecks] = useState([]);
   const [carregado, setCarregado] = useState(false);
@@ -25,5 +27,5 @@ export function useReports() {
     } finally { setLoading(false); }
   }, []);
 
-  return { professores, checks, carregado, loading, erro, carregar, nomeDisciplina: (k) => nomeDisciplina(k, DISCIPLINAS_POR_ANO), formatarDataHora };
+  return { professores, checks, carregado, loading, erro, carregar, nomeDisciplina: (k) => materias.find((item) => item.key === k)?.nome || nomeDisciplina(k, DISCIPLINAS_POR_ANO) || k, formatarDataHora };
 }

@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { salvarUsuarioComCPF, verificarCPFDisponivel } from "../../../services/cpfService";
 import { criarUsuarioSecundario } from "../../../services/criarUsuarioSecundario";
-import { DISCIPLINAS_POR_ANO } from "../../../utils/disciplinas";
+import { useMaterias } from "../../../hooks/useMaterias";
 import { useTurmas } from "../../../hooks/useTurmas";
 import { useUnidades } from "../../../hooks/useUnidades";
 import { Mail, Lock, User, MapPin, CreditCard, CheckCircle2 } from "lucide-react";
@@ -49,6 +49,7 @@ function formatarCPF(valor) {
 }
 
 export default function ManualForm({ onClose, onSuccess, perfilAtivo, unidadesEscopo, setErro }) {
+  const { materias } = useMaterias();
   const { todasUnidades } = useUnidades();
   const { getSeriesPorUnidades, getTurmasPorUnidadesESeries } = useTurmas({ somenteAtivas: true });
 
@@ -63,9 +64,13 @@ export default function ManualForm({ onClose, onSuccess, perfilAtivo, unidadesEs
   const [selecoesPorPar, setSelecoesPorPar] = useState({});
   const [loading, setLoading] = useState(false);
 
-  const perfilNormalizado = String(perfilAtivo || "").toLowerCase();
-  const ehRegionalLogado = perfilNormalizado === "regional";
-  const ehDiretorOuCoordenadorLogado = ["diretor", "direcao", "coordenador"].includes(perfilNormalizado);
+  const cargosLogado = [
+    ...(Array.isArray(perfilAtivo?.cargos) ? perfilAtivo.cargos : []),
+    perfilAtivo?.cargo,
+    ...(typeof perfilAtivo === "string" ? [perfilAtivo] : []),
+  ].filter(Boolean).map((cargo) => String(cargo).toLowerCase().trim());
+  const ehRegionalLogado = cargosLogado.includes("regional");
+  const ehDiretorOuCoordenadorLogado = cargosLogado.some((cargo) => ["diretor", "direcao", "coordenador"].includes(cargo));
 
   const unidadesDoEscopo = useMemo(() => {
     if (Array.isArray(unidadesEscopo)) return unidadesEscopo;
@@ -81,17 +86,11 @@ export default function ManualForm({ onClose, onSuccess, perfilAtivo, unidadesEs
 
   const cargosPermitidos = ehDiretorOuCoordenadorLogado
     ? [{ id: "professor", label: "Professor" }]
-    : CARGOS_ATRIBUIVEIS;
+    : ehRegionalLogado
+      ? CARGOS_ATRIBUIVEIS.filter((cargo) => ["diretor", "coordenador", "professor"].includes(cargo.id))
+      : CARGOS_ATRIBUIVEIS;
 
-  const disciplinasLista = useMemo(() => {
-    const todas = Object.values(DISCIPLINAS_POR_ANO).reduce((acc, ano) => {
-      Object.entries(ano).forEach(([key, value]) => {
-        acc[key] = value.nome;
-      });
-      return acc;
-    }, {});
-    return Object.entries(todas).sort((a, b) => a[1].localeCompare(b[1], "pt-BR"));
-  }, []);
+  const disciplinasLista = useMemo(() => materias.map((item) => [item.key, item.nome]), [materias]);
 
   const precisaDisciplinas = cargos.includes("professor");
   const ehRegional = cargos.includes("regional");

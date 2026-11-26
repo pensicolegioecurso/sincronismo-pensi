@@ -122,13 +122,19 @@ function interpretarArquivo(texto) {
   return { dados, erros };
 }
 
-export default function CsvImport({ onClose, onSuccess, setErro }) {
+export default function CsvImport({ onClose, onSuccess, setErro, perfilAtivo, unidadesEscopo }) {
   const fileInputRef = useRef(null);
 
   const [csvData, setCsvData] = useState([]);
   const [csvErros, setCsvErros] = useState([]);
   const [resultado, setResultado] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  const cargosPerfil = [...(perfilAtivo?.cargos || []), perfilAtivo?.cargo].filter(Boolean).map((cargo) => String(cargo).toLowerCase());
+  const regional = cargosPerfil.includes("regional");
+  const direcao = cargosPerfil.some((cargo) => ["diretor", "direcao", "coordenador"].includes(cargo));
+  const unidadesPermitidas = Array.isArray(unidadesEscopo) ? unidadesEscopo : String(unidadesEscopo || "").split(",").map((item) => item.trim()).filter(Boolean);
+  const unidadesGestor = String(perfilAtivo?.unidade || "").split(",").map((item) => item.trim()).filter(Boolean);
 
   const handleFileUpload = (event) => {
     const file = event.target.files?.[0];
@@ -144,8 +150,17 @@ export default function CsvImport({ onClose, onSuccess, setErro }) {
     reader.onload = (e) => {
       const texto = String(e.target.result || "");
       const { dados, erros } = interpretarArquivo(texto);
+      const restricoes = [];
+      if (regional || direcao) {
+        dados.forEach((usuario) => {
+          const papeisPermitidos = regional ? ["diretor", "coordenador", "professor"] : ["professor"];
+          if (!papeisPermitidos.includes(usuario.cargo)) restricoes.push(`Linha ${usuario.numeroLinha}: este perfil nÃ£o pode cadastrar o cargo ${usuario.cargo}.`);
+          const escopo = regional ? unidadesPermitidas : unidadesGestor;
+          if (!usuario.unidades.length || usuario.unidades.some((unidade) => !escopo.includes(unidade))) restricoes.push(`Linha ${usuario.numeroLinha}: a unidade informada nÃ£o pertence ao seu escopo.`);
+        });
+      }
       setCsvData(dados);
-      setCsvErros(erros);
+      setCsvErros([...erros, ...restricoes]);
     };
 
     reader.onerror = () => setCsvErros(["Não foi possível ler o arquivo selecionado."]);

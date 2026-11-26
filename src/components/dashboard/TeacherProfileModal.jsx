@@ -43,7 +43,7 @@ function gerarDiasUteis(dataInicio, dataFim) {
   return dias;
 }
 
-export default function TeacherProfileModal({ user, onClose }) {
+export default function TeacherProfileModal({ user, onClose, onDirectMessage, onAddShortcut }) {
   const { isDiaLetivo, calendarios } = useCalendario();
 
   const [abaAtiva, setAbaAtiva] = useState("pendente");
@@ -264,7 +264,7 @@ return createPortal(
       onClick={(event) => event.stopPropagation()}
       className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border-[3px] border-black bg-[#F7F7F5] shadow-[6px_6px_0px_#000]"
     >
-      <ProfileHeader user={user} onClose={onClose} />
+      <ProfileHeader user={user} onClose={onClose} onDirectMessage={onDirectMessage} onAddShortcut={onAddShortcut} />
 
       <div className="border-b-2 border-black bg-[#F7F7F5] p-4">
         <ProfileTabs

@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useAuth } from "../hooks/useAuth";
-import { DISCIPLINAS_POR_ANO } from "../utils/disciplinas";
+import { useMaterias } from "../hooks/useMaterias";
 import { UNIDADES } from "../data/unidades";
 import { useTurmas } from "../hooks/useTurmas";
 import { validarEmailInstitucional } from "../utils/validators";
@@ -47,6 +47,7 @@ function traduzirErro(error, padrao) {
 
 export default function Register({ onNavigate }) {
   const { register, atualizarPerfil, user } = useAuth();
+  const { materias } = useMaterias();
   const { getSeriesPorUnidades, getTurmasPorUnidadesESeries } = useTurmas({ somenteAtivas: true });
 
   const [baseStep, setBaseStep] = useState(1);
@@ -84,15 +85,7 @@ export default function Register({ onNavigate }) {
     }
   }, [user, googleUser, googleLoading]);
 
-  const disciplinasLista = useMemo(() => {
-    const todas = Object.values(DISCIPLINAS_POR_ANO).reduce((acc, ano) => {
-      Object.entries(ano).forEach(([key, value]) => {
-        acc[key] = value.nome;
-      });
-      return acc;
-    }, {});
-    return Object.entries(todas).sort((a, b) => a[1].localeCompare(b[1], "pt-BR"));
-  }, []);
+  const disciplinasLista = useMemo(() => materias.map((item) => [item.key, item.nome]), [materias]);
 
   const nomeDisciplina = useMemo(() => {
     const mapa = {};
@@ -129,8 +122,6 @@ export default function Register({ onNavigate }) {
     );
   };
 
-  const totalSteps = googleUser ? 2 + 2 * pares.length : 3 + 2 * pares.length;
-
   const currentStepNumber = (() => {
     if (baseStep === 1) return 1;
     if (baseStep === 2) return googleUser ? 1 : 2;
@@ -138,6 +129,11 @@ export default function Register({ onNavigate }) {
     const offset = googleUser ? 2 : 3;
     return offset + parIdx * 2 + (subStep === "turma" ? 2 : 1);
   })();
+
+  const totalSteps = Math.max(
+    currentStepNumber,
+    baseStep === 4 ? (googleUser ? 2 : 3) + 2 * pares.length : currentStepNumber
+  );
 
   const parAtual = pares[parIdx] || null;
   const chaveParAtual = parAtual ? `${parAtual.disciplina}|${parAtual.unidade}` : null;

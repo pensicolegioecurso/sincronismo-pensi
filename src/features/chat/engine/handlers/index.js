@@ -136,7 +136,7 @@ export function professoresSemCheck({ ctx }) {
 
 export function checksHoje({ ctx }) {
   const h = hoje();
-  const filtrados = ctx.checks.filter((c) => mesmaData(c.dataReal, h));
+  const filtrados = ctx.checks.filter((c) => mesmaData(c.dataReal || c.dataHora, h));
   return { text: `Hoje temos **${filtrados.length} checks** registrados.` };
 }
 
@@ -144,7 +144,7 @@ export function checksOntem({ ctx }) {
   const d = new Date();
   d.setDate(d.getDate() - 1);
   const alvo = { dia: d.getDate(), mes: d.getMonth() + 1 };
-  const filtrados = ctx.checks.filter((c) => mesmaData(c.dataReal, alvo));
+  const filtrados = ctx.checks.filter((c) => mesmaData(c.dataReal || c.dataHora, alvo));
   return { text: `Ontem tivemos **${filtrados.length} checks**.` };
 }
 
@@ -171,6 +171,78 @@ export function checksJustificados({ ctx }) {
         ),
     },
   };
+}
+
+const checkEhJustificado = (check) =>
+  normalizar(check.status) === "justificado" || normalizar(check.tipo) === "justificativa";
+const checkEhPendente = (check) => normalizar(check.status) === "pendente";
+const checkEhConcluido = (check) =>
+  !checkEhJustificado(check) && !checkEhPendente(check) &&
+  ["concluido", "concluida", "realizado", "realizada", "feito", "feita"].includes(normalizar(check.status));
+
+export function checksPendentes({ ctx }) {
+  const itens = ctx.checks.filter(checkEhPendente);
+  return {
+    text: `Encontrei **${itens.length} checks pendentes**${itens.length ? ":" : "."}`,
+    data: itens.length ? { tipo: "lista", itens: itens.slice(0, 20).map((c) => `${c.unidade || "Unidade n/i"} • ${c.serie || c.turma || "Série n/i"} • ${c.disciplina || "Disciplina n/i"} • ${fmtBR(c.dataReal || c.dataHora)}`) } : null,
+  };
+}
+
+export function checksConcluidos({ ctx }) {
+  const itens = ctx.checks.filter(checkEhConcluido);
+  return { text: `Encontrei **${itens.length} checks concluídos**.` };
+}
+
+export function checksPorDisciplina({ ctx, extract }) {
+  const alvo = normalizar(extract || "");
+  if (!alvo) {
+    const ranking = contarPor(ctx.checks, (c) => c.disciplina);
+    return ranking.length
+      ? { text: "Checks registrados por disciplina:", data: { tipo: "ranking", ranking, unidade: "checks" } }
+      : { text: "Ainda não há checks com disciplina registrada." };
+  }
+  const itens = ctx.checks.filter((c) => normalizar(c.disciplina).includes(alvo));
+  if (!itens.length) return { text: `Não encontrei checks para **${extract}**.` };
+  return {
+    text: `Encontrei **${itens.length} checks** de **${extract}**.`,
+    data: {
+      tipo: "lista",
+      itens: itens.slice(0, 20).map(
+        (c) => `${c.unidade || "Unidade n/i"} • ${c.serie || c.turma || "Série n/i"} • ${fmtBR(c.dataReal || c.dataHora)}`
+      ),
+    },
+  };
+}
+
+export function checksPorSerie({ ctx, extract }) {
+  const alvo = normalizar(extract || "");
+  if (!alvo) {
+    const ranking = contarPor(ctx.checks, (c) => c.serie || c.turma);
+    return ranking.length
+      ? { text: "Checks registrados por série/turma:", data: { tipo: "ranking", ranking, unidade: "checks" } }
+      : { text: "Ainda não há checks com série ou turma registrada." };
+  }
+  const itens = ctx.checks.filter((c) => normalizar(c.serie || c.turma).includes(alvo));
+  if (!itens.length) return { text: `Não encontrei checks para **${extract}**.` };
+  return {
+    text: `Encontrei **${itens.length} checks** para **${extract}**.`,
+    data: {
+      tipo: "lista",
+      itens: itens.slice(0, 20).map(
+        (c) => `${c.unidade || "Unidade n/i"} • ${c.disciplina || "Disciplina n/i"} • ${fmtBR(c.dataReal || c.dataHora)}`
+      ),
+    },
+  };
+}
+
+export function resumoChecks({ ctx }) {
+  const total = ctx.checks.length;
+  const concluidos = ctx.checks.filter(checkEhConcluido).length;
+  const pendentes = ctx.checks.filter(checkEhPendente).length;
+  const justificados = ctx.checks.filter(checkEhJustificado).length;
+  const unidades = new Set(ctx.checks.map((c) => normalizar(c.unidade)).filter(Boolean)).size;
+  const professores = new Set(ctx.checks.map((c) => normalizar(c.professorEmail)).filter(Boolean)).size;
+  return { text: `Resumo dos dados disponíveis:\n• **${total} checks** no total\n• **${concluidos} concluídos**, **${pendentes} pendentes** e **${justificados} justificados**\n• Registros em **${unidades} unidades** e de **${professores} professores**.` };
 }
 
 export function checksSemana({ ctx }) {
@@ -247,8 +319,9 @@ export function ajuda() {
       "Posso te ajudar com:\n" +
       "• Unidades (melhor unidade, ranking, checks por unidade)\n" +
       "• Professores (lista, checks, ranking, sem check)\n" +
-      "• Checks (hoje, ontem, justificados, total)\n" +
-      "• Calendário (aulas hoje, próximas)\n" +
+      "• Checks (hoje, ontem, semana, mês, pendentes, concluídos e justificados)\n" +
+      "• Consultas por unidade, professor, disciplina ou série\n" +
+      "• Resumo geral, rankings e cadastros\n" +
       "• Segmentos\n\n" +
       "Ex: *qual a melhor unidade?*, *checks do professor João*",
   };
@@ -280,6 +353,11 @@ export const HANDLERS = {
   checksOntem,
   totalChecks,
   checksJustificados,
+  checksPendentes,
+  checksConcluidos,
+  checksPorDisciplina,
+  checksPorSerie,
+  resumoChecks,
   checksSemana,
   checksMes,
   aulasHoje,

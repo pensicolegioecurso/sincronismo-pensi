@@ -14,6 +14,8 @@ import PermissionsModal from "./users/PermissionsModal";
 import DeleteModal from "./users/DeleteModal";
 import CadastrarUsuario from "./users/CadastrarUsuario";
 import TeacherProfileModal from "./TeacherProfileModal";
+import { ChatModal } from "../../features/chat/components/ChatModal";
+import { useChatModal } from "../../features/chat/hooks/useChatModal";
 
 const POR_PAGINA = 10;
 
@@ -58,7 +60,10 @@ export default function AdminUsers({
   onBack,
   onChat,
   onFamily,
+  onProfileOpen,
+  onDirects,
 }) {
+  const chat = useChatModal();
   const { todas: todasTurmasDb } = useTurmas();
   const { todasUnidades } = useUnidades();
 
@@ -282,8 +287,10 @@ export default function AdminUsers({
           user={currentUser} 
           busca={busca} setBusca={setBusca}
           onBack={onBack || (() => window.history.back())}
-          onChat={onChat}
+          onChat={onChat || chat.abrir}
           onFamily={onFamily}
+          onProfileOpen={onProfileOpen}
+          onDirects={onDirects}
           filtroCargo={filtroCargo} setFiltroCargo={setFiltroCargo}
           filtroStatus={filtroStatus} setFiltroStatus={setFiltroStatus}
           filtroRegional={filtroRegional} setFiltroRegional={setFiltroRegional}
@@ -365,6 +372,7 @@ export default function AdminUsers({
           unidadesEscopo={unidadesEscopo}
         />
       )}
+      <ChatModal aberto={chat.aberto} onClose={chat.fechar} />
     </div>
   );
 }

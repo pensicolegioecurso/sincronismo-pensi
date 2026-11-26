@@ -23,6 +23,7 @@ export function ChatInput({ onSend, disabled }) {
           }
         }}
         rows={1}
+        aria-label="Escreva sua pergunta"
       />
       <button
         className="chat-send"

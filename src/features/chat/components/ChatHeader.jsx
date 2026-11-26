@@ -1,13 +1,16 @@
+import { Sparkles } from "lucide-react";
+
 export function ChatHeader({ onClose }) {
   return (
     <header className="chat-header">
       <div className="chat-header-info">
         <div className="chat-avatar">✦</div>
         <div>
-          <h1 className="chat-title">Pergunte aos Sincronismos</h1>
-          <p className="chat-subtitle">
-            Unidades · Professores · Checks · Calendário
-          </p>
+          <div className="chat-title-row">
+            <h1 className="chat-title">Assistente Sincronismos</h1>
+            <Sparkles size={15} aria-hidden="true" />
+          </div>
+          <p className="chat-subtitle">Dados de unidades, professores e checks</p>
         </div>
       </div>
       {onClose && (

@@ -227,10 +227,14 @@ export default function AdminOverview({
   cargoUsuario,
   currentUser,
   onBack,
+  onProfileOpen,
+  onDirects,
+  atalhosInicio = [],
   onFamily,
   onDownloadPDF,
 }) {
   const [mostrarRelatorios, setMostrarRelatorios] = useState(false);
+  const [formatoInicialRelatorio, setFormatoInicialRelatorio] = useState("excel");
   const chat = useChatModal(); // Hook do chat instanciado
 
   const [filtroRegional, setFiltroRegional] = useState([]);
@@ -644,6 +648,18 @@ export default function AdminOverview({
   }, [checks, users, filtroPeriodo, mesFiltro, dataInicioCustom, dataFimCustom, filtroRegional, filtroUnidade, regionais, isDiretor, isRegional, unidadeFoco, unidadesEscopo, carregando]);
 
   const totalGeral = dadosFiltrados.total.concluidas + dadosFiltrados.total.pendentes + dadosFiltrados.total.justificadas;
+  const abrirUnidadeDoResumo = () => {
+    if (!isDiretor) return;
+    const unidade = dadosFiltrados.porUnidade.find((item) => mesmaUnidade(item.nome, unidadeFoco)) || {
+      nome: unidadeFoco,
+      c: 0,
+      p: 0,
+      j: 0,
+      turmas: [],
+      historico: [],
+    };
+    setUnidadeSelecionada(unidade);
+  };
   const percentualConcluidas = totalGeral > 0 ? Math.round((dadosFiltrados.total.concluidas / totalGeral) * 100) : 0;
   const totalPaginas = Math.ceil(unidadesBuscadas.length / ITENS_POR_PAGINA);
 
@@ -667,9 +683,11 @@ export default function AdminOverview({
           <OverviewHeader
             isDiretor={isDiretor}
             currentUser={currentUser}
+            onProfile={onProfileOpen}
             onBack={onBack || (() => window.history.back())}
             onReports={() => setMostrarRelatorios(true)}
             onChat={chat.abrir}
+            onDirects={onDirects}
             chatAberto={chat.aberto}
             busca={busca} setBusca={setBusca}
             filtroPeriodo={filtroPeriodo} setFiltroPeriodo={setFiltroPeriodo}
@@ -695,7 +713,7 @@ export default function AdminOverview({
                   <h2 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight flex flex-wrap items-center gap-2">
                     Olá,
                     <span className="bg-pensi-yellow text-black px-3 py-0.5 rounded-lg inline-block -rotate-2 shadow-sm">
-                      {nomeUsuario ? nomeUsuario.split(" ")[0] : "Usuário"}
+                      {(nomeUsuario || currentUser?.nome || "Pessoa").split(" ")[0]}
                     </span>
                     !
                   </h2>
@@ -708,13 +726,23 @@ export default function AdminOverview({
                   totalGeral={totalGeral}
                   percentualConcluidas={percentualConcluidas}
                   total={dadosFiltrados.total}
+                  onClick={isDiretor ? abrirUnidadeDoResumo : undefined}
                 />
 
-                <OverviewUnits
-                  isDiretor={isDiretor}
-                  porUnidade={unidadesPaginadas}
-                  onOpenUnit={setUnidadeSelecionada}
-                />
+                {atalhosInicio.some((atalho) => ["relatorio-excel", "relatorio-pdf"].includes(atalho)) && (
+                  <div className="my-4 flex flex-wrap gap-2">
+                    {atalhosInicio.includes("relatorio-excel") && <button type="button" onClick={() => { setFormatoInicialRelatorio("excel"); setMostrarRelatorios(true); }} className="rounded-full bg-white px-4 py-2 text-xs font-bold shadow-sm hover:bg-amber-50">Baixar relatório Excel</button>}
+                    {atalhosInicio.includes("relatorio-pdf") && <button type="button" onClick={() => { setFormatoInicialRelatorio("pdf"); setMostrarRelatorios(true); }} className="rounded-full bg-white px-4 py-2 text-xs font-bold shadow-sm hover:bg-amber-50">Gerar relatório PDF</button>}
+                  </div>
+                )}
+
+                {!isDiretor && (
+                  <OverviewUnits
+                    isDiretor={false}
+                    porUnidade={unidadesPaginadas}
+                    onOpenUnit={setUnidadeSelecionada}
+                  />
+                )}
 
                 {totalPaginas > 1 && (
                   <div className="mt-8 flex items-center justify-between border-t border-gray-100 pt-5">
@@ -767,12 +795,13 @@ export default function AdminOverview({
             mesFiltro={mesFiltro}
             dataInicioCustom={dataInicioCustom}
             dataFimCustom={dataFimCustom}
+            initialFormat={formatoInicialRelatorio}
           />
         )}
       </div>
 
       {/* CHAT MODAL - FORA DO CONTAINER PARA FLUTUAR CORRETAMENTE */}
-      <ChatModal {...chat.props} />
+      <ChatModal aberto={chat.aberto} onClose={chat.fechar} />
     </>
   );
 }

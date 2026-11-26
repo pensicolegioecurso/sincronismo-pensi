@@ -1,4 +1,4 @@
-import { CheckCircle2, AlertCircle, Clock, PieChart } from "lucide-react";
+import { CheckCircle2, AlertCircle, Clock, PieChart, ChevronRight } from "lucide-react";
 
 function RingProgress({ percent, size = 100, stroke = 8 }) {
   const radius = (size - stroke) / 2;
@@ -23,7 +23,8 @@ function RingProgress({ percent, size = 100, stroke = 8 }) {
   );
 }
 
-export default function OverviewSummary({ totalGeral, percentualConcluidas, total }) {
+export default function OverviewSummary({ totalGeral, percentualConcluidas, total, onClick }) {
+  const Container = onClick ? "button" : "section";
   const BarRow = ({ label, value, Icon }) => {
     const pct = totalGeral > 0 ? Math.round((value / totalGeral) * 100) : 0;
     return (
@@ -45,7 +46,7 @@ export default function OverviewSummary({ totalGeral, percentualConcluidas, tota
   };
 
   return (
-    <section className="mb-8">
+    <Container type={onClick ? "button" : undefined} onClick={onClick} aria-label={onClick ? "Abrir resumo detalhado da unidade" : undefined} className={`mb-8 block w-full text-left ${onClick ? "group cursor-pointer rounded-[32px] outline-none transition hover:-translate-y-0.5 hover:shadow-lg focus-visible:ring-4 focus-visible:ring-pensi-yellow/50" : ""}`}>
       {/* LIQUID GLASS REAL */}
       <div className="relative overflow-hidden rounded-[32px] border border-white/60 bg-gradient-to-br from-white/80 via-white/50 to-white/20 backdrop-blur-2xl shadow-[0_8px_32px_rgba(0,0,0,0.06),inset_0_1px_1px_rgba(255,255,255,0.8)]">
         
@@ -55,6 +56,7 @@ export default function OverviewSummary({ totalGeral, percentualConcluidas, tota
         <div className="flex items-center gap-2 border-b border-black/5 bg-white/20 p-5">
           <PieChart size={16} className="text-gray-600" />
           <h2 className="text-sm font-bold text-gray-800">Resumo do período</h2>
+          {onClick && <ChevronRight size={18} className="ml-auto text-gray-500 transition-transform group-hover:translate-x-1" aria-hidden="true" />}
         </div>
 
         <div className="flex flex-col md:flex-row items-stretch gap-4 p-6">
@@ -70,6 +72,6 @@ export default function OverviewSummary({ totalGeral, percentualConcluidas, tota
           </div>
         </div>
       </div>
-    </section>
+    </Container>
   );
 }

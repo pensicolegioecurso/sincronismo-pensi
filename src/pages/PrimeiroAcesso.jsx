@@ -7,13 +7,16 @@ import {
   EyeOff,
   KeyRound,
   ShieldCheck,
-  LogOut,
   CheckCircle2,
-  AlertCircle,
   Loader2,
 } from "lucide-react";
 
 import { useAuth } from "../hooks/useAuth";
+import AuthBackButton from "../components/auth/AuthBackButton";
+import AuthCard from "../components/auth/AuthCard";
+import AuthError from "../components/auth/AuthError";
+import RegisterPasswordStrength from "../components/register/RegisterPasswordStrength";
+import { validarSenha } from "../utils/validators";
 
 export default function PrimeiroAcesso() {
   const {
@@ -37,8 +40,9 @@ export default function PrimeiroAcesso() {
 
     setErro("");
 
-    if (senha.length < 6) {
-      setErro("A senha precisa ter pelo menos 6 caracteres.");
+    const erroSenha = validarSenha(senha);
+    if (erroSenha) {
+      setErro(erroSenha);
       return;
     }
 
@@ -73,24 +77,19 @@ export default function PrimeiroAcesso() {
   };
 
   return (
-    <main className="min-h-screen bg-[#f3f4f6] flex items-center justify-center px-4 py-8">
-      <div className="w-full max-w-md">
-
-        <div className="text-center mb-7">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-pensi-yellow border-[2px] border-black rounded-2xl shadow-[4px_4px_0px_#000] mb-5">
-            <KeyRound className="w-8 h-8 text-black" strokeWidth={2.5} />
-          </div>
-
-          <h1 className="text-2xl font-black uppercase tracking-tight text-black">
-            Primeiro acesso
-          </h1>
-
-          <p className="text-sm text-gray-500 mt-2">
-            Vamos configurar sua senha pessoal.
-          </p>
-        </div>
-
-        <div className="bg-white border-[2px] border-black rounded-xl shadow-[6px_6px_0px_#000] p-6 sm:p-8">
+    <main className="relative isolate min-h-screen flex items-center justify-center bg-[#F1F2F4] px-4 sm:px-6 py-12">
+      <AuthBackButton onClick={handleLogout} label="Sair" />
+      <AuthCard maxWidth="max-w-[900px]">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center mt-4">
+          <section className="order-2 lg:order-1 flex flex-col items-start text-left">
+            <KeyRound className="w-10 h-10 sm:w-12 sm:h-12 text-[#111111] mb-6" strokeWidth={2.5} />
+            <div className="mb-8">
+              <h1 className="text-[40px] sm:text-[48px] font-black tracking-[-0.04em] leading-[0.9] text-[#111111] uppercase -rotate-2">Primeiro</h1>
+              <h1 className="text-[40px] sm:text-[48px] font-black tracking-[-0.04em] leading-[0.9] uppercase rotate-2 mt-2 ml-2"><span className="bg-pensi-yellow px-3 py-1 inline-block text-[#111111]">acesso.</span></h1>
+            </div>
+            <p className="text-[15px] sm:text-[16px] font-medium leading-relaxed text-gray-500 max-w-[320px]">Vamos configurar sua senha pessoal para liberar o acesso à sua conta.</p>
+          </section>
+          <section className="order-1 lg:order-2 w-full max-w-md mx-auto lg:max-w-none lg:border-l border-gray-100 lg:pl-12">
 
           <div className="flex items-start gap-3 p-3 bg-yellow-50 border-[2px] border-yellow-300 rounded-lg mb-6">
             <ShieldCheck className="w-5 h-5 text-yellow-700 shrink-0 mt-0.5" />
@@ -118,12 +117,7 @@ export default function PrimeiroAcesso() {
             </p>
           </div>
 
-          {erro && (
-            <div className="flex items-start gap-2 p-3 mb-4 bg-red-50 border-[2px] border-red-200 rounded-lg">
-              <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
-              <p className="text-xs text-red-700 font-medium">{erro}</p>
-            </div>
-          )}
+          <AuthError>{erro}</AuthError>
 
           {sucesso && (
             <div className="flex items-start gap-2 p-3 mb-4 bg-green-50 border-[2px] border-green-200 rounded-lg">
@@ -151,15 +145,14 @@ export default function PrimeiroAcesso() {
                   placeholder="Digite sua nova senha"
                   autoComplete="new-password"
                   required
-                  minLength={6}
                   disabled={loading || sucesso}
-                  className="w-full border-[2px] border-black rounded-lg pl-9 pr-11 py-3 text-sm outline-none focus:bg-pensi-yellow/20 transition-colors disabled:bg-gray-100"
+                  className="w-full bg-white border border-gray-200 rounded-2xl pl-11 pr-12 py-4 text-[14px] text-[#111111] placeholder:text-gray-400 outline-none focus:border-pensi-yellow focus:ring-4 focus:ring-pensi-yellow/20 transition-all disabled:bg-gray-100"
                 />
 
                 <button
                   type="button"
                   onClick={() => setMostrarSenha((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-black"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#111111]"
                 >
                   {mostrarSenha
                     ? <EyeOff className="w-4 h-4" />
@@ -167,9 +160,7 @@ export default function PrimeiroAcesso() {
                 </button>
               </div>
 
-              <p className="text-[10px] text-gray-400 mt-1">
-                Mínimo de 6 caracteres.
-              </p>
+              <RegisterPasswordStrength senha={senha} />
             </div>
 
             <div>
@@ -188,13 +179,13 @@ export default function PrimeiroAcesso() {
                   autoComplete="new-password"
                   required
                   disabled={loading || sucesso}
-                  className="w-full border-[2px] border-black rounded-lg pl-9 pr-11 py-3 text-sm outline-none focus:bg-pensi-yellow/20 transition-colors disabled:bg-gray-100"
+                  className="w-full bg-white border border-gray-200 rounded-2xl pl-11 pr-12 py-4 text-[14px] text-[#111111] placeholder:text-gray-400 outline-none focus:border-pensi-yellow focus:ring-4 focus:ring-pensi-yellow/20 transition-all disabled:bg-gray-100"
                 />
 
                 <button
                   type="button"
                   onClick={() => setMostrarConfirmacao((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-black"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#111111]"
                 >
                   {mostrarConfirmacao
                     ? <EyeOff className="w-4 h-4" />
@@ -207,7 +198,7 @@ export default function PrimeiroAcesso() {
               <button
                 type="submit"
                 disabled={loading || !senha || !confirmarSenha}
-                className="w-full flex items-center justify-center gap-2 bg-pensi-yellow text-black border-[2px] border-black rounded-lg px-5 py-3 text-sm font-bold shadow-[3px_3px_0px_#000] hover:bg-[#ffdb4d] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_#000] active:shadow-none active:translate-x-[3px] active:translate-y-[3px] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full flex items-center justify-center gap-2 bg-pensi-yellow text-[#111111] rounded-2xl px-5 py-4 text-[14px] font-bold hover:bg-pensi-yellow-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? (
                   <>
@@ -230,25 +221,9 @@ export default function PrimeiroAcesso() {
 
           </form>
 
-          <div className="mt-6 pt-5 border-t border-gray-100">
-            <button
-              type="button"
-              onClick={handleLogout}
-              disabled={loading}
-              className="w-full flex items-center justify-center gap-2 text-xs font-semibold text-gray-500 hover:text-black transition-colors"
-            >
-              <LogOut className="w-4 h-4" />
-              Sair da conta
-            </button>
-          </div>
-
+          </section>
         </div>
-
-        <p className="text-center text-[10px] text-gray-400 mt-5">
-          Ambiente institucional Pensi
-        </p>
-
-      </div>
+      </AuthCard>
     </main>
   );
 }

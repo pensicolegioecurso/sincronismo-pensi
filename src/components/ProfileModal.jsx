@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
-  X, User, Mail, LogOut, Link2, Unlink, CheckCircle2, AlertCircle, Loader2,
-  Lock, Eye, EyeOff, KeyRound,
+  X, Mail, LogOut, Link2, Unlink, CheckCircle2, AlertCircle, Loader2,
+  Lock, Eye, EyeOff, KeyRound, AtSign, Save,
 } from "lucide-react";
 import {
   GoogleAuthProvider, linkWithPopup, unlink,
@@ -10,8 +10,10 @@ import {
 import { auth } from "../services/firebase";
 import { useAuth } from "../hooks/useAuth";
 
+const PROFILE_DOTS = ["bg-[#F5B800]", "bg-[#D7E7FF]", "bg-[#F4D5E5]"];
+
 export default function ProfileModal({ open, onClose }) {
-  const { user, logout } = useAuth();
+  const { user, logout, atualizarUsername } = useAuth();
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState("");
   const [sucesso, setSucesso] = useState("");
@@ -28,6 +30,12 @@ export default function ProfileModal({ open, onClose }) {
   const [salvandoSenha, setSalvandoSenha] = useState(false);
   const [erroSenha, setErroSenha] = useState("");
   const [sucessoSenha, setSucessoSenha] = useState("");
+  const [usernameDraft, setUsernameDraft] = useState("");
+  const [salvandoUsername, setSalvandoUsername] = useState(false);
+
+  useEffect(() => {
+    if (open) setUsernameDraft(user?.username || "");
+  }, [open, user?.username]);
 
   if (!open || !user) return null;
 
@@ -143,20 +151,47 @@ export default function ProfileModal({ open, onClose }) {
     }
   };
 
+  const handleSalvarUsername = async (e) => {
+    e.preventDefault();
+    setErro("");
+    setSucesso("");
+    setSalvandoUsername(true);
+    const resultado = await atualizarUsername(usernameDraft);
+    if (resultado.ok) {
+      setUsernameDraft(resultado.username);
+      setSucesso("@username atualizado com sucesso!");
+    } else {
+      setErro(resultado.message);
+    }
+    setSalvandoUsername(false);
+  };
+
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-      <div className="bg-white border-2 border-black rounded-md shadow-[6px_6px_0px_#000] w-full max-w-md max-h-[92vh] flex flex-col">
-        <div className="bg-[#171717] text-white px-4 py-3 border-b-2 border-black flex justify-between items-center rounded-t-md shrink-0">
-          <div className="flex items-center gap-2">
-            <User className="w-4 h-4 text-pensi-yellow" />
-            <h3 className="font-black text-xs uppercase tracking-wide">Meu perfil</h3>
+    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-3 backdrop-blur-sm animate-fade-in sm:p-5">
+      <div className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-2xl">
+        <div className="shrink-0">
+          <div className="relative h-32 bg-gradient-to-br from-amber-300 via-yellow-400 to-orange-300 sm:h-40">
+            <div className="absolute inset-0 opacity-20" style={{ backgroundImage: "radial-gradient(circle at 1px 1px, #111 1px, transparent 0)", backgroundSize: "18px 18px" }} />
+            <div className="absolute left-5 top-4 flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-1.5 backdrop-blur">
+              {PROFILE_DOTS.map((color, index) => <span key={index} className={`h-2.5 w-2.5 rounded-full border border-black/20 ${color}`} />)}
+              <span className="ml-1 text-[10px] font-black uppercase tracking-wider text-gray-700">Meu perfil</span>
+            </div>
+            <button type="button" onClick={onClose} aria-label="Fechar perfil" className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-gray-700 shadow-sm transition hover:bg-white"><X size={18} /></button>
           </div>
-          <button onClick={onClose} className="p-1.5 border border-white/30 rounded-md hover:bg-white/10">
-            <X className="w-3.5 h-3.5" />
-          </button>
+          <div className="px-5 pb-5 sm:px-8">
+            <div className="-mt-12 flex items-end justify-between gap-3 sm:-mt-14">
+              <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full border-4 border-white bg-pensi-yellow text-3xl font-black text-black shadow-md sm:h-28 sm:w-28">{(user.nome || user.email || "?").charAt(0).toUpperCase()}</div>
+              <span className="mb-2 rounded-full bg-gray-100 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-gray-600">Perfil pessoal</span>
+            </div>
+            <div className="mt-3 min-w-0">
+              <h3 className="truncate text-2xl font-black tracking-tight text-gray-900">{user.nome || "Meu perfil"}</h3>
+              <p className="mt-0.5 truncate text-sm font-medium text-gray-500">@{user.username || "defina_seu_usuario"}</p>
+              <p className="mt-3 flex items-center gap-2 text-xs text-gray-500"><Mail size={14} />{user.email}</p>
+            </div>
+          </div>
         </div>
 
-        <div className="p-4 space-y-4 overflow-y-auto flex-1">
+        <div className="flex-1 space-y-5 overflow-y-auto border-t border-gray-100 bg-gray-50/70 p-4 sm:p-7">
           {erro && (
             <div className="flex items-start gap-2 p-2 bg-red-100 border-2 border-red-400 rounded-md">
               <AlertCircle className="w-4 h-4 text-red-700 shrink-0 mt-0.5" />
@@ -170,23 +205,26 @@ export default function ProfileModal({ open, onClose }) {
             </div>
           )}
 
-          {/* Identificação */}
-          <div className="flex items-center gap-3 pb-3 border-b-2 border-dashed border-gray-200">
-            <div className="w-12 h-12 bg-pensi-yellow border-2 border-black rounded-md flex items-center justify-center text-lg font-black text-black shadow-[2px_2px_0px_#000]">
-              {(user.nome || user.email || "?").charAt(0).toUpperCase()}
+          {/* Edição do perfil */}
+          <form onSubmit={handleSalvarUsername} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
+            <div className="mb-4"><h4 className="text-base font-black text-gray-900">Editar perfil</h4><p className="mt-1 text-xs text-gray-500">Personalize como as pessoas encontram você.</p></div>
+            <label htmlFor="profile-username" className="mb-1.5 flex items-center gap-1.5 text-xs font-bold text-gray-700">
+              <AtSign size={13} /> Seu username
+            </label>
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-gray-400">@</span>
+              <input id="profile-username" value={usernameDraft} onChange={(event) => setUsernameDraft(event.target.value.replace(/^@+/, ""))} maxLength={20} autoComplete="username" className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-900 outline-none transition focus:border-yellow-500 focus:bg-white" placeholder="seu.username" />
+              <button type="submit" disabled={salvandoUsername || !usernameDraft.trim()} className="flex h-10 shrink-0 items-center gap-1.5 rounded-xl bg-black px-4 text-xs font-bold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50">
+                {salvandoUsername ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Salvar
+              </button>
             </div>
-            <div className="min-w-0 flex-1">
-              <h4 className="text-sm font-black text-black truncate">{user.nome || "Sem nome"}</h4>
-              <p className="text-[10px] text-gray-500 truncate flex items-center gap-1">
-                <Mail className="w-2.5 h-2.5" /> {user.email}
-              </p>
-            </div>
-          </div>
+            <p className="mt-1.5 text-[10px] text-gray-500">De 3 a 20 caracteres: letras, números, ponto ou underline.</p>
+          </form>
 
-          {/* Métodos de login */}
-          <div>
-            <p className="text-[9px] font-black uppercase tracking-widest text-gray-500 mb-2">
-              Métodos de login
+          {/* Segurança da conta */}
+          <div className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-5">
+            <p className="mb-3 text-sm font-black text-gray-900">
+              Segurança da conta
             </p>
             <div className="space-y-2">
               {/* Senha */}

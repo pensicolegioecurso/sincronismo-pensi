@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AlertCircle, UserRound, FileSpreadsheet, CreditCard, UserPlus } from "lucide-react";
 
 import ModalShell from "./ModalShell";
@@ -15,6 +15,14 @@ const ABAS = [
 export default function CadastrarUsuario({ onClose, onSuccess, perfilAtivo, unidadesEscopo }) {
   const [abaAtiva, setAbaAtiva] = useState("cpf");
   const [erro, setErro] = useState("");
+  const cargos = [...(perfilAtivo?.cargos || []), perfilAtivo?.cargo].filter(Boolean).map((cargo) => String(cargo).toLowerCase());
+  const regional = cargos.includes("regional");
+  const direcao = cargos.some((cargo) => ["diretor", "direcao", "coordenador"].includes(cargo));
+  const abasVisiveis = regional || direcao ? ABAS.filter((aba) => aba.id !== "cpf") : ABAS;
+
+  useEffect(() => {
+    if (!abasVisiveis.some((aba) => aba.id === abaAtiva)) setAbaAtiva(abasVisiveis[0]?.id || "manual");
+  }, [abaAtiva, abasVisiveis]);
 
   const trocarAba = (aba) => {
     setAbaAtiva(aba);
@@ -30,7 +38,7 @@ export default function CadastrarUsuario({ onClose, onSuccess, perfilAtivo, unid
       onClose={onClose}
     >
       <div className="mb-5 flex rounded-full bg-gray-100 p-1">
-        {ABAS.map(({ id, label, icon: Icon }) => (
+        {abasVisiveis.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
             type="button"
@@ -64,7 +72,7 @@ export default function CadastrarUsuario({ onClose, onSuccess, perfilAtivo, unid
         />
       )}
 
-      {abaAtiva === "planilha" && <CsvImport onClose={onClose} onSuccess={onSuccess} setErro={setErro} />}
+      {abaAtiva === "planilha" && <CsvImport onClose={onClose} onSuccess={onSuccess} setErro={setErro} perfilAtivo={perfilAtivo} unidadesEscopo={unidadesEscopo} />}
     </ModalShell>
   );
 }

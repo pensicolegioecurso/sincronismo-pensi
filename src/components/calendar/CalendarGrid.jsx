@@ -2,7 +2,7 @@ import { COLUNAS_DIAS, pad2 } from "../../utils/formatters";
 
 export default function CalendarGrid({
   weeks, mesSelecionado, onDayClick, diaSelecionado,
-  isDiaLetivo, turmaSelecionada, serie, unidadeSelecionada,
+  isDiaLetivo, turmaSelecionada, serie, unidadeSelecionada, maxWeeks = 12, onLoadMore,
 }) {
   if (!weeks.length) {
     return (
@@ -33,9 +33,11 @@ export default function CalendarGrid({
     );
   }
 
+  const paginaVisivel = visiveis.slice(0, maxWeeks);
+
   return (
     <div className="space-y-4">
-      {visiveis.map((sem) => {
+      {paginaVisivel.map((sem) => {
         const originalIdx = weeks.indexOf(sem);
 
         return (
@@ -121,6 +123,7 @@ export default function CalendarGrid({
           </div>
         );
       })}
+      {visiveis.length > maxWeeks && <button type="button" onClick={onLoadMore} className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-bold text-gray-700 transition hover:bg-gray-50">Carregar mais semanas</button>}
     </div>
   );
 }

@@ -374,7 +374,7 @@ export default function App() {
             ano={calendarContext.ano}
             unidadePreSelecionada={calendarContext.unidade}
             turmaPreSelecionada={calendarContext.turma}
-            onBack={() => navigate(user ? "professor" : "home")}
+            onBack={() => navigate(user ? telaDoCargo(perfilAtivo || user.cargo || user.cargos?.[0]) : "home")}
           />
         )}
 

@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import {
   X, ChevronLeft, ChevronRight, Search, Trash2, Upload, CheckCircle2,
   UserPlus, UserMinus, GraduationCap, Building2, CalendarPlus, CalendarX,
-  UserCheck, FileSpreadsheet, Layers, PlusCircle, Settings
+  UserCheck, FileSpreadsheet, Layers, PlusCircle, Settings, Eye
 } from "lucide-react";
 
 import {
@@ -17,6 +17,9 @@ import { useUnidades } from "../../hooks/useUnidades";
 import { useSegmentos } from "../../hooks/useSegmentos";
 
 import CadastrarUsuario from "./users/CadastrarUsuario";
+import SyncModal from "./config/SyncModal";
+import MateriasModal from "./config/MateriasModal";
+import { removerSincronismo } from "../../services/sincronismos";
 
 const TURNOS = ["M", "T"];
 
@@ -148,7 +151,7 @@ function Vazio({ children }) {
 /* ---------- componente principal ---------- */
 
 export default function MaisModal({
-  onClose, perfilAtivo: _perfilDoPai, unidadesEscopo, onProfileOpen, onUsuarioCadastrado,
+  onClose, onNavigate, perfilAtivo: _perfilDoPai, unidadesEscopo, onProfileOpen, onUsuarioCadastrado,
 }) {
   const { todas: turmas = [] } = useTurmas();
   const { todasUnidades = [], criarUnidade, excluirUnidade } = useUnidades();
@@ -223,6 +226,9 @@ export default function MaisModal({
   const [busca, setBusca] = useState("");
 
   const [novoSegmento, setNovoSegmento] = useState("");
+  const [modoUnidadesSegmento, setModoUnidadesSegmento] = useState("todas");
+  const [unidadeUnicaSegmento, setUnidadeUnicaSegmento] = useState("");
+  const [unidadesSelecionadasSegmento, setUnidadesSelecionadasSegmento] = useState([]);
   const [novaUnidadeNome, setNovaUnidadeNome] = useState("");
   const [novaTurma, setNovaTurma] = useState({ unidade: "", serie: "", turno: "M", turma: "" });
   const [novoCal, setNovoCal] = useState({ nome: "", inicio: "", fim: "" });
@@ -232,6 +238,7 @@ export default function MaisModal({
   const [csvErros, setCsvErros] = useState([]);
 
   const [calendarios, setCalendarios] = useState([]);
+  const [sincronismos, setSincronismos] = useState([]);
   const [calSelId, setCalSelId] = useState(null);
   const [unidExc, setUnidExc] = useState("");
   const [excecao, setExcecao] = useState({
@@ -256,6 +263,10 @@ export default function MaisModal({
     );
     return unsub;
   }, []);
+
+  useEffect(() => onSnapshot(collection(db, "sincronismos"), (snap) => {
+    setSincronismos(snap.docs.map((item) => ({ id: item.id, ...item.data() })).sort((a, b) => String(a.nome).localeCompare(String(b.nome), "pt-BR")));
+  }, (e) => console.error("Erro ao carregar sincronismos:", e)), []);
 
   useEffect(() => {
     if (tela !== "regional" || !adminNucleo) return;
@@ -298,9 +309,12 @@ export default function MaisModal({
   const unidadesExc = adminNucleo ? ["Todas", ...unidadesPermitidas] : unidadesPermitidas;
   const unidadeAtual = unidExc || unidadesExc[0] || "";
 
-  const listaSeries = segmentos.length > 0 
-    ? segmentos.map(s => s.nome) 
-    : SERIES_FALLBACK;
+  const listaSeriesBase = segmentos.length > 0 ? segmentos : SERIES_FALLBACK.map((nome) => ({ nome, unidades: [] }));
+  const listaSeriesParaUnidade = (unidade) => listaSeriesBase
+    .filter((item) => !unidade || unidade === "Todas" || !item.unidades?.length || item.unidades.includes(unidade))
+    .map((item) => item.nome);
+  const listaSeriesTurma = listaSeriesParaUnidade(novaTurma.unidade);
+  const listaSeriesExcecao = listaSeriesParaUnidade(unidadeAtual);
 
   /* ---------- ações ---------- */
 
@@ -321,6 +335,11 @@ export default function MaisModal({
       setNovaTurma({ unidade: unidadesPermitidas[0] || "", serie: "", turno: "M", turma: "" });
     }
     if (id === "unidade") setNovaUnidadeNome("");
+    if (id === "segmento") {
+      setModoUnidadesSegmento("todas");
+      setUnidadeUnicaSegmento(todasUnidades[0] || "");
+      setUnidadesSelecionadasSegmento([...todasUnidades]);
+    }
     if (id === "calendario") setNovoCal({ nome: "", inicio: "", fim: "" });
     if (id === "excecao") {
       setUnidExc("");
@@ -352,9 +371,17 @@ export default function MaisModal({
       setErro("Informe o nome do segmento.");
       return;
     }
+    let unidadesDoSegmento = [];
+    if (modoUnidadesSegmento === "uma") {
+      if (!unidadeUnicaSegmento) { setErro("Selecione a unidade do segmento."); return; }
+      unidadesDoSegmento = [unidadeUnicaSegmento];
+    } else if (modoUnidadesSegmento === "personalizadas") {
+      if (!unidadesSelecionadasSegmento.length) { setErro("Mantenha ao menos uma unidade selecionada."); return; }
+      unidadesDoSegmento = unidadesSelecionadasSegmento;
+    }
     setSalvando(true);
     try {
-      await criarSegmento(nome);
+      await criarSegmento(nome, unidadesDoSegmento);
       concluir("Segmento cadastrado com sucesso.");
     } catch (e) {
       console.error(e);
@@ -704,6 +731,16 @@ export default function MaisModal({
     }
   };
 
+  const excluirSincronismo = async (sincronismo) => {
+    if (!window.confirm(`Remover o sincronismo "${sincronismo.nome}" e todas as guias?`)) return;
+    try {
+      await removerSincronismo(sincronismo.id);
+    } catch (e) {
+      console.error(e);
+      setErro("NÃ£o foi possÃ­vel remover o sincronismo.");
+    }
+  };
+
   const salvarRegional = async () => {
     if (!regSel || !adminNucleo) return;
     setSalvando(true);
@@ -747,6 +784,9 @@ export default function MaisModal({
   /* ---------- menu ---------- */
 
   const ADD = [
+    { id: "materia", icon: Layers, label: "Cadastrar matéria", desc: "Adicionar disciplina", ok: adminNucleo },
+    { id: "ver-sincronismo", icon: Eye, label: "Conferir sincronismo", desc: "Abrir calendário importado", ok: adminNucleo },
+    { id: "sincronismo", icon: FileSpreadsheet, label: "Novo sincronismo", desc: "Importar planilha por segmento", ok: adminNucleo },
     { id: "usuario", icon: UserPlus, label: "Adicionar usuário", desc: "Novo acesso", ok: gerente },
     { id: "turma", icon: GraduationCap, label: "Nova turma", desc: "Cadastrar turma", ok: podeTurma },
     { id: "excecao", icon: CalendarX, label: "Nova exceção", desc: "Feriados/Recessos", ok: gerente },
@@ -758,6 +798,8 @@ export default function MaisModal({
   ].filter((a) => a.ok);
 
   const REM = [
+    { id: "materia", icon: Layers, label: "Remover matéria", desc: "Retirar disciplina", ok: adminNucleo },
+    { id: "r-sincronismo", icon: FileSpreadsheet, label: "Remover sincronismo", desc: "Excluir planilha", ok: adminNucleo },
     { id: "r-excecao", icon: CalendarX, label: "Remover exceção", desc: "Excluir dia", ok: podeTurma },
     { id: "r-turma", icon: GraduationCap, label: "Remover turma", desc: "Excluir turma", ok: podeTurma },
     { id: "r-usuario", icon: UserMinus, label: "Remover usuário", desc: "Excluir usuário", ok: podeTurma },
@@ -767,9 +809,12 @@ export default function MaisModal({
   ].filter((a) => a.ok);
 
   const TITULOS = {
+    materia: "Matérias",
+    "ver-sincronismo": "Conferir sincronismo",
     turma: "Nova turma", unidade: "Nova unidade", csv: "Importar turmas",
     calendario: "Novo calendário", excecao: "Nova exceção", regional: "Atribuir unidades",
     segmento: "Novo segmento",
+    sincronismo: "Novo sincronismo", "r-sincronismo": "Remover sincronismo",
     "r-turma": "Remover turma", "r-unidade": "Remover unidade",
     "r-calendario": "Remover calendário", "r-excecao": "Remover exceção",
     "r-usuario": "Remover usuário", "r-segmento": "Remover segmento",
@@ -784,6 +829,9 @@ export default function MaisModal({
       </div>
     );
   }
+
+  if (tela === "sincronismo") return <SyncModal onClose={() => setTela(null)} />;
+  if (tela === "materia") return <MateriasModal onClose={() => setTela(null)} />;
 
   if (tela === "usuario") {
     return (
@@ -987,21 +1035,43 @@ export default function MaisModal({
 
         {/* ============ NOVO SEGMENTO ============ */}
         {tela === "segmento" && (
-          <div>
-            <Label>Nome do segmento / série</Label>
-            <input
-              autoFocus
-              value={novoSegmento}
-              onChange={(e) => setNovoSegmento(e.target.value)}
-              placeholder="Ex.: 1ª série Ensino Médio"
-              className={field}
-            />
-            <p className="mt-2 text-sm text-gray-400">
-              Este item aparecerá na lista de seleção ao criar turmas e exceções.
-            </p>
-            <button type="button" onClick={adicionarSegmento} disabled={salvando} className={`${btnPrimary} mt-5`}>
-              {salvando ? "Salvando..." : "Cadastrar segmento"}
-            </button>
+          <div className="space-y-4">
+            <div className="rounded-2xl border-2 border-black bg-[#f2f2f2] p-5">
+              <div className="mb-4 flex items-start gap-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border-2 border-black bg-pensi-yellow shadow-[2px_2px_0_#000]"><Layers size={20} /></span>
+                <div><h3 className="text-sm font-black uppercase">Novo segmento</h3><p className="mt-1 text-xs leading-relaxed text-gray-500">Cadastre uma série ou segmento para usar nas turmas, exceções e guias de sincronismo.</p></div>
+              </div>
+              <form onSubmit={(event) => { event.preventDefault(); adicionarSegmento(); }} className="space-y-3">
+                <div>
+                  <Label>Nome do segmento / série</Label>
+                  <input autoFocus value={novoSegmento} onChange={(event) => setNovoSegmento(event.target.value)} placeholder="Ex.: 1ª série Ensino Médio" className={field} />
+                </div>
+                <div className="rounded-2xl border-2 border-black bg-white p-4">
+                  <p className="mb-2 text-[11px] font-black uppercase tracking-wide">Disponibilidade por unidade</p>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                    {[["todas", "Todas"], ["uma", "Uma unidade"], ["personalizadas", "Escolher unidades"]].map(([valor, rotulo]) => (
+                      <button key={valor} type="button" onClick={() => { setModoUnidadesSegmento(valor); if (valor === "personalizadas" && !unidadesSelecionadasSegmento.length) setUnidadesSelecionadasSegmento([...todasUnidades]); }} className={`rounded-xl border-2 px-3 py-2 text-[10px] font-black uppercase transition-colors ${modoUnidadesSegmento === valor ? "border-black bg-pensi-yellow shadow-[2px_2px_0_#000]" : "border-gray-200 bg-white text-gray-500 hover:border-black"}`}>{rotulo}</button>
+                    ))}
+                  </div>
+                  {modoUnidadesSegmento === "todas" && <p className="mt-2 text-[11px] text-gray-500">O segmento ficará disponível em todas as unidades.</p>}
+                  {modoUnidadesSegmento === "uma" && <select value={unidadeUnicaSegmento} onChange={(event) => setUnidadeUnicaSegmento(event.target.value)} className={`${field} mt-3`}><option value="">Selecione uma unidade</option>{todasUnidades.map((unidade) => <option key={unidade} value={unidade}>{unidade}</option>)}</select>}
+                  {modoUnidadesSegmento === "personalizadas" && <div className="mt-3 grid max-h-36 grid-cols-1 gap-1 overflow-y-auto sm:grid-cols-2">{todasUnidades.map((unidade) => { const marcado = unidadesSelecionadasSegmento.includes(unidade); return <label key={unidade} className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold ${marcado ? "border-black bg-yellow-50" : "border-gray-200 bg-gray-50 text-gray-400"}`}><input type="checkbox" checked={marcado} onChange={() => setUnidadesSelecionadasSegmento((atual) => marcado ? atual.filter((item) => item !== unidade) : [...atual, unidade])} className="accent-black" />{unidade}</label>; })}</div>}
+                </div>
+                <p className="text-[11px] text-gray-500">Use o mesmo nome que aparece nas turmas para facilitar a associação automática.</p>
+                <button type="submit" disabled={salvando || !novoSegmento.trim()} className={`${btnPrimary} flex items-center justify-center gap-2`}><Layers size={16} />{salvando ? "Salvando..." : "Cadastrar segmento"}</button>
+              </form>
+            </div>
+          </div>
+        )}
+        {tela === "ver-sincronismo" && (
+          <div className="flex max-h-[55vh] flex-col gap-2 overflow-y-auto">
+            {sincronismos.length === 0 ? <Vazio>Nenhum sincronismo cadastrado.</Vazio> : sincronismos.map((item) => (
+              <button key={item.id} type="button" onClick={() => { onNavigate?.({ key: item.materia, ano: item.ano }); onClose(); }} className="flex w-full items-center gap-3 rounded-2xl bg-[#f2f2f2] px-4 py-3 text-left transition-colors hover:bg-yellow-50">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white"><Eye size={18} /></span>
+                <span className="min-w-0 flex-1"><span className="block truncate font-semibold">{item.nome}</span><span className="block truncate text-sm text-gray-500">{item.materiaNome || item.materia} · {item.ano}</span></span>
+                <ChevronRight size={18} className="shrink-0 text-gray-400" />
+              </button>
+            ))}
           </div>
         )}
 
@@ -1025,7 +1095,7 @@ export default function MaisModal({
               className={field}
             >
               <option value="">Selecione uma série</option>
-              {listaSeries.map((s) => <option key={s} value={s}>{s}</option>)}
+              {listaSeriesTurma.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
 
             <Label>Turno</Label>
@@ -1213,7 +1283,7 @@ export default function MaisModal({
                 <Label>Série / Segmento</Label>
                 <select value={excecao.serie} onChange={(e) => setExcecao((a) => ({ ...a, serie: e.target.value }))} className={field}>
                   <option value="">Selecione uma série</option>
-                  {listaSeries.map((s) => <option key={s} value={s}>{s}</option>)}
+                  {listaSeriesExcecao.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
               </>
             )}
@@ -1396,6 +1466,14 @@ export default function MaisModal({
         )}
 
         {/* ============ REMOVER CALENDÁRIO ============ */}
+        {tela === "r-sincronismo" && (
+          <div className="flex max-h-[50vh] flex-col gap-2 overflow-y-auto">
+            {sincronismos.length === 0 ? <Vazio>Nenhum sincronismo cadastrado.</Vazio> : sincronismos.map((item) => (
+              <ItemLista key={item.id} titulo={item.nome} subtitulo={`${item.materiaNome || item.materia} · ${item.ano}`} excluir={() => excluirSincronismo(item)} desabilitado={salvando} />
+            ))}
+          </div>
+        )}
+
         {tela === "r-calendario" && (
           <div className="flex max-h-[50vh] flex-col gap-2 overflow-y-auto">
             {calendarios.length === 0 ? (

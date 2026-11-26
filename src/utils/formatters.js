@@ -112,11 +112,16 @@ export function normalizarCheck(c) {
     professorEmail: pick(c, "professoremail", "email").toLowerCase(),
     disciplina: pick(c, "disciplinakey", "disciplina"),
     serie: pick(c, "serie"),
+    unidade: pick(c, "unidade"),
     semana: pick(c, "semana"),
     dia: pick(c, "dia"),
     aulaIndex: pick(c, "aulaindex"),
     status: pick(c, "status"),
     dataHora: pick(c, "datahora"),
+    dataReal: pick(c, "datareal"),
+    turma: pick(c, "turma"),
+    tipo: pick(c, "tipo"),
+    justificativa: pick(c, "justificativa", "motivo", "descricaojustificativa"),
   };
 }
 

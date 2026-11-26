@@ -25,8 +25,11 @@ export default function CalendarsSection({
   unidadesPermitidas,
   carregandoCal,
   calendarios,
+  sincronismos = [],
   calcularDiasLetivos,
   abrirNovoCalendario,
+  abrirNovoSincronismo,
+  excluirSincronismo,
   abrirExcecoes,
   excluirCalendario,
 }) {
@@ -80,19 +83,33 @@ export default function CalendarsSection({
           </button>
 
           {mostrarCriar && (
-            <button
-              onClick={abrirNovoCalendario}
-              className={`${buttonClass} border-2 border-black bg-pensi-yellow shadow-[3px_3px_0_#000] transition-colors hover:bg-yellow-300`}
-            >
-              <Plus size={14} />
-              Novo calendário
-            </button>
+            <>
+              <button onClick={abrirNovoCalendario} className={`${buttonClass} border-2 border-black bg-pensi-yellow shadow-[3px_3px_0_#000] transition-colors hover:bg-yellow-300`}>
+                <Plus size={14} /> Novo calendário
+              </button>
+              <button onClick={abrirNovoSincronismo} className={`${buttonClass} border-2 border-black bg-white shadow-[3px_3px_0_#000] transition-colors hover:bg-yellow-100`}>
+                <Plus size={14} /> Novo sincronismo
+              </button>
+            </>
           )}
         </div>
       </div>
 
       {calendariosVisiveis && (
         <div className="space-y-5">
+          {sincronismos.length > 0 && (
+            <div className="rounded-xl border-2 border-black bg-white p-4 shadow-[4px_4px_0_#000]">
+              <h3 className="mb-3 text-xs font-black uppercase">Sincronismos cadastrados</h3>
+              <div className="space-y-2">
+                {sincronismos.map((item) => (
+                  <div key={item.id} className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 px-3 py-2">
+                    <div className="min-w-0"><p className="truncate text-sm font-bold">{item.nome}</p><p className="text-[10px] font-semibold text-gray-500">{item.materiaNome} · {item.ano}</p><p className="truncate text-[10px] text-gray-500">Unidades: {item.todasUnidades === false ? (item.unidades?.join(", ") || "Nenhuma") : "Todas"}</p><p className="truncate text-[10px] text-gray-500">Segmentos: {(item.segmentos || []).join(", ") || "—"}</p></div>
+                    <button onClick={() => excluirSincronismo(item)} title="Remover sincronismo" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border-2 border-black bg-white hover:bg-red-100"><Trash2 size={15} className="text-red-700" /></button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="flex flex-wrap items-center gap-3 rounded-xl border-2 border-black bg-white p-3 shadow-[4px_4px_0_#000]">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border-2 border-black bg-pensi-yellow">
               <MapPin size={18} />

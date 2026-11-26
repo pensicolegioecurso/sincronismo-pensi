@@ -1,7 +1,13 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { DISCIPLINAS_POR_ANO } from "../utils/disciplinas";
 import { getAba, getAbas, loadGvizSheet } from "../services/api";
 import { norm, nh, resolverReferencia } from "../utils/formatters";
+import {
+  carregarLinhasGuia,
+  obterGuiasSincronismo,
+  obterGuiasPorSegmento,
+  obterSincronismosDaMateria,
+} from "../services/sincronismos";
 
 export function useCalendarData() {
   const [dadosCache, setDadosCache] = useState({});
@@ -11,31 +17,72 @@ export function useCalendarData() {
   const [currentSemanas, setCurrentSemanas] = useState({});
   const [currentAulaIdx, setCurrentAulaIdx] = useState({});
   const [currentModelo, setCurrentModelo] = useState("aula");
+  const abasCacheRef = useRef(new Map());
+  const abasRequestsRef = useRef(new Map());
+  const linhasCacheRef = useRef(new Map());
+  const linhasRequestsRef = useRef(new Map());
 
-  const fetchAbas = useCallback(async (disc) => {
-    if (disc.abas) return disc.abas;
-    const json = await getAbas(disc.id);
-    if (!json || json.status !== "success") throw new Error(json?.message || "Falha ao ler abas.");
-    return json.abas.filter((n) => norm(n).indexOf("orienta") === -1);
+  const fetchAbas = useCallback(async (disc, ano, key, unidadesUsuario = []) => {
+    const cacheKey = `${ano}:${key}:${unidadesUsuario.join(",")}`;
+    if (abasCacheRef.current.has(cacheKey)) return abasCacheRef.current.get(cacheKey);
+    if (abasRequestsRef.current.has(cacheKey)) return abasRequestsRef.current.get(cacheKey);
+    const request = (async () => {
+      const legado2026 = String(ano) === "2026" && Boolean(DISCIPLINAS_POR_ANO["2026"]?.[key]);
+      const sincronismos = legado2026 ? [] : (await obterSincronismosDaMateria(ano, key)).filter((item) => !unidadesUsuario.length || item.todasUnidades !== false || item.unidades?.some((unidade) => unidadesUsuario.some((permitida) => String(unidade).trim().toLocaleLowerCase("pt-BR") === String(permitida).trim().toLocaleLowerCase("pt-BR"))));
+      let lista;
+      if (sincronismos.length) {
+        const guias = await Promise.all(sincronismos.map((sync) => obterGuiasSincronismo(sync.id)));
+        lista = sincronismos.flatMap((sync, index) => guias[index].flatMap((guia) => (guia.segmentos || (guia.segmento ? [guia.segmento] : [])).map((segmento) => ({ id: JSON.stringify({ syncId: sync.id, guiaId: guia.id, segmento }), segmento, rotulo: `${segmento} · ${sync.nome || "Sincronismo"} / ${guia.nome || "Guia"}` }))));
+      } else if (disc.abas) lista = disc.abas;
+      else {
+        const json = await getAbas(disc.id);
+        if (!json || json.status !== "success") throw new Error(json?.message || "Falha ao ler abas.");
+        lista = json.abas.filter((n) => norm(n).indexOf("orienta") === -1);
+      }
+      abasCacheRef.current.set(cacheKey, lista);
+      return lista;
+    })();
+    abasRequestsRef.current.set(cacheKey, request);
+    try { return await request; } finally { abasRequestsRef.current.delete(cacheKey); }
   }, []);
 
-  const carregarAba = useCallback(async (anoAtual, key, sheetName) => {
-    const disc = DISCIPLINAS_POR_ANO[anoAtual]?.[key];
-    if (!disc) return [];
-    let rows = [];
-    if (disc.fonte === "script") {
-      try {
-        const json = await getAba(disc.id, sheetName);
-        rows = json?.rows || [];
-      } catch { rows = []; }
-    } else {
-      rows = (await loadGvizSheet(disc.id, sheetName)) || [];
-    }
-    setDadosCache((prev) => ({
-      ...prev,
-      [key]: { ...(prev[key] || {}), [sheetName]: rows },
-    }));
-    return rows;
+  const carregarAba = useCallback(async (anoAtual, key, sheetName, discOverride, unidadesUsuario = []) => {
+    const cacheKey = `${anoAtual}:${key}:${sheetName}:${unidadesUsuario.join(",")}`;
+    if (linhasCacheRef.current.has(cacheKey)) return linhasCacheRef.current.get(cacheKey);
+    if (linhasRequestsRef.current.has(cacheKey)) return linhasRequestsRef.current.get(cacheKey);
+    const request = (async () => {
+      const legado2026 = String(anoAtual) === "2026" && Boolean(DISCIPLINAS_POR_ANO["2026"]?.[key]);
+      const sincronismos = legado2026 ? [] : (await obterSincronismosDaMateria(anoAtual, key)).filter((item) => !unidadesUsuario.length || item.todasUnidades !== false || item.unidades?.some((unidade) => unidadesUsuario.some((permitida) => String(unidade).trim().toLocaleLowerCase("pt-BR") === String(permitida).trim().toLocaleLowerCase("pt-BR"))));
+      let rows;
+      if (sincronismos.length) {
+        const selecionada = (() => { try { return JSON.parse(sheetName); } catch { return null; } })();
+        if (selecionada?.syncId && selecionada?.guiaId) {
+          const sync = sincronismos.find((item) => item.id === selecionada.syncId);
+          const guia = sync && (await obterGuiasSincronismo(sync.id)).find((item) => item.id === selecionada.guiaId);
+          rows = sync && guia ? await carregarLinhasGuia(sync.id, guia) : [];
+        } else {
+          rows = [];
+          for (const sync of sincronismos) {
+            const guias = await obterGuiasPorSegmento(sync.id, sheetName);
+            for (const guia of guias) rows.push(...await carregarLinhasGuia(sync.id, guia));
+          }
+        }
+      } else {
+        const disc = discOverride || DISCIPLINAS_POR_ANO[anoAtual]?.[key] || DISCIPLINAS_POR_ANO["2026"]?.[key];
+        if (!disc) return [];
+        if (disc.fonte === "script") {
+          try {
+            const json = await getAba(disc.id, sheetName);
+            rows = json?.rows || [];
+          } catch { rows = []; }
+        } else rows = (await loadGvizSheet(disc.id, sheetName)) || [];
+      }
+      linhasCacheRef.current.set(cacheKey, rows);
+      setDadosCache((prev) => ({ ...prev, [key]: { ...(prev[key] || {}), [sheetName]: rows } }));
+      return rows;
+    })();
+    linhasRequestsRef.current.set(cacheKey, request);
+    try { return await request; } finally { linhasRequestsRef.current.delete(cacheKey); }
   }, []);
 
   const detectarModelo = (rows) => {

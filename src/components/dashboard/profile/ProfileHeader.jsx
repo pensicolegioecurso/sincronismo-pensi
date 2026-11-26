@@ -1,9 +1,9 @@
 
-import { X, Mail, MapPin, UserRound } from "lucide-react";
+import { X, Mail, MapPin, UserRound, MessageCircle, Star } from "lucide-react";
 
 const DOTS = ["bg-[#F5B800]", "bg-[#D7E7FF]", "bg-[#F4D5E5]"];
 
-export default function ProfileHeader({ user, onClose }) {
+export default function ProfileHeader({ user, onClose, onDirectMessage, onAddShortcut }) {
   return (
     <header className="border-b-2 border-black bg-white px-5 pb-4 pt-4">
       <div className="mb-4 flex items-center gap-1.5">
@@ -46,6 +46,16 @@ export default function ProfileHeader({ user, onClose }) {
             </span>
           </div>
         </div>
+        {onDirectMessage && (
+          <button type="button" onClick={() => onDirectMessage(user)} className="flex shrink-0 items-center gap-2 rounded-full bg-black px-3 py-2 text-xs font-bold text-white hover:bg-gray-800">
+            <MessageCircle size={15} /> Direct
+          </button>
+        )}
+        {onAddShortcut && (
+          <button type="button" onClick={() => onAddShortcut(user)} className="flex shrink-0 items-center gap-2 rounded-full border border-gray-200 px-3 py-2 text-xs font-bold text-gray-700 hover:bg-amber-50">
+            <Star size={15} /> Atalho
+          </button>
+        )}
       </div>
     </header>
   );

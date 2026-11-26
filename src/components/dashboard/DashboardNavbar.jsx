@@ -1,17 +1,21 @@
 import { useState } from "react";
 import {
-  LayoutDashboard, Users, MessageSquare, Home, Plus, LogOut,
+  LayoutDashboard, Users, MessageSquare, Home, Plus, LogOut, Settings,
 } from "lucide-react";
 
 import MaisModal from "./MaisModal"; // ⚠️ ajuste o caminho se precisar
 import MaisProfessorModal from "./MaisProfessorModal"; // ⚠️ mesma pasta do MaisModal
 
+import DashboardSettingsModal from "./DashboardSettingsModal";
+
 export default function DashboardNavbar({
   activeTab, setActiveTab, onProfileOpen, logout,
   isAdmin = false, isDirecao = false, isNucleo = false, isRegional = false,
-  perfilAtivo, unidadesEscopo, onUsuarioCadastrado, onNavigate,
+  perfilAtivo, unidadesEscopo, onUsuarioCadastrado, onNavigate, user, onShortcutsChange, onPersonShortcutsChange,
 }) {
   const [maisAberto, setMaisAberto] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [navbarItens, setNavbarItens] = useState(user?.navbarItens || null);
 
   const cargosPerfil = [
     ...(Array.isArray(perfilAtivo?.cargos) ? perfilAtivo.cargos : []),
@@ -35,7 +39,8 @@ export default function DashboardNavbar({
       { key: "feed", icon: MessageSquare, title: "Feed" },
     ];
 
-  const todos = [...itens, { key: "__sair", icon: LogOut, title: "Sair", sair: true }];
+  const itensVisiveis = navbarItens ? itens.filter((item) => navbarItens.includes(item.key)) : itens;
+  const todos = [...itensVisiveis, { key: "__sair", icon: LogOut, title: "Sair", sair: true }];
 
   const metade = Math.ceil(todos.length / 2);
   const leftItems = todos.slice(0, metade);
@@ -78,9 +83,28 @@ export default function DashboardNavbar({
         </nav>
       </div>
 
+      <button type="button" onClick={() => setSettingsOpen(true)} aria-label="Personalizar atalhos" title="Personalizar atalhos" className="fixed bottom-24 right-4 z-40 flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 shadow-lg transition hover:bg-gray-50 hover:text-black">
+        <Settings size={18} />
+      </button>
+
+      {settingsOpen && (
+        <DashboardSettingsModal
+          user={user}
+          navItems={itens}
+          onClose={() => setSettingsOpen(false)}
+          onSave={(preferences) => {
+            setNavbarItens(preferences.navbarItens);
+            onShortcutsChange?.(preferences.atalhosInicio);
+            onPersonShortcutsChange?.(preferences.atalhosPessoa);
+            if (!preferences.navbarItens.includes(activeTab)) setActiveTab(preferences.navbarItens[0]);
+          }}
+        />
+      )}
+
       {maisAberto && isManager && (
         <MaisModal
           onClose={() => setMaisAberto(false)}
+          onNavigate={onNavigate}
           perfilAtivo={perfilAtivo}
           unidadesEscopo={unidadesEscopo}
           onProfileOpen={onProfileOpen}

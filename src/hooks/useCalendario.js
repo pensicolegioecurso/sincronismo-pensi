@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { collection, onSnapshot } from "firebase/firestore";
 import { db } from "../services/firebase";
+import { useAuth } from "./useAuth";
 
 import {
   normalizarTurma,
@@ -43,12 +44,20 @@ function normalizarSerie(valor) {
 }
 
 export function useCalendario() {
+  const { user } = useAuth();
   const [calendarios, setCalendarios] = useState([]);
+  const [erroCarregamento, setErroCarregamento] = useState(false);
 
   useEffect(() => {
+    if (!user?.uid) {
+      setCalendarios([]);
+      setErroCarregamento(false);
+      return undefined;
+    }
     const unsubscribe = onSnapshot(
       collection(db, "calendarios"),
       (snapshot) => {
+        setErroCarregamento(false);
         setCalendarios(
           snapshot.docs.map((item) => ({
             id: item.id,
@@ -58,11 +67,12 @@ export function useCalendario() {
       },
       (error) => {
         console.error("Erro ao carregar calendários:", error);
+        setErroCarregamento(true);
       }
     );
 
     return unsubscribe;
-  }, []);
+  }, [user?.uid]);
 
   const isDiaLetivo = useCallback(
     (dataObj, turmaNome, serieNome, unidadeNome) => {
@@ -163,5 +173,6 @@ export function useCalendario() {
   return {
     calendarios,
     isDiaLetivo,
+    erroCarregamento,
   };
 }

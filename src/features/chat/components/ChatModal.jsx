@@ -19,7 +19,7 @@ export function ChatModal({ aberto, onClose }) {
         className="chat-modal-panel"
         role="dialog"
         aria-modal="true"
-        aria-label="Pergunte aos Sincronismos"
+        aria-label="Assistente Sincronismos"
       >
         <ChatPage onClose={onClose} />
       </div>

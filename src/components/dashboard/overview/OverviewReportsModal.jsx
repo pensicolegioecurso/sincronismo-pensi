@@ -173,6 +173,7 @@ export default function OverviewReportsModal({
   mesFiltro,
   dataInicioCustom,
   dataFimCustom,
+  initialFormat = "excel",
 }) {
   const [montado, setMontado] = useState(false);
   const [selecionados, setSelecionados] = useState([
@@ -182,7 +183,7 @@ export default function OverviewReportsModal({
     "registros",
   ]);
   const [visualizar, setVisualizar] = useState(true);
-  const [formato, setFormato] = useState("excel");
+  const [formato, setFormato] = useState(initialFormat);
   const [exportando, setExportando] = useState(false);
   const [buscaPreview, setBuscaPreview] = useState("");
   const [tela, setTela] = useState(null);

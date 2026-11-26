@@ -1,10 +1,10 @@
 export const SUGESTOES_INICIAIS = [
-  "Qual a melhor unidade?",
-  "Checks hoje",
+  "Me dá um resumo geral dos checks",
+  "Qual a unidade com mais checks?",
+  "Quais checks estão pendentes?",
   "Ranking de professores",
-  "Tem aula hoje?",
-  "Quais unidades existem?",
-  "Professores sem check",
-  "Checks essa semana",
-  "Quais segmentos temos?",
+  "Checks por disciplina",
+  "Checks por série",
+  "Quantos checks tivemos essa semana?",
+  "Quais professores estão sem check?",
 ];

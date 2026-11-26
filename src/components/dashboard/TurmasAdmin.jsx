@@ -32,6 +32,8 @@ import ImportClassesModal from "./config/ImportClassesModal";
 import RegionalModal from "./config/RegionalModal";
 import CalendarModal from "./config/CalendarModal";
 import CalendarExceptionsModal from "./config/CalendarExceptionsModal";
+import SyncModal from "./config/SyncModal";
+import { removerSincronismo } from "../../services/sincronismos";
 import RemoveModal from "./config/RemoveModal";
 
 const TURNOS = ["M", "T"];
@@ -238,6 +240,7 @@ export default function TurmasAdmin({
   const [modalImportar, setModalImportar] = useState(false);
   const [modalRegional, setModalRegional] = useState(null);
   const [modalNovoCal, setModalNovoCal] = useState(false);
+  const [modalNovoSincronismo, setModalNovoSincronismo] = useState(false);
   const [modalExcecao, setModalExcecao] = useState(null);
   const [modalRemover, setModalRemover] = useState(null); // "turma" | "unidade" | "calendario" | null
 
@@ -259,6 +262,7 @@ export default function TurmasAdmin({
   const [csvErros, setCsvErros] = useState([]);
 
   const [calendarios, setCalendarios] = useState([]);
+  const [sincronismos, setSincronismos] = useState([]);
   const [carregandoCal, setCarregandoCal] = useState(true);
   const [unidadeCalendario, setUnidadeCalendario] = useState(
     ehDirecao && unidadePerfil
@@ -339,6 +343,10 @@ export default function TurmasAdmin({
 
     return unsubscribe;
   }, []);
+
+  useEffect(() => onSnapshot(collection(db, "sincronismos"), (snapshot) => {
+    setSincronismos(snapshot.docs.map((item) => ({ id: item.id, ...item.data() })).sort((a, b) => String(a.nome).localeCompare(String(b.nome), "pt-BR")));
+  }, (error) => console.error("Erro ao carregar sincronismos:", error)), []);
 
   useEffect(() => {
     if (!podeVerRegionais) return;
@@ -871,6 +879,16 @@ export default function TurmasAdmin({
     }
   };
 
+  const excluirSincronismo = async (sincronismo) => {
+    if (!window.confirm(`Remover o sincronismo "${sincronismo.nome}" e todas as guias?`)) return;
+    try {
+      await removerSincronismo(sincronismo.id);
+    } catch (error) {
+      console.error(error);
+      setErro("Não foi possível remover o sincronismo.");
+    }
+  };
+
   const fecharModalUnidade = () => {
     setModalUnidade(false);
     setErro("");
@@ -995,7 +1013,11 @@ export default function TurmasAdmin({
         unidadesPermitidas={unidadesPermitidas}
         carregandoCal={carregandoCal}
         calendarios={calendarios}
+        sincronismos={sincronismos}
         calcularDiasLetivos={calcularDiasLetivos}
+        abrirNovoCalendario={abrirNovoCalendario}
+        abrirNovoSincronismo={() => setModalNovoSincronismo(true)}
+        excluirSincronismo={excluirSincronismo}
         abrirExcecoes={abrirExcecoes}
         excluirCalendario={excluirCalendario}
       />
@@ -1099,6 +1121,8 @@ export default function TurmasAdmin({
           ehRegional={ehRegional}
         />
       )}
+
+      {modalNovoSincronismo && <SyncModal unidades={unidadesPermitidas} onClose={() => setModalNovoSincronismo(false)} />}
 
       {modalRemover && (
         <RemoveModal

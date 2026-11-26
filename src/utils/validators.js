@@ -3,7 +3,7 @@ export function validarSenha(senha) {
   if (!/[A-Z]/.test(senha)) return "A senha deve conter pelo menos uma letra maiúscula.";
   if (!/[a-z]/.test(senha)) return "A senha deve conter pelo menos uma letra minúscula.";
   if (!/[0-9]/.test(senha)) return "A senha deve conter pelo menos um número.";
-  if (!/[!@#$%^&*(),.?":{}|<>_\-+=~`[\]\\\/;']/.test(senha)) return "A senha deve conter pelo menos um caractere especial.";
+  if (!/[^A-Za-z0-9]/.test(senha)) return "A senha deve conter pelo menos um caractere especial.";
   return null;
 }
 

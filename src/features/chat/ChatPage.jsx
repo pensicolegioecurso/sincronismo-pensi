@@ -32,6 +32,7 @@ export default function ChatPage({ onClose }) {
             <p className="chat-empty-sub">
               Pergunte em linguagem natural — eu entendo
             </p>
+            <div className="chat-suggestion-label">Sugestões para começar</div>
             <div className="chat-empty-chips">
               <SuggestionChips sugestoes={SUGESTOES_INICIAIS} onPick={send} />
             </div>

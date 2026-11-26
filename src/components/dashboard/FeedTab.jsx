@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef, useMemo } from "react";
-import { collection, query, where, getDocs, onSnapshot } from "firebase/firestore";
+import { collection, query, where, getDocs, onSnapshot, doc, getDoc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
 import { db } from "../../services/firebase";
-import { DISCIPLINAS_POR_ANO } from "../../utils/disciplinas";
+import { useMaterias } from "../../hooks/useMaterias";
 import FeedHeader from "./feed/FeedHeader";
 import FeedList from "./feed/FeedList";
 import FeedPagination from "./feed/FeedPagination";
-import { ArrowUp } from "lucide-react";
+import { ChatModal } from "../../features/chat/components/ChatModal";
+import { useChatModal } from "../../features/chat/hooks/useChatModal";
 
 const ITENS_POR_PAGINA = 50;
 
@@ -25,13 +26,19 @@ function normalizarTexto(valor) {
   return String(valor || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().replace(/\s+/g, " ").toLowerCase();
 }
 
-export default function FeedTab({ user, perfilAtivo, unidadeFoco, unidadesEscopo, onBack, onChat, onFamily }) {
+export default function FeedTab({ user, perfilAtivo, unidadeFoco, unidadesEscopo, onBack, onChat, onFamily, onProfileOpen, onDirects }) {
+  const { materias } = useMaterias();
+  const materiasPorChave = useMemo(() => Object.fromEntries(materias.map((item) => [item.key, item.nome])), [materias]);
+  const chat = useChatModal();
   const [feedPosts, setFeedPosts] = useState([]);
   const [carregando, setCarregando] = useState(true);
   const [contagemComentarios, setContagemComentarios] = useState({});
+  const [perfis, setPerfis] = useState({});
+  const [favoritos, setFavoritos] = useState([]);
   
   const [busca, setBusca] = useState("");
   const [filtroTipoFeed, setFiltroTipoFeed] = useState("tudo");
+  const [filtroFavoritos, setFiltroFavoritos] = useState(false);
   
   const [filtroPeriodo, setFiltroPeriodo] = useState("mes");
   const [mesFiltro, setMesFiltro] = useState(() => new Date());
@@ -51,6 +58,27 @@ export default function FeedTab({ user, perfilAtivo, unidadeFoco, unidadesEscopo
   const isProfessor = perfilAtivo === "professor";
 
   const unidadesEscopoKey = JSON.stringify(unidadesEscopo || []);
+
+  useEffect(() => {
+    if (!user?.uid) return;
+    let cancelado = false;
+    getDoc(doc(db, "users", user.uid)).then((snapshot) => {
+      if (!cancelado) setFavoritos(snapshot.exists() ? snapshot.data().favoritos || [] : []);
+    }).catch((error) => console.error("Erro ao carregar favoritos:", error));
+    return () => { cancelado = true; };
+  }, [user?.uid]);
+
+  const alternarFavorito = async (uid) => {
+    if (!uid || !user?.uid || uid === user.uid) return;
+    const estaFavorito = favoritos.includes(uid);
+    setFavoritos((atuais) => estaFavorito ? atuais.filter((id) => id !== uid) : [...atuais, uid]);
+    try {
+      await updateDoc(doc(db, "users", user.uid), { favoritos: estaFavorito ? arrayRemove(uid) : arrayUnion(uid) });
+    } catch (error) {
+      setFavoritos((atuais) => estaFavorito ? [...atuais, uid] : atuais.filter((id) => id !== uid));
+      console.error("Erro ao atualizar favorito:", error);
+    }
+  };
 
   const unidadesPermitidas = useMemo(() => {
     let unidades = [];
@@ -101,12 +129,14 @@ export default function FeedTab({ user, perfilAtivo, unidadeFoco, unidadesEscopo
         const snap = await getDocs(consulta);
         if (cancelado) return;
 
-        const nomesCache = {};
+        const perfisCache = {};
         if (!isProfessor) {
           const usersSnap = await getDocs(collection(db, "users"));
           if (cancelado) return;
-          usersSnap.forEach((doc) => { nomesCache[doc.id] = doc.data().nome || "Professor"; });
+          usersSnap.forEach((perfilDoc) => { perfisCache[perfilDoc.id] = { id: perfilDoc.id, ...perfilDoc.data() }; });
         }
+        if (isProfessor) perfisCache[user.uid] = { ...user, id: user.uid };
+        if (!cancelado) setPerfis(perfisCache);
 
         const posts = [];
         snap.forEach((documento) => {
@@ -119,11 +149,12 @@ export default function FeedTab({ user, perfilAtivo, unidadeFoco, unidadesEscopo
           const dataHora = data.dataHora ? new Date(data.dataHora) : data.dataReal ? new Date(`${data.dataReal}T12:00:00`) : new Date(0);
           const dataHoraValida = !Number.isNaN(dataHora.getTime());
 
-          const nomeDisc = DISCIPLINAS_POR_ANO["2026"]?.[data.disciplina]?.nome || data.disciplina || "Disciplina";
-          const nomeProf = isProfessor ? (user.nome?.split(" ")[0] || "Eu") : (nomesCache[data.professorUid]?.split(" ")[0] || data.professorEmail?.split("@")[0] || "Professor");
+          const nomeDisc = materiasPorChave[data.disciplina] || data.disciplina || "Disciplina";
+          const perfil = perfisCache[data.professorUid];
+          const nomeProf = perfil?.nome || data.professorEmail?.split("@")[0] || "Professor";
 
           posts.push({
-            id: documento.id, tipo: data.tipo || "aula", professor: nomeProf, disciplina: nomeDisc, turma: data.serie || "",
+            id: documento.id, tipo: data.tipo || "aula", professor: nomeProf, professorUid: data.professorUid || "", disciplina: nomeDisc, turma: data.serie || "",
             unidade, diaSemana: capitalizarDia(data.diaNome), dataReferencia: formatarDataReal(data.dataReal),
             status: data.status || "", justificativa: data.justificativa || "", observacao: data.observacao || "",
             dataHoraObj: dataHoraValida ? dataHora : new Date(0),
@@ -143,7 +174,7 @@ export default function FeedTab({ user, perfilAtivo, unidadeFoco, unidadesEscopo
     }
     buscarFeed();
     return () => { cancelado = true; };
-  }, [user?.uid, user?.nome, user?.unidade, perfilAtivo, unidadeFoco, unidadesEscopoKey, isAdminOrNucleo, isDirecao, isProfessor, isRegional, unidadesPermitidasNormalizadas]);
+  }, [user?.uid, user?.nome, user?.unidade, perfilAtivo, unidadeFoco, unidadesEscopoKey, isAdminOrNucleo, isDirecao, isProfessor, isRegional, unidadesPermitidasNormalizadas, materiasPorChave]);
 
   // Contagem de comentários
   useEffect(() => {
@@ -165,6 +196,7 @@ export default function FeedTab({ user, perfilAtivo, unidadeFoco, unidadesEscopo
     const fimMesString = fimMesFiltro.toISOString().split("T")[0];
 
     return feedPosts.filter((post) => {
+      if (filtroFavoritos && !favoritos.includes(post.professorUid)) return false;
       if (filtroTipoFeed === "aula" && post.tipo !== "aula") return false;
       if (filtroTipoFeed === "justificativa" && post.tipo !== "justificativa") return false;
 
@@ -192,7 +224,7 @@ export default function FeedTab({ user, perfilAtivo, unidadeFoco, unidadesEscopo
       }
       return true;
     });
-  }, [feedPosts, filtroTipoFeed, filtroPeriodo, mesFiltro, dataInicioCustom, dataFimCustom, busca, filtroUnidade, filtroRegional]);
+  }, [feedPosts, filtroTipoFeed, filtroPeriodo, mesFiltro, dataInicioCustom, dataFimCustom, busca, filtroUnidade, filtroRegional, filtroFavoritos, favoritos]);
 
   const totalPaginas = Math.max(1, Math.ceil(postsFiltrados.length / ITENS_POR_PAGINA));
   const postsPaginados = useMemo(() => {
@@ -200,23 +232,22 @@ export default function FeedTab({ user, perfilAtivo, unidadeFoco, unidadesEscopo
     return postsFiltrados.slice(inicio, inicio + ITENS_POR_PAGINA);
   }, [postsFiltrados, paginaAtual]);
 
-  useEffect(() => { setPaginaAtual(1); }, [busca, filtroTipoFeed, filtroPeriodo, mesFiltro, dataInicioCustom, dataFimCustom, filtroUnidade, filtroRegional]);
+  useEffect(() => { setPaginaAtual(1); }, [busca, filtroTipoFeed, filtroPeriodo, mesFiltro, dataInicioCustom, dataFimCustom, filtroUnidade, filtroRegional, filtroFavoritos]);
 
   const toggleComentarios = (id) => setComentariosAbertos((prev) => ({ ...prev, [id]: !prev[id] }));
-
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
 
   return (
     <div className="w-full min-w-0 pb-20 min-h-screen relative">
       <FeedHeader
         user={user} busca={busca} setBusca={setBusca}
-        onBack={onBack} onChat={onChat} onFamily={onFamily}
+        onBack={onBack} onChat={onChat || chat.abrir} onFamily={onFamily}
+        onProfileOpen={onProfileOpen}
+        onDirects={onDirects}
         filtroTipoFeed={filtroTipoFeed} setFiltroTipoFeed={setFiltroTipoFeed}
         filtroPeriodo={filtroPeriodo} setFiltroPeriodo={setFiltroPeriodo}
         filtroUnidade={filtroUnidade} setFiltroUnidade={setFiltroUnidade}
         filtroRegional={filtroRegional} setFiltroRegional={setFiltroRegional}
+        filtroFavoritos={filtroFavoritos} setFiltroFavoritos={setFiltroFavoritos}
         unidadesPermitidas={unidadesPermitidas}
         regionaisDisponiveis={regionaisDisponiveis}
       />
@@ -230,6 +261,10 @@ export default function FeedTab({ user, perfilAtivo, unidadeFoco, unidadesEscopo
           toggleComentarios={toggleComentarios} 
           user={user} 
           contagemComentarios={contagemComentarios}
+          perfis={perfis}
+          favoritos={favoritos}
+          onToggleFavorito={alternarFavorito}
+          onProfileOpen={onProfileOpen}
         />
 
         {totalPaginas > 1 && (
@@ -239,14 +274,7 @@ export default function FeedTab({ user, perfilAtivo, unidadeFoco, unidadesEscopo
         )}
       </div>
 
-      {/* Botão Flutuante Apenas Seta (Amarelo, Circular, mais pro canto) */}
-      <button 
-        onClick={scrollToTop}
-        className="fixed bottom-6 right-6 bg-yellow-400 hover:bg-yellow-500 text-black w-12 h-12 rounded-full shadow-lg flex items-center justify-center transition-transform active:scale-95 z-50"
-        title="Voltar ao topo"
-      >
-        <ArrowUp size={24} strokeWidth={3} />
-      </button>
+      <ChatModal aberto={chat.aberto} onClose={chat.fechar} />
     </div>
   );
 }

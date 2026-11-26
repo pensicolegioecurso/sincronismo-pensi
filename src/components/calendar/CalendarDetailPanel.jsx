@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { COLUNAS_DIAS, extrairAulas, resolverReferencia, pad2, extrairCapitulos } from "../../utils/formatters";
 import { gerarIdCheck } from "../../services/firestoreChecks";
@@ -17,6 +17,9 @@ export default function CalendarDetailPanel({
   const [aplicarTodasTurmas, setAplicarTodasTurmas] = useState(true);
   const [obsAula, setObsAula] = useState("");
   const [erroModal, setErroModal] = useState("");
+  const [itensVisiveis, setItensVisiveis] = useState(12);
+
+  useEffect(() => setItensVisiveis(12), [semData, diaIdx]);
 
   if (!semData || diaIdx == null) {
     return (
@@ -243,8 +246,8 @@ export default function CalendarDetailPanel({
         {/* Aumentei o padding aqui (p-8) e o espaço entre os blocos (space-y-6) */}
         <div className="p-8 flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
           {currentModelo === "semana"
-            ? renderDetalheSemana(tagDia, currentSemanas, currentAulaIdx, renderizarAcoes)
-            : renderDetalheAula(tagDia, currentAulas, currentCaps, renderizarAcoes, semData, currentCaps)}
+            ? renderDetalheSemana(tagDia, currentSemanas, currentAulaIdx, renderizarAcoes, itensVisiveis, () => setItensVisiveis((n) => n + 12))
+            : renderDetalheAula(tagDia, currentAulas, currentCaps, renderizarAcoes, semData, itensVisiveis, () => setItensVisiveis((n) => n + 12))}
         </div>
       </div>
 
@@ -253,12 +256,12 @@ export default function CalendarDetailPanel({
   );
 }
 
-function renderDetalheAula(tagDia, currentAulas, currentCaps, renderizarAcoes, semData, capsGerais) {
+function renderDetalheAula(tagDia, currentAulas, currentCaps, renderizarAcoes, semData, limite, carregarMais) {
   const aulasDoDia = extrairAulas(tagDia);
   const blocos = [];
 
   if (aulasDoDia.length) {
-    aulasDoDia.forEach((n) => {
+    aulasDoDia.slice(0, limite).forEach((n) => {
       const linhas = currentAulas[n] || [];
       const caps = [...new Set(linhas.map((l) => l.cap).filter(Boolean))];
       const titulo = `Aula ${n}${caps.length ? " — Cap. " + caps.join(", ") : ""}`;
@@ -284,11 +287,13 @@ function renderDetalheAula(tagDia, currentAulas, currentCaps, renderizarAcoes, s
         </div>
       );
     });
+    if (aulasDoDia.length > limite) blocos.push(<button key="mais-aulas" type="button" onClick={carregarMais} className="w-full rounded-xl border border-gray-200 bg-white p-3 text-sm font-bold">Carregar mais aulas</button>);
   } else {
     const isProva = /prova|avaliação|simulado|recuperação/i.test(tagDia);
     const capsEmenta = extrairCapitulos(semData.ementas);
-    const capsGeral = Object.keys(capsGerais || {}).map(Number).filter(Boolean);
-    const todosCaps = [...new Set([...capsEmenta, ...capsGeral])].sort((a, b) => a - b);
+    // Render only chapters referenced by this day's ementa. Listing every
+    // chapter in a large guide here can create thousands of nodes on click.
+    const todosCaps = [...new Set(capsEmenta)].sort((a, b) => a - b);
 
     blocos.push(
       <div key="nf" className="bg-gray-50 border border-gray-100 border-dashed p-6 rounded-2xl text-center mb-6">
@@ -305,7 +310,7 @@ function renderDetalheAula(tagDia, currentAulas, currentCaps, renderizarAcoes, s
           <p className="text-[15px] font-medium text-gray-700 whitespace-pre-wrap mb-5">{semData.ementas}</p>
           {todosCaps.length > 0 && currentCaps && (
             <div className="space-y-6 mt-5 border-t border-gray-100 pt-5">
-              {todosCaps.map((capNum) => {
+          {todosCaps.slice(0, limite).map((capNum) => {
                 const linhasCap = currentCaps[capNum] || [];
                 if (!linhasCap.length) return null;
                 return (
@@ -316,6 +321,7 @@ function renderDetalheAula(tagDia, currentAulas, currentCaps, renderizarAcoes, s
                   </div>
                 );
               })}
+          {todosCaps.length > limite && <button type="button" onClick={carregarMais} className="mt-4 w-full rounded-xl border border-gray-200 bg-white p-3 text-sm font-bold">Carregar mais capítulos</button>}
             </div>
           )}
         </div>
@@ -326,7 +332,7 @@ function renderDetalheAula(tagDia, currentAulas, currentCaps, renderizarAcoes, s
   return <div>{blocos}</div>;
 }
 
-function renderDetalheSemana(tagDia, currentSemanas, currentAulaIdx, renderizarAcoes) {
+function renderDetalheSemana(tagDia, currentSemanas, currentAulaIdx, renderizarAcoes, limite, carregarMais) {
   const ref = resolverReferencia(tagDia);
   if (!ref.nums.length) {
     return <div className="text-center text-gray-500 font-medium text-[15px] py-8 bg-gray-50 border border-dashed border-gray-200 rounded-2xl">Este dia refere-se a evento/recesso/feriado/avaliação/revisão.</div>;
@@ -347,7 +353,7 @@ function renderDetalheSemana(tagDia, currentSemanas, currentAulaIdx, renderizarA
   });
 
   const blocos = [];
-  alvos.forEach((foco, s) => {
+  [...alvos.entries()].slice(0, limite).forEach(([s, foco]) => {
     const d = currentSemanas[s];
     if (!d) return;
 
@@ -359,7 +365,7 @@ function renderDetalheSemana(tagDia, currentSemanas, currentAulaIdx, renderizarA
         <h3 className="text-[16px] font-bold text-[#111111] bg-pensi-yellow px-4 py-1.5 rounded-lg inline-block mb-5 shadow-sm">Semana {s}{d.modulo ? ` — ${d.modulo}` : ""}</h3>
         {d.tema && <p className="text-[15px] mb-4 font-medium text-gray-600"><strong className="text-gray-400 text-[11px] uppercase block mb-1">Tema</strong>{d.tema}</p>}
         <div className="space-y-6 mb-6">
-          {aulas.map((a, i) => (
+        {aulas.slice(0, limite).map((a, i) => (
             <div key={i} className="flex flex-col gap-3 pb-5 border-b border-gray-100 last:border-0 last:pb-0">
               <div className="text-[15px] leading-relaxed whitespace-pre-wrap font-medium text-gray-700">{a.texto}</div>
               {renderizarAcoes(a.key)}
@@ -375,6 +381,13 @@ function renderDetalheSemana(tagDia, currentSemanas, currentAulaIdx, renderizarA
       </div>
     );
   });
+
+  const temMais = alvos.size > limite || [...alvos.values()].some((foco, index) => {
+    const semana = [...alvos.keys()][index];
+    const dados = currentSemanas[semana];
+    return dados && (foco ? dados.aulas.filter((a) => foco.has(a.num)).length : dados.aulas.length) > limite;
+  });
+  if (temMais) blocos.push(<button key="mais-semanas" type="button" onClick={carregarMais} className="w-full rounded-xl border border-gray-200 bg-white p-3 text-sm font-bold">Carregar mais conteúdo</button>);
 
   return <div>{blocos}</div>;
 }

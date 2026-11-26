@@ -24,7 +24,8 @@ function extrairBase(serie) {
 function acharAba(abas, serieDaTurma) {
   if (!abas?.length) return null;
   const baseTurma = extrairBase(serieDaTurma);
-  return abas.find((aba) => extrairBase(aba) === baseTurma) || null;
+  const encontrada = abas.find((aba) => extrairBase(aba.segmento || aba) === baseTurma);
+  return encontrada?.id || encontrada || null;
 }
 
 function parseData(periodo, ano) {
@@ -66,8 +67,11 @@ function obterTurmasInativas(unidade, turmasInativas) {
 
 export default function CalendarPage({ disciplinaKey, ano, onBack, unidadePreSelecionada, turmaPreSelecionada }) {
   const { user, checksSet, setChecksSet } = useAuth();
-  const disc = DISCIPLINAS_POR_ANO[ano]?.[disciplinaKey];
-  const { isDiaLetivo } = useCalendario();
+  const cargos = [...(Array.isArray(user?.cargos) ? user.cargos : []), user?.cargo].filter(Boolean).map((cargo) => String(cargo).toLowerCase());
+  const modoConferencia = cargos.some((cargo) => normalizar(cargo) && ["admin", "administrador", "nucleo", "regional"].includes(normalizar(cargo)));
+  const unidadesUsuario = useMemo(() => obterUnidadesUsuario(user?.unidade), [user?.unidade]);
+  const disc = useMemo(() => DISCIPLINAS_POR_ANO[ano]?.[disciplinaKey] || DISCIPLINAS_POR_ANO["2026"]?.[disciplinaKey] || { nome: disciplinaKey }, [ano, disciplinaKey]);
+  const { isDiaLetivo, erroCarregamento: erroCalendario } = useCalendario();
   const { currentWeeks, currentAulas, currentCaps, currentSemanas, currentAulaIdx, currentModelo, fetchAbas, carregarAba, processar } = useCalendarData();
 
   const [abas, setAbas] = useState([]);
@@ -76,13 +80,14 @@ export default function CalendarPage({ disciplinaKey, ano, onBack, unidadePreSel
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [mesIdx, setMesIdx] = useState(0);
+  const [maxWeeks, setMaxWeeks] = useState(12);
   const [diaSelecionado, setDiaSelecionado] = useState(null);
 
   useEffect(() => {
     let ativo = true;
     if (!disc) { setError(true); setLoading(false); return; }
     setLoading(true); setError(false);
-    fetchAbas(disc)
+    fetchAbas(disc, ano, disciplinaKey, modoConferencia ? [] : unidadesUsuario)
       .then((lista) => {
         if (!ativo) return;
         if (!lista || !lista.length) throw new Error("Sem abas");
@@ -94,7 +99,7 @@ export default function CalendarPage({ disciplinaKey, ano, onBack, unidadePreSel
         setError(true); setLoading(false);
       });
     return () => { ativo = false; };
-  }, [disc, fetchAbas]);
+  }, [disc, ano, disciplinaKey, fetchAbas, modoConferencia, unidadesUsuario]);
 
   const opcoesProfessor = useMemo(() => {
     if (!user || !abas.length) return [];
@@ -111,9 +116,9 @@ export default function CalendarPage({ disciplinaKey, ano, onBack, unidadePreSel
       turmas.forEach((nomeTurma) => {
         if (turmasInativas.has(normalizarTurma(nomeTurma))) return;
         const serieTurma = extrairSerieTurma(nomeTurma);
-        if (!serieTurma) { console.warn("Não foi possível identificar a série da turma:", { unidade, nomeTurma }); return; }
+        if (!serieTurma) return;
         const aba = acharAba(abas, serieTurma);
-        if (!aba) { console.warn("Não foi encontrada uma aba para a série:", { unidade, nomeTurma, serieTurma, abas }); return; }
+        if (!aba) return;
         if (unidadePreSelecionada && unidadeNormalizada !== normalizarUnidade(unidadePreSelecionada)) return;
         resultado.push({ unidade, turma: nomeTurma, serie: serieTurma, aba });
       });
@@ -123,6 +128,11 @@ export default function CalendarPage({ disciplinaKey, ano, onBack, unidadePreSel
 
   useEffect(() => {
     if (!abas.length) return;
+    if (modoConferencia) {
+      setTurmaSelecionada("");
+      setSerie((atual) => abas.some((aba) => (aba.id || aba) === atual) ? atual : (abas[0].id || abas[0]));
+      return;
+    }
     if (turmaPreSelecionada) {
       const opcao = opcoesProfessor.find((o) => normalizarTurma(o.turma) === normalizarTurma(turmaPreSelecionada));
       if (opcao) { setTurmaSelecionada(opcao.turma); setSerie(opcao.aba); return; }
@@ -131,14 +141,14 @@ export default function CalendarPage({ disciplinaKey, ano, onBack, unidadePreSel
       const primeira = opcoesProfessor[0];
       setTurmaSelecionada(primeira.turma); setSerie(primeira.aba); return;
     }
-    setTurmaSelecionada(""); setSerie(abas[0]);
-  }, [abas, opcoesProfessor, turmaPreSelecionada]);
+    setTurmaSelecionada(""); setSerie(""); setLoading(false);
+  }, [abas, opcoesProfessor, turmaPreSelecionada, modoConferencia]);
 
   useEffect(() => {
     if (!serie || !disc || error) return;
     let ativo = true;
-    setLoading(true); setDiaSelecionado(null);
-    carregarAba(ano, disciplinaKey, serie)
+    setLoading(true); setDiaSelecionado(null); setMaxWeeks(12);
+    carregarAba(ano, disciplinaKey, serie, disc, modoConferencia ? [] : unidadesUsuario)
       .then((rows) => {
         if (!ativo) return;
         if (!rows) throw new Error("Sem dados");
@@ -151,7 +161,7 @@ export default function CalendarPage({ disciplinaKey, ano, onBack, unidadePreSel
       })
       .finally(() => { if (ativo) setLoading(false); });
     return () => { ativo = false; };
-  }, [serie, ano, disciplinaKey, disc, carregarAba, processar, error]);
+  }, [serie, ano, disciplinaKey, disc, carregarAba, processar, error, modoConferencia, unidadesUsuario]);
 
   const meses = useMemo(() => {
     if (!currentWeeks.length) return [{ y: 0, m: -1, rotulo: "Todas" }];
@@ -187,12 +197,13 @@ export default function CalendarPage({ disciplinaKey, ano, onBack, unidadePreSel
   }, [opcoesProfessor, turmaSelecionada, serie]);
 
   const unidadeAtiva = unidadePreSelecionada || opcaoSelecionada?.unidade || "";
+  const guiaSelecionada = abas.find((aba) => (aba.id || aba) === serie);
 
   const listaTurmasParaCheck = useMemo(() => {
     return opcoesProfessor.filter((o) => !unidadeAtiva || normalizarUnidade(o.unidade) === normalizarUnidade(unidadeAtiva)).map((o) => o.turma);
   }, [opcoesProfessor, unidadeAtiva]);
 
-  const nomeParaOProperty = turmaSelecionada || (opcaoSelecionada ? opcaoSelecionada.turma : serie);
+  const nomeParaOProperty = turmaSelecionada || (opcaoSelecionada ? opcaoSelecionada.turma : (guiaSelecionada?.rotulo || serie));
 
   async function handleCheck({ semanaIdx, diaNome, aulaIndex, tipo, justificativa, observacao, turmasParaAplicar }) {
     if (!user) return;
@@ -213,9 +224,11 @@ export default function CalendarPage({ disciplinaKey, ano, onBack, unidadePreSel
 
   if (error) return <CalendarError onBack={onBack} />;
 
-  const isReady = !loading && currentWeeks.length > 0;
+  const semSegmentoDisponivel = Boolean(user && !modoConferencia && opcoesProfessor.length === 0 && abas.length > 0);
+  const isReady = !loading && (currentWeeks.length > 0 || semSegmentoDisponivel || modoConferencia || Boolean(user && opcoesProfessor.length > 0));
 
   const mostrarSeletor = (() => {
+    if (modoConferencia) return abas.length > 0;
     if (!user) return abas.length > 1;
     if (turmaPreSelecionada) return false;
     return opcoesProfessor.length > 1;
@@ -243,9 +256,15 @@ export default function CalendarPage({ disciplinaKey, ano, onBack, unidadePreSel
           mostrarSeletor={mostrarSeletor}
           turmaPreSelecionada={turmaPreSelecionada}
           unicaOpcao={unicaOpcao}
+          modoConferencia={modoConferencia}
         />
 
-        {user && opcoesProfessor.length === 0 && <CalendarAlert />}
+        {erroCalendario && <div role="status" className="mx-6 mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-900">Não foi possível carregar os calendários do Firestore. Verifique se as regras de calendários foram publicadas no Firebase.</div>}
+
+        {user && opcoesProfessor.length === 0 && !modoConferencia && (abas.length ? <div className="mx-auto mt-6 max-w-3xl rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm font-semibold text-amber-900">Nenhum segmento desta planilha corresponde às suas turmas ativas. O calendário não carregará outra guia por engano.</div> : <CalendarAlert />)}
+        {!currentWeeks.length && !loading && (modoConferencia
+          ? <div className="mx-auto mt-6 max-w-3xl rounded-2xl border border-gray-200 bg-white p-5 text-sm font-semibold text-gray-600">Selecione uma guia para conferir os dados do calendário.</div>
+          : user && opcoesProfessor.length > 0 && <div className="mx-auto mt-6 max-w-3xl rounded-2xl border border-gray-200 bg-white p-5 text-sm font-semibold text-gray-600">Esta guia não contém semanas de calendário reconhecidas.</div>)}
 
         <div className="flex-1 grid lg:grid-cols-[1.3fr_1fr] gap-8 max-w-[1400px] mx-auto p-6 pt-15 w-full items-start relative z-10">
           
@@ -271,6 +290,8 @@ export default function CalendarPage({ disciplinaKey, ano, onBack, unidadePreSel
                 turmaSelecionada={turmaSelecionada || nomeParaOProperty}
                 serie={serie}
                 unidadeSelecionada={unidadeAtiva}
+                maxWeeks={maxWeeks}
+                onLoadMore={() => setMaxWeeks((atual) => atual + 12)}
               />
             </div>
           </div>
@@ -294,7 +315,7 @@ export default function CalendarPage({ disciplinaKey, ano, onBack, unidadePreSel
               isDiaLetivo={isDiaLetivo}
               turmaSelecionada={turmaSelecionada || nomeParaOProperty}
               serie={serie}
-              podeRegistrarChecks={Boolean(user && opcoesProfessor.length > 0)}
+              podeRegistrarChecks={Boolean(user && !modoConferencia && opcoesProfessor.length > 0)}
             />
           </aside>
         </div>

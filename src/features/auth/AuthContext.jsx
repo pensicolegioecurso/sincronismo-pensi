@@ -201,6 +201,27 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
+  const atualizarUsername = useCallback(async (valor) => {
+    const firebaseUser = auth.currentUser;
+    if (!firebaseUser) return { ok: false, message: "Faça login novamente para alterar seu @username." };
+
+    const username = String(valor || "").trim().replace(/^@+/, "").toLowerCase();
+    if (!/^[a-z0-9][a-z0-9._]{2,19}$/.test(username) || /[._]{2}|[._]$/.test(username)) {
+      return { ok: false, message: "Use de 3 a 20 caracteres: letras, números, ponto ou underline. Não termine com pontuação." };
+    }
+
+    const userRef = doc(db, "users", firebaseUser.uid);
+    try {
+      await setDoc(userRef, { username, atualizadoEm: serverTimestamp() }, { merge: true });
+
+      setUser((prev) => ({ ...prev, username }));
+      return { ok: true, username };
+    } catch (err) {
+      console.error("Erro ao atualizar username:", err);
+      return { ok: false, message: err.message || "Não foi possível atualizar seu @username." };
+    }
+  }, [user?.username]);
+
   const vincularCPF = useCallback(async (valor) => {
     try {
       const firebaseUser = auth.currentUser;
@@ -369,6 +390,7 @@ export function AuthProvider({ children }) {
     setChecksSet,
     register,
     atualizarPerfil,
+    atualizarUsername,
     vincularCPF,
     login,
     logout,

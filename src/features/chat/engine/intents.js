@@ -75,6 +75,35 @@ export const INTENTS = [
     handler: "checksJustificados",
   },
   {
+    id: "checks_pendentes",
+    keywords: ["checks pendentes", "checks em aberto", "checks nao concluidos", "quantos pendentes", "pendencias"],
+    handler: "checksPendentes",
+  },
+  {
+    id: "checks_concluidos",
+    keywords: ["checks concluidos", "checks realizados", "checks completos", "quantos concluidos"],
+    handler: "checksConcluidos",
+  },
+  {
+    id: "checks_por_disciplina",
+    keywords: ["checks de disciplina", "checks por disciplina", "quantos checks de", "desempenho por disciplina"],
+    regex: [/checks? (?:de|da|do|em) disciplina ([\w\s]+)/, /checks? (?:de|da|do|em) ([\w\s]+)/],
+    handler: "checksPorDisciplina",
+    extract: (t) => t.match(/disciplina ([\w\s]+)/)?.[1]?.trim() || t.match(/checks? (?:de|da|do|em) ([\w\s]+)/)?.[1]?.trim(),
+  },
+  {
+    id: "checks_por_serie",
+    keywords: ["checks por serie", "checks da serie", "checks do ano", "turma com mais checks"],
+    regex: [/checks? (?:da|do|na|no) (?:serie|turma) ([\w\s\d]+)/],
+    handler: "checksPorSerie",
+    extract: (t) => t.match(/(?:serie|turma) ([\w\s\d]+)/)?.[1]?.trim(),
+  },
+  {
+    id: "resumo_checks",
+    keywords: ["resumo dos checks", "resumo geral", "visao geral dos checks", "resumo do desempenho"],
+    handler: "resumoChecks",
+  },
+  {
     id: "aula_hoje",
     keywords: ["aula hoje", "tem aula hoje", "quais aulas hoje"],
     handler: "aulasHoje",
