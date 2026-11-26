@@ -5,10 +5,7 @@ import { db } from "../../services/firebase";
 import { useTurmas } from "../../hooks/useTurmas";
 import { useUnidades } from "../../hooks/useUnidades";
 
-import { Loader2 } from "lucide-react";
-
 import UsersHeader from "./users/UsersHeader";
-import UsersFilters from "./users/UsersFilters";
 import UsersList from "./users/UsersList";
 import UsersPagination from "./users/UsersPagination";
 
@@ -71,13 +68,12 @@ export default function AdminUsers({
 
   const [isCadastroOpen, setIsCadastroOpen] = useState(false);
 
+  // Estados dos filtros
   const [busca, setBusca] = useState("");
   const [filtroCargo, setFiltroCargo] = useState("todos");
   const [filtroUnidade, setFiltroUnidade] = useState([]);
   const [filtroStatus, setFiltroStatus] = useState("todos");
   const [filtroRegional, setFiltroRegional] = useState([]);
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const filterRef = useRef(null);
 
   const [paginaAtual, setPaginaAtual] = useState(1);
 
@@ -127,14 +123,6 @@ export default function AdminUsers({
 
   useEffect(() => {
     carregarUsers();
-  }, []);
-
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (filterRef.current && !filterRef.current.contains(event.target)) setIsFilterOpen(false);
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const regionaisDisponiveis = useMemo(() => {
@@ -224,7 +212,6 @@ export default function AdminUsers({
   const inicio = (paginaSegura - 1) * POR_PAGINA;
   const usersPaginados = usersFiltrados.slice(inicio, inicio + POR_PAGINA);
 
-  // Contadores reais (antes "ativos" mostrava o total filtrado)
   const totalInativos = usersVisiveis.filter((u) => obterStatus(u) === "Inativo").length;
   const totalAtivos = usersVisiveis.length - totalInativos;
 
@@ -285,34 +272,20 @@ export default function AdminUsers({
     }
   };
 
-  if (carregando) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20">
-        <Loader2 className="mb-4 h-8 w-8 animate-spin text-gray-400" />
-        <p className="text-sm font-bold uppercase tracking-wider text-gray-500">Carregando usuários...</p>
-      </div>
-    );
-  }
+  // Removi aquele `if (carregando) return <Loader />` que travava a tela inteira
 
   return (
-    <div className="w-full min-w-0 pb-10 animate-fade-in">
-      <div className="mx-auto max-w-4xl px-4 pt-6 sm:px-6">
+    <div className="w-full min-w-0 pb-10 animate-fade-in bg-gray-50/30 min-h-screen">
+      <div className="mx-auto max-w-5xl">
+        
         <UsersHeader
-          ehRegional={ehRegional}
-          ehDirecao={ehDirecao}
-          podeGerenciar={podeGerenciar}
+          user={currentUser} 
+          busca={busca} setBusca={setBusca}
           onBack={onBack || (() => window.history.back())}
           onChat={onChat}
           onFamily={onFamily}
-          onOpenCadastro={() => setIsCadastroOpen(true)}
-        />
-
-        <UsersFilters
-          busca={busca} setBusca={setBusca}
           filtroCargo={filtroCargo} setFiltroCargo={setFiltroCargo}
           filtroStatus={filtroStatus} setFiltroStatus={setFiltroStatus}
-          isFilterOpen={isFilterOpen} setIsFilterOpen={setIsFilterOpen} filterRef={filterRef}
-          isAdminOrNucleo={isAdminOrNucleo}
           filtroRegional={filtroRegional} setFiltroRegional={setFiltroRegional}
           filtroUnidade={filtroUnidade} setFiltroUnidade={setFiltroUnidade}
           regionaisDisponiveis={regionaisDisponiveis}
@@ -321,6 +294,7 @@ export default function AdminUsers({
         />
 
         <UsersList
+          carregando={carregando} // Passando para exibir o Skeleton
           users={usersPaginados}
           totalFiltrado={usersFiltrados.length}
           totalGeral={usersVisiveis.length}
@@ -334,12 +308,15 @@ export default function AdminUsers({
           onDelete={setDeleteUser}
         />
 
-        <UsersPagination
-          paginaAtual={paginaSegura}
-          setPaginaAtual={setPaginaAtual}
-          totalPaginas={totalPaginas}
-          total={usersFiltrados.length}
-        />
+        {/* Paginação só aparece se não estiver carregando */}
+        {!carregando && (
+          <UsersPagination
+            paginaAtual={paginaSegura}
+            setPaginaAtual={setPaginaAtual}
+            totalPaginas={totalPaginas}
+            total={usersFiltrados.length}
+          />
+        )}
       </div>
 
       {modalStatus && (

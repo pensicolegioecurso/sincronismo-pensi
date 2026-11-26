@@ -1,23 +1,64 @@
 import { useState, useEffect } from "react";
 import {
   MessageSquare, CheckCircle2, Send, Clock, MapPin, BookOpen,
-  User, AlertCircle, CalendarDays, ChevronDown, Loader2,
+  User, AlertCircle, CalendarDays, Loader2,
 } from "lucide-react";
 import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "firebase/firestore";
 import { db } from "../../../services/firebase";
 
-function getPostStyle(post) {
-  if (post.tipo === "justificativa") {
-    return { iconColor: "text-pink-500", icon: MessageSquare, label: "Justificativa registrada" };
-  }
-  return { iconColor: "text-emerald-600", icon: CheckCircle2, label: "Check de aula" };
-}
-
 function formatarHorario(timestamp) {
-  if (!timestamp) return "Enviando...";
+  if (!timestamp) return "";
   const data = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
   if (Number.isNaN(data.getTime())) return "";
-  return `${data.toLocaleDateString("pt-BR")} às ${data.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
+  const diffMin = Math.floor((new Date() - data) / 60000);
+  if (diffMin < 60) return `${diffMin}m`;
+  const diffHoras = Math.floor(diffMin / 60);
+  if (diffHoras < 24) return `${diffHoras}h`;
+  return data.toLocaleDateString("pt-BR");
+}
+
+/* --- COMPONENTE DE SKELETON --- */
+function SkeletonPost() {
+  return (
+    <div className="py-5 flex gap-3 w-full animate-pulse">
+      {/* Avatar skeleton */}
+      <div className="shrink-0">
+        <div className="w-10 h-10 bg-gray-200 rounded-full"></div>
+      </div>
+      
+      <div className="flex-1 min-w-0 space-y-3">
+        {/* Nome e data skeleton */}
+        <div className="flex items-center gap-2">
+          <div className="h-4 bg-gray-200 rounded-md w-1/4"></div>
+          <div className="h-3 bg-gray-200 rounded-md w-1/6"></div>
+        </div>
+        
+        {/* Texto skeleton */}
+        <div className="space-y-1.5">
+          <div className="h-4 bg-gray-200 rounded-md w-3/4"></div>
+          <div className="h-4 bg-gray-200 rounded-md w-1/2"></div>
+        </div>
+
+        {/* Card de aula skeleton */}
+        <div className="rounded-2xl border border-gray-100 p-4 space-y-3 bg-gray-50/50">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 bg-gray-200 rounded-md"></div>
+            <div className="h-3 bg-gray-200 rounded-md w-1/3"></div>
+          </div>
+          <div className="space-y-2 pt-2">
+            <div className="h-3 bg-gray-200 rounded-md w-1/2"></div>
+            <div className="h-3 bg-gray-200 rounded-md w-2/5"></div>
+          </div>
+        </div>
+        
+        {/* Botão skeleton */}
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 bg-gray-200 rounded-full"></div>
+          <div className="h-3 bg-gray-200 rounded-md w-16"></div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function ComentariosPost({ post, aberto, user }) {
@@ -62,144 +103,147 @@ function ComentariosPost({ post, aberto, user }) {
   if (!aberto) return null;
 
   return (
-    <div className="border-t border-gray-100 bg-gray-50 p-4 sm:p-5 animate-fade-in w-full">
-      <div className="space-y-3 mb-4 max-h-72 overflow-y-auto pr-1">
+    <div className="border-t border-gray-100 bg-gray-50/50 p-4 animate-fade-in w-full mt-3 rounded-b-2xl">
+      <div className="space-y-3 mb-4 max-h-72 overflow-y-auto">
         {carregandoComentarios && (
-          <div className="flex items-center justify-center gap-2 py-4 text-gray-400 text-xs font-bold">
-            <Loader2 className="w-4 h-4 animate-spin" /> Carregando comentários...
+          <div className="space-y-3 animate-pulse">
+            <div className="flex gap-3">
+              <div className="w-8 h-8 bg-gray-200 rounded-full"></div>
+              <div className="flex-1 bg-white border border-gray-100 rounded-2xl p-3 h-16"></div>
+            </div>
           </div>
         )}
         {!carregandoComentarios && comentarios.length === 0 && (
-          <p className="text-[11px] text-gray-400 italic py-2">Nenhum comentário ainda. Seja o primeiro!</p>
+          <p className="text-sm text-gray-400 italic py-2 text-center">Nenhum comentário ainda.</p>
         )}
         {comentarios.map((comentario) => (
-          <div key={comentario.id} className="bg-white border border-gray-100 rounded-xl p-3 shadow-sm w-full">
-            <div className="flex items-center justify-between gap-2 mb-2">
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="w-7 h-7 shrink-0 bg-black text-white rounded-full flex items-center justify-center font-bold text-xs uppercase">
-                  {(comentario.autorNome || "U").charAt(0)}
-                </div>
-                <span className="text-xs font-bold text-gray-900 truncate">{comentario.autorNome || "Usuário"}</span>
-              </div>
-              <span className="text-[9px] text-gray-400 font-medium shrink-0">{formatarHorario(comentario.criadoEm)}</span>
+          <div key={comentario.id} className="flex gap-3">
+            <div className="w-8 h-8 shrink-0 bg-black text-white rounded-full flex items-center justify-center font-bold text-xs uppercase mt-1">
+              {(comentario.autorNome || "U").charAt(0)}
             </div>
-            <p className="text-xs text-gray-700 font-medium whitespace-pre-wrap break-words pl-9">{comentario.texto}</p>
+            <div className="flex-1 bg-white border border-gray-100 rounded-2xl p-3 shadow-sm">
+              <div className="flex items-center justify-between gap-2 mb-1">
+                <span className="text-sm font-bold text-gray-900 truncate">{comentario.autorNome || "Usuário"}</span>
+                <span className="text-[10px] text-gray-400 font-medium shrink-0">{formatarHorario(comentario.criadoEm)}</span>
+              </div>
+              <p className="text-sm text-gray-800 whitespace-pre-wrap break-words">{comentario.texto}</p>
+            </div>
           </div>
         ))}
       </div>
       {erro && <p className="text-[11px] text-red-600 font-bold mb-2">{erro}</p>}
       
-      <form onSubmit={enviarComentario} className="flex items-center gap-2 w-full">
-        <div className="relative flex-1">
-          <User className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input type="text" value={texto} onChange={(e) => setTexto(e.target.value)} placeholder="Escreva um comentário..." maxLength={1000} disabled={enviando}
-            className="w-full bg-white border border-gray-200 rounded-xl pl-9 pr-3 py-3 text-sm font-medium focus:outline-none focus:border-black placeholder:text-gray-400 transition-colors" />
+      <form onSubmit={enviarComentario} className="flex items-center gap-2 w-full mt-2">
+        <div className="w-8 h-8 shrink-0 bg-gray-200 rounded-full flex items-center justify-center text-gray-500">
+          <User size={16} />
         </div>
-        <button type="submit" disabled={!texto.trim() || enviando}
-          className="w-11 h-11 bg-black border border-transparent rounded-xl flex items-center justify-center hover:bg-gray-800 transition-all shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
-          {enviando ? <Loader2 size={16} className="animate-spin text-white" /> : <Send size={16} className="text-white" />}
-        </button>
+        <div className="relative flex-1">
+          <input type="text" value={texto} onChange={(e) => setTexto(e.target.value)} placeholder="Escreva uma resposta..." maxLength={1000} disabled={enviando}
+            className="w-full bg-white border border-gray-200 rounded-full pl-4 pr-12 py-2.5 text-sm font-medium focus:outline-none focus:border-black placeholder:text-gray-400 transition-colors" />
+          <button type="submit" disabled={!texto.trim() || enviando}
+            className="absolute right-1 top-1/2 -translate-y-1/2 p-2 bg-black rounded-full hover:bg-gray-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+            {enviando ? <Loader2 size={14} className="animate-spin text-white" /> : <Send size={14} className="text-white" />}
+          </button>
+        </div>
       </form>
     </div>
   );
 }
 
-function FeedPost({ post, comentariosAbertos, toggleComentarios, user }) {
-  const style = getPostStyle(post);
-  const StatusIcon = style.icon;
+function FeedPost({ post, comentariosAbertos, toggleComentarios, user, qtdComentarios }) {
   const aberto = !!comentariosAbertos[post.id];
   const inicialProf = post.professor ? post.professor.charAt(0).toUpperCase() : "P";
+  const handle = `@${post.professor?.toLowerCase().replace(/\s/g, '') || 'user'}`;
 
   return (
-    <article className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden mb-4 relative">
-      <div className="p-5 pb-16 relative">
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="w-8 h-8 bg-black text-white rounded-full flex items-center justify-center font-bold text-sm mr-1 shrink-0">
-            {inicialProf}
-          </div>
-          <h3 className="text-sm font-bold text-gray-900">{post.professor}</h3>
-          {post.aula && (
-            <span className="text-[10px] bg-gray-50 border border-gray-100 rounded px-1.5 font-bold uppercase tracking-wider text-gray-500">
-              {post.aula}
-            </span>
-          )}
-        </div>
-        
-        <div className="flex flex-col sm:flex-row sm:flex-wrap gap-x-4 gap-y-1 mt-3 text-[11px]">
-          <span className="flex items-center gap-1.5 text-gray-700 font-medium">
-            <BookOpen className="w-3.5 h-3.5 shrink-0" />{post.disciplina} • {post.turma}
-          </span>
-          <span className="flex items-center gap-1.5 text-gray-500 font-medium">
-            <MapPin className="w-3.5 h-3.5 shrink-0" />{post.unidade}
-          </span>
-        </div>
-
-        <div className="flex flex-col sm:flex-row sm:flex-wrap gap-x-4 gap-y-2 mt-3">
-          <span className="flex items-center gap-1.5 text-[11px] text-pensi-yellow font-bold">
-            <CalendarDays className="w-3.5 h-3.5 shrink-0" />Aula de {post.diaSemana}, {post.dataReferencia}
-          </span>
-          <span className="flex items-center gap-1.5 text-[11px] text-gray-400 font-medium">
-            <Clock className="w-3.5 h-3.5 shrink-0" />Registrado em {post.dataHoraFormatada} às {post.horaFormatada}
-          </span>
-        </div>
-
-        <div className="mt-3 pt-3 border-t border-gray-50">
-          <div className="flex items-center gap-1.5 mb-2">
-            <StatusIcon className={`w-4 h-4 ${style.iconColor}`} strokeWidth={2.5} />
-            <span className="text-[9px] font-black uppercase tracking-wider text-gray-400">{style.label}</span>
-          </div>
-          {post.tipo === "justificativa" && post.justificativa && (
-            <div className="bg-pink-50 border border-pink-100 rounded-lg p-3 mb-2">
-              <p className="text-[10px] font-bold text-pink-700 uppercase tracking-wider mb-0.5">Motivo:</p>
-              <p className="text-xs text-gray-800 font-medium">{post.justificativa}</p>
-            </div>
-          )}
-          {post.tipo === "aula" && post.observacao && (
-            <div className="bg-gray-50 border border-gray-100 rounded-lg p-3 mb-2">
-              <p className="text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-0.5">Observação:</p>
-              <p className="text-xs text-gray-800 font-medium">{post.observacao}</p>
-            </div>
-          )}
-        </div>
-
-        {/* Botão no canto (posicionado absolutamente) */}
-        <div className="absolute bottom-4 right-5">
-          <button
-            onClick={() => toggleComentarios(post.id)}
-            className={`flex items-center justify-center gap-2 px-3 py-2 border border-gray-200 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-colors ${aberto ? "bg-gray-100 text-black" : "bg-white text-gray-500 hover:bg-gray-50"}`}
-          >
-            <MessageSquare className="w-3.5 h-3.5" /> 
-            <span>{aberto ? "Ocultar" : "Comentários"}</span>
-            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${aberto ? "rotate-180" : ""}`} />
-          </button>
+    <article className="py-5 flex gap-3 w-full">
+      <div className="shrink-0">
+        <div className="w-10 h-10 bg-black text-white rounded-full flex items-center justify-center font-bold text-lg shadow-sm">
+          {inicialProf}
         </div>
       </div>
 
-      {/* Comentários abrem embaixo */}
-      <ComentariosPost post={{ id: post.id }} aberto={aberto} user={user} />
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1 text-[15px]">
+          <span className="font-bold text-gray-900 truncate">{post.professor}</span>
+          <span className="text-gray-500 truncate">{handle}</span>
+          <span className="text-gray-400 text-xs px-1">·</span>
+          <span className="text-gray-500 shrink-0 text-sm">{post.dataHoraFormatada}</span>
+        </div>
+
+        <p className="text-[15px] text-gray-900 mt-1 leading-snug whitespace-pre-wrap">
+          {post.disciplina} • {post.turma}
+          {post.observacao && `\n\n${post.observacao}`}
+        </p>
+
+        <div className="mt-3 rounded-2xl border border-gray-200 overflow-hidden bg-white shadow-sm hover:shadow-md transition-shadow">
+          <div className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-6 h-6 bg-gray-100 rounded flex items-center justify-center text-gray-500">
+                <BookOpen size={14} />
+              </div>
+              <span className="text-xs font-bold uppercase tracking-wider text-gray-500">Registro de Aula</span>
+            </div>
+            
+            <div className="space-y-2 mt-3 text-sm text-gray-700">
+              <div className="flex items-center gap-2">
+                <MapPin size={16} className="text-gray-400" /> {post.unidade}
+              </div>
+              <div className="flex items-center gap-2">
+                <CalendarDays size={16} className="text-gray-400" /> {post.diaSemana}, {post.dataReferencia}
+              </div>
+              <div className="flex items-center gap-2">
+                {post.tipo === 'justificativa' ? (
+                  <><AlertCircle size={16} className="text-pink-500" /> Justificativa: {post.justificativa}</>
+                ) : (
+                  <><CheckCircle2 size={16} className="text-emerald-500" /> Check de aula realizado</>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center mt-3">
+          <button onClick={() => toggleComentarios(post.id)} className="flex items-center gap-1.5 text-gray-500 hover:text-black transition group">
+            <div className="p-2 rounded-full group-hover:bg-gray-100 transition"><MessageSquare size={18} /></div>
+            <span className="text-xs font-bold">{qtdComentarios > 0 ? `${qtdComentarios} Comentários` : "Comentar"}</span>
+          </button>
+        </div>
+
+        <ComentariosPost post={{ id: post.id }} aberto={aberto} user={user} />
+      </div>
     </article>
   );
 }
 
-export default function FeedList({ carregando, posts, comentariosAbertos, toggleComentarios, user }) {
+export default function FeedList({ carregando, posts, comentariosAbertos, toggleComentarios, user, contagemComentarios }) {
   return (
-    <div className="space-y-4">
+    <div className="divide-y divide-gray-300/70 w-full">
+      {/* Substituído o Spinner pelo Skeleton */}
       {carregando && (
-        <div className="py-12 text-center text-gray-400 font-bold flex flex-col items-center">
-          <Loader2 className="w-6 h-6 animate-spin mb-3" /> Carregando o feed...
+        <div className="flex flex-col">
+          <SkeletonPost />
+          <SkeletonPost />
+          <SkeletonPost />
         </div>
       )}
+      
       {!carregando && posts.length === 0 && (
-        <div className="bg-white border border-gray-100 rounded-2xl p-8 text-center shadow-sm">
-          <div className="w-12 h-12 bg-gray-50 border border-gray-100 rounded-xl flex items-center justify-center mx-auto mb-3">
-            <AlertCircle className="w-6 h-6 text-gray-400" />
-          </div>
-          <h3 className="text-sm font-bold uppercase text-gray-900">Nenhuma atividade encontrada</h3>
-          <p className="text-[11px] text-gray-500 mt-1.5">Não há registros para exibir com esses filtros.</p>
+        <div className="p-8 text-center">
+          <h3 className="text-lg font-bold text-gray-900">Nenhuma atividade encontrada</h3>
+          <p className="text-sm text-gray-500 mt-1">Não há registros para exibir com esses filtros.</p>
         </div>
       )}
+      
       {!carregando && posts.map((post) => (
-        <FeedPost key={post.id} post={post} comentariosAbertos={comentariosAbertos} toggleComentarios={toggleComentarios} user={user} />
+        <FeedPost 
+          key={post.id} 
+          post={post} 
+          comentariosAbertos={comentariosAbertos} 
+          toggleComentarios={toggleComentarios} 
+          user={user} 
+          qtdComentarios={contagemComentarios[post.id] || 0}
+        />
       ))}
     </div>
   );

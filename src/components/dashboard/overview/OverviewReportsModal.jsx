@@ -1,8 +1,11 @@
-
-import { useMemo, useState } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import * as XLSX from "xlsx";
 import {
   X,
+  ChevronLeft,
+  ChevronRight,
+  Search,
   FileSpreadsheet,
   FileText,
   Eye,
@@ -17,52 +20,46 @@ import {
   Clock3,
   ChevronDown,
   FileBarChart,
-  Search,
-  CalendarRange,
+  PlusCircle,
+  CheckCircle2,
 } from "lucide-react";
 
 const OPCOES = [
   {
     id: "resumo",
     titulo: "Resumo geral",
-    descricao: "Indicadores e percentual de conclusão",
+    descricao: "Indicadores e percentual",
     Icon: ChartNoAxesCombined,
-    cor: "bg-yellow-100 text-yellow-800",
   },
   {
     id: "unidades",
     titulo: "Desempenho das unidades",
-    descricao: "Comparativo de resultados por unidade",
+    descricao: "Resultados por unidade",
     Icon: Building2,
-    cor: "bg-blue-50 text-blue-600",
   },
   {
     id: "professores",
     titulo: "Ranking de professores",
-    descricao: "Desempenho dos professores por unidade",
+    descricao: "Desempenho dos professores",
     Icon: Users,
-    cor: "bg-purple-50 text-purple-600",
   },
   {
     id: "pendencias",
     titulo: "Pendências por dia",
-    descricao: "Cada dia pendente, professor e respectiva unidade",
+    descricao: "Pendências diárias",
     Icon: Clock3,
-    cor: "bg-orange-50 text-orange-600",
   },
   {
     id: "registros",
     titulo: "Registros detalhados",
-    descricao: "Todas as aulas, datas, turmas e status",
+    descricao: "Aulas e status",
     Icon: ClipboardList,
-    cor: "bg-emerald-50 text-emerald-600",
   },
   {
     id: "excecoes",
     titulo: "Exceções do calendário",
-    descricao: "Datas, unidades e motivos cadastrados",
+    descricao: "Feriados e recessos",
     Icon: CalendarDays,
-    cor: "bg-pink-50 text-pink-600",
   },
 ];
 
@@ -85,31 +82,24 @@ function escaparHTML(valor) {
 
 function formatarData(data) {
   if (!data) return "-";
-
   const partes = String(data).split("-");
-
   if (partes.length !== 3) return data;
-
   return `${partes[2]}/${partes[1]}/${partes[0]}`;
 }
 
 function obterStatus(status) {
   const valor = normalizarTexto(status);
-
   if (["realizado", "concluido", "concluida", "feito", "feita"].includes(valor)) {
     return "Concluída";
   }
-
   if (valor === "justificado" || valor === "justificada") {
     return "Justificada";
   }
-
   return "Pendente";
 }
 
 function construirRanking(porUnidade, users) {
   const usuariosPorId = new Map();
-
   users.forEach((user) => {
     usuariosPorId.set(user.uid || user.id, user);
   });
@@ -122,7 +112,6 @@ function construirRanking(porUnidade, users) {
       if (!uid) return;
 
       const usuario = usuariosPorId.get(uid);
-
       const nome =
         registro.responsavel ||
         usuario?.nome ||
@@ -185,47 +174,37 @@ export default function OverviewReportsModal({
   dataInicioCustom,
   dataFimCustom,
 }) {
+  const [montado, setMontado] = useState(false);
   const [selecionados, setSelecionados] = useState([
     "resumo",
     "unidades",
     "pendencias",
     "registros",
   ]);
-
   const [visualizar, setVisualizar] = useState(true);
   const [formato, setFormato] = useState("excel");
   const [exportando, setExportando] = useState(false);
   const [buscaPreview, setBuscaPreview] = useState("");
+  const [tela, setTela] = useState(null);
+
+  useEffect(() => {
+    setMontado(true);
+    return () => setMontado(false);
+  }, []);
 
   const porUnidade = dadosFiltrados?.porUnidade || [];
+  const total = dadosFiltrados?.total || { concluidas: 0, pendentes: 0, justificadas: 0 };
+  const totalGeral = total.concluidas + total.pendentes + total.justificadas;
+  const percentual = totalGeral ? Math.round((total.concluidas / totalGeral) * 100) : 0;
 
-  const total = dadosFiltrados?.total || {
-    concluidas: 0,
-    pendentes: 0,
-    justificadas: 0,
-  };
+  const ranking = useMemo(() => construirRanking(porUnidade, users), [porUnidade, users]);
 
-  const totalGeral =
-    total.concluidas + total.pendentes + total.justificadas;
-
-  const percentual = totalGeral
-    ? Math.round((total.concluidas / totalGeral) * 100)
-    : 0;
-
-  const ranking = useMemo(
-    () => construirRanking(porUnidade, users),
-    [porUnidade, users]
-  );
-
-  // Todos os registros individuais, inclusive pendências geradas
-  // pelo calendário no AdminOverview.
   const registros = useMemo(() => {
     return porUnidade
       .flatMap((unidade) =>
         (unidade.historico || []).map((registro) => {
           const usuario = users.find(
-            (user) =>
-              (user.uid || user.id) === registro.responsavelUid
+            (user) => (user.uid || user.id) === registro.responsavelUid
           );
 
           return {
@@ -255,18 +234,12 @@ export default function OverviewReportsModal({
       .sort((a, b) => String(b.data).localeCompare(String(a.data)));
   }, [porUnidade, users]);
 
-  // Cada dia pendente é um registro independente.
   const pendencias = useMemo(() => {
     return registros
-      .filter(
-        (registro) =>
-          normalizarTexto(registro.status) === "pendente"
-      )
+      .filter((registro) => normalizarTexto(registro.status) === "pendente")
       .sort((a, b) => {
         const data = String(b.data).localeCompare(String(a.data));
-
         if (data !== 0) return data;
-
         return a.professor.localeCompare(b.professor, "pt-BR");
       });
   }, [registros]);
@@ -319,25 +292,18 @@ export default function OverviewReportsModal({
           normalizarTexto(exc.unidade) === "todas as unidades" ||
           unidadesVisiveis.has(normalizarTexto(exc.unidade))
       )
-      .sort((a, b) =>
-        String(a.inicio).localeCompare(String(b.inicio))
-      );
+      .sort((a, b) => String(a.inicio).localeCompare(String(b.inicio)));
   }, [excecoesCalendario, calendarios, porUnidade]);
 
   const periodoLabel = useMemo(() => {
     if (filtroPeriodo === "anual") {
       return `Ano ${mesFiltro?.getFullYear() || new Date().getFullYear()}`;
     }
-
     if (filtroPeriodo === "custom") {
       return `${formatarData(dataInicioCustom)} até ${formatarData(dataFimCustom)}`;
     }
-
     return mesFiltro
-      ? mesFiltro.toLocaleDateString("pt-BR", {
-          month: "long",
-          year: "numeric",
-        })
+      ? mesFiltro.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })
       : "Período mensal";
   }, [filtroPeriodo, mesFiltro, dataInicioCustom, dataFimCustom]);
 
@@ -351,9 +317,7 @@ export default function OverviewReportsModal({
 
   function selecionarTodos() {
     setSelecionados((atuais) =>
-      atuais.length === OPCOES.length
-        ? []
-        : OPCOES.map((opcao) => opcao.id)
+      atuais.length === OPCOES.length ? [] : OPCOES.map((opcao) => opcao.id)
     );
   }
 
@@ -377,19 +341,9 @@ export default function OverviewReportsModal({
     if (selecionados.includes("unidades")) {
       secoes.push({
         titulo: "Desempenho por unidade",
-        colunas: [
-          "Unidade",
-          "Regional",
-          "Concluídas",
-          "Pendentes",
-          "Justificadas",
-          "Total",
-          "Conclusão %",
-        ],
+        colunas: ["Unidade", "Regional", "Concluídas", "Pendentes", "Justificadas", "Total", "Conclusão %"],
         linhas: porUnidade.map((unidade) => {
-          const totalUnidade =
-            unidade.c + unidade.p + unidade.j;
-
+          const totalUnidade = unidade.c + unidade.p + unidade.j;
           return [
             unidade.nome,
             unidade.regional || "-",
@@ -397,9 +351,7 @@ export default function OverviewReportsModal({
             unidade.p,
             unidade.j,
             totalUnidade,
-            totalUnidade
-              ? `${Math.round((unidade.c / totalUnidade) * 100)}%`
-              : "0%",
+            totalUnidade ? `${Math.round((unidade.c / totalUnidade) * 100)}%` : "0%",
           ];
         }),
       });
@@ -408,16 +360,7 @@ export default function OverviewReportsModal({
     if (selecionados.includes("professores")) {
       secoes.push({
         titulo: "Top 10 professores por unidade",
-        colunas: [
-          "Unidade",
-          "Posição",
-          "Professor",
-          "Concluídas",
-          "Pendentes",
-          "Justificadas",
-          "Total",
-          "Conclusão %",
-        ],
+        colunas: ["Unidade", "Posição", "Professor", "Concluídas", "Pendentes", "Justificadas", "Total", "Conclusão %"],
         linhas: ranking.flatMap((grupo) =>
           grupo.professores.map((professor, index) => [
             grupo.unidade,
@@ -436,15 +379,7 @@ export default function OverviewReportsModal({
     if (selecionados.includes("pendencias")) {
       secoes.push({
         titulo: "Pendências por dia",
-        colunas: [
-          "Data da pendência",
-          "Professor",
-          "E-mail",
-          "Unidade",
-          "Turma",
-          "Tipo",
-          "Status",
-        ],
+        colunas: ["Data da pendência", "Professor", "E-mail", "Unidade", "Turma", "Tipo", "Status"],
         linhas: pendencias.map((registro) => [
           formatarData(registro.data),
           registro.professor,
@@ -460,17 +395,7 @@ export default function OverviewReportsModal({
     if (selecionados.includes("registros")) {
       secoes.push({
         titulo: "Registros detalhados",
-        colunas: [
-          "Unidade",
-          "Professor",
-          "E-mail",
-          "Data",
-          "Turma",
-          "Tipo",
-          "Status",
-          "Observação",
-          "Justificativa",
-        ],
+        colunas: ["Unidade", "Professor", "E-mail", "Data", "Turma", "Tipo", "Status", "Observação", "Justificativa"],
         linhas: registros.map((registro) => [
           registro.unidade,
           registro.professor,
@@ -488,16 +413,7 @@ export default function OverviewReportsModal({
     if (selecionados.includes("excecoes")) {
       secoes.push({
         titulo: "Exceções do calendário",
-        colunas: [
-          "Calendário",
-          "Unidade",
-          "Data inicial",
-          "Data final",
-          "Tipo",
-          "Turma",
-          "Série",
-          "Motivo",
-        ],
+        colunas: ["Calendário", "Unidade", "Data inicial", "Data final", "Tipo", "Turma", "Série", "Motivo"],
         linhas: excecoes.map((exc) => [
           exc.calendario,
           exc.unidade,
@@ -527,7 +443,6 @@ export default function OverviewReportsModal({
 
   function exportarExcel() {
     if (!selecionados.length) return;
-
     setExportando(true);
 
     try {
@@ -547,11 +462,8 @@ export default function OverviewReportsModal({
         worksheet["!cols"] = secao.colunas.map((coluna, i) => {
           const maiorValor = Math.max(
             coluna.length,
-            ...secao.linhas.map((linha) =>
-              String(linha[i] ?? "").length
-            )
+            ...secao.linhas.map((linha) => String(linha[i] ?? "").length)
           );
-
           return { wch: Math.min(Math.max(maiorValor + 3, 15), 45) };
         });
 
@@ -569,14 +481,10 @@ export default function OverviewReportsModal({
         }
 
         nomesUsados.add(nomeAba);
-
         XLSX.utils.book_append_sheet(workbook, worksheet, nomeAba);
       });
 
-      XLSX.writeFile(
-        workbook,
-        `Relatorio_Pensi_${new Date().toISOString().slice(0, 10)}.xlsx`
-      );
+      XLSX.writeFile(workbook, `Relatorio_Pensi_${new Date().toISOString().slice(0, 10)}.xlsx`);
     } catch (erro) {
       console.error("Erro ao exportar Excel:", erro);
       alert("Não foi possível gerar o Excel.");
@@ -598,12 +506,7 @@ export default function OverviewReportsModal({
           ? secao.linhas
               .map(
                 (linha) =>
-                  `<tr>${linha
-                    .map(
-                      (valor) =>
-                        `<td>${escaparHTML(valor)}</td>`
-                    )
-                    .join("")}</tr>`
+                  `<tr>${linha.map((valor) => `<td>${escaparHTML(valor)}</td>`).join("")}</tr>`
               )
               .join("")
           : `<tr><td colspan="${secao.colunas.length}">Nenhum registro encontrado.</td></tr>`;
@@ -636,54 +539,17 @@ export default function OverviewReportsModal({
         <title>Relatório Pensi</title>
         <style>
           * { box-sizing: border-box; }
-
-          body {
-            font-family: Arial, sans-serif;
-            color: #171717;
-            padding: 28px;
-          }
-
+          body { font-family: Arial, sans-serif; color: #171717; padding: 28px; }
           h1 { font-size: 25px; margin-bottom: 5px; }
           h2 { font-size: 17px; margin: 26px 0 10px; }
-
-          .periodo {
-            color: #666;
-            font-size: 12px;
-            margin-bottom: 20px;
-          }
-
-          table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 9px;
-            margin-bottom: 5px;
-          }
-
-          th {
-            background: #f5cf28;
-            text-align: left;
-          }
-
-          th, td {
-            border: 1px solid #ddd;
-            padding: 7px;
-            overflow-wrap: anywhere;
-          }
-
+          .periodo { color: #666; font-size: 12px; margin-bottom: 20px; }
+          table { width: 100%; border-collapse: collapse; font-size: 9px; margin-bottom: 5px; }
+          th { background: #f5cf28; text-align: left; }
+          th, td { border: 1px solid #ddd; padding: 7px; overflow-wrap: anywhere; }
           tr { page-break-inside: avoid; }
-
-          .contador {
-            color: #777;
-            font-size: 10px;
-            text-align: right;
-          }
-
+          .contador { color: #777; font-size: 10px; text-align: right; }
           section { page-break-inside: auto; }
-
-          @media print {
-            body { padding: 0; }
-            @page { size: landscape; margin: 12mm; }
-          }
+          @media print { body { padding: 0; } @page { size: landscape; margin: 12mm; } }
         </style>
       </head>
       <body>
@@ -693,12 +559,8 @@ export default function OverviewReportsModal({
           <br />
           Gerado em: ${escaparHTML(new Date().toLocaleString("pt-BR"))}
         </p>
-
         ${conteudo}
-
-        <script>
-          window.onload = () => window.print();
-        <\/script>
+        <script>window.onload = () => window.print();</script>
       </body>
       </html>
     `);
@@ -708,7 +570,6 @@ export default function OverviewReportsModal({
 
   function gerarRelatorio() {
     if (!selecionados.length || exportando) return;
-
     if (formato === "excel") {
       exportarExcel();
     } else {
@@ -724,66 +585,47 @@ export default function OverviewReportsModal({
     const Icon = secaoOpcao?.Icon || FileBarChart;
 
     return (
-      <div
-        key={secao.titulo}
-        className="overflow-hidden rounded-2xl border border-gray-100 bg-white"
-      >
+      <div key={secao.titulo} className="overflow-hidden rounded-2xl border border-gray-100 bg-white">
         <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-4 py-3">
           <div className="flex min-w-0 items-center gap-2">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-600">
               <Icon size={15} />
             </div>
-
             <div className="min-w-0">
-              <h4 className="truncate text-xs font-black text-gray-900">
-                {secao.titulo}
-              </h4>
-              <p className="text-[10px] text-gray-400">
-                {secao.linhas.length} registros
-              </p>
+              <h4 className="truncate text-xs font-black text-gray-900">{secao.titulo}</h4>
+              <p className="text-[10px] text-gray-400">{secao.linhas.length} registros</p>
             </div>
           </div>
-
           <span className="shrink-0 rounded-full bg-yellow-100 px-2.5 py-1 text-[10px] font-black text-gray-800">
             {secao.linhas.length}
           </span>
         </div>
 
-        <div className="max-h-56 overflow-auto">
+        <div className="max-h-56 overflow-x-auto overflow-y-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+          <style>{`::-webkit-scrollbar { display: none; }`}</style>
           <table className="w-full min-w-max text-left text-[10px]">
             <thead className="sticky top-0 z-10 bg-gray-50">
               <tr>
                 {secao.colunas.slice(0, 6).map((coluna) => (
-                  <th
-                    key={coluna}
-                    className="px-3 py-2.5 font-black text-gray-500"
-                  >
+                  <th key={coluna} className="px-3 py-2.5 font-black text-gray-500">
                     {coluna}
                   </th>
                 ))}
               </tr>
             </thead>
-
             <tbody>
               {secao.linhas.slice(0, 12).map((linha, index) => (
                 <tr key={index} className="border-t border-gray-50">
                   {linha.slice(0, 6).map((valor, i) => (
-                    <td
-                      key={i}
-                      className="max-w-44 px-3 py-2.5 font-medium text-gray-700"
-                    >
+                    <td key={i} className="max-w-44 px-3 py-2.5 font-medium text-gray-700">
                       {String(valor ?? "-")}
                     </td>
                   ))}
                 </tr>
               ))}
-
               {!secao.linhas.length && (
                 <tr>
-                  <td
-                    colSpan={Math.min(secao.colunas.length, 6)}
-                    className="px-3 py-6 text-center text-gray-400"
-                  >
+                  <td colSpan={Math.min(secao.colunas.length, 6)} className="px-3 py-6 text-center text-gray-400">
                     Nenhum dado encontrado.
                   </td>
                 </tr>
@@ -801,302 +643,237 @@ export default function OverviewReportsModal({
     );
   }
 
-  return (
+  if (!montado) return null;
+
+  const acaoVoltar = () => setTela(null);
+
+  return createPortal(
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-3 backdrop-blur-sm"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
+      className="fixed inset-0 z-[9999] flex items-end justify-center bg-black/50 backdrop-blur-sm p-0 sm:items-center sm:p-4"
+      onClick={onClose}
     >
-      <div className="flex max-h-[90dvh] w-full max-w-[620px] flex-col overflow-hidden rounded-[26px] border border-white/60 bg-[#fafafa] shadow-2xl">
+      <div
+        className="max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-[28px] sm:rounded-[28px] bg-white p-5 pb-8"
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <style>{`::-webkit-scrollbar { display: none; }`}</style>
 
-        {/* CABEÇALHO */}
-        <div className="flex items-center justify-between bg-white px-5 py-5 sm:px-6">
-          <div>
-            <div className="mb-1 flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-yellow-100 text-gray-900">
-                <FileBarChart size={17} />
-              </div>
-
-              <span className="text-[10px] font-black uppercase tracking-[0.16em] text-gray-400">
-                Central de dados
-              </span>
-            </div>
-
-            <h2 className="text-2xl font-black tracking-tight text-gray-950">
-              Relatórios
+        {/* CABEÇALHO PADRONIZADO */}
+        <div className="mb-4 flex items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2">
+            {tela ? (
+              <button
+                type="button"
+                onClick={acaoVoltar}
+                aria-label="Voltar"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#f2f2f2] hover:bg-gray-200 transition-colors"
+              >
+                <ChevronLeft size={18} />
+              </button>
+            ) : (
+              <FileBarChart size={24} className="text-gray-900" />
+            )}
+            <h2 className="truncate text-xl font-extrabold text-gray-900">
+              {tela === "selecionar" ? "O que incluir" : tela === "formato" ? "Formato de saída" : "Relatórios"}
             </h2>
-
-            <p className="mt-0.5 text-xs text-gray-400">
-              Escolha os dados que deseja consultar ou exportar.
-            </p>
           </div>
-
           <button
+            type="button"
             onClick={onClose}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-600 transition hover:bg-yellow-100 hover:text-black"
+            aria-label="Fechar"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#f2f2f2] hover:bg-gray-200 transition-colors"
           >
-            <X size={19} />
+            <X size={18} />
           </button>
         </div>
 
-        {/* CONTEÚDO */}
-        <div className="flex-1 space-y-5 overflow-y-auto px-5 py-5 sm:px-6">
-
-          {/* PERÍODO E INDICADORES */}
-          <div className="rounded-[20px] border border-gray-100 bg-white p-4">
-            <div className="flex items-center gap-2 text-gray-400">
-              <CalendarRange size={14} />
-              <span className="text-[10px] font-black uppercase tracking-wider">
-                Período do relatório
-              </span>
+        {/* ============ TELA INICIAL ============ */}
+        {!tela && (
+          <div className="flex flex-col gap-6">
+            <div className="flex items-center gap-3 rounded-full bg-[#f2f2f2] px-4 py-3 text-gray-500">
+              <Search size={18} />
+              <span className="text-sm">Do que você precisa?</span>
             </div>
 
-            <p className="mt-1.5 text-sm font-black capitalize text-gray-900">
-              {periodoLabel}
-            </p>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setTela("selecionar")}
+                className="relative flex flex-1 flex-col justify-between overflow-hidden rounded-2xl bg-yellow-400 p-4 text-left transition-all shadow-lg"
+              >
+                <div className="relative z-10">
+                  <h3 className="text-lg font-bold leading-tight text-gray-900">Incluir</h3>
+                  <p className="text-xs text-yellow-800">Selecionar seções</p>
+                </div>
+                <div className="mt-4 flex items-center gap-1 text-xs font-semibold text-gray-900 relative z-10">
+                  Acessar <ChevronRight size={14} />
+                </div>
+                <div className="absolute -right-4 -bottom-4 opacity-10">
+                  <PlusCircle size={80} />
+                </div>
+              </button>
 
-            <div className="mt-4 grid grid-cols-3 gap-2">
-              <div className="rounded-xl bg-emerald-50 p-3">
-                <p className="text-[9px] font-bold uppercase text-emerald-700">
-                  Concluídas
-                </p>
-                <p className="mt-1 text-xl font-black text-emerald-800">
-                  {total.concluidas}
-                </p>
-              </div>
+              <button
+                type="button"
+                onClick={() => setTela("formato")}
+                className="relative flex flex-1 flex-col justify-between overflow-hidden rounded-2xl bg-gray-100 p-4 text-left transition-all text-gray-500 hover:bg-gray-200"
+              >
+                <div className="relative z-10">
+                  <h3 className="text-lg font-bold leading-tight">Formato</h3>
+                  <p className="text-xs text-gray-400">Excel ou PDF</p>
+                </div>
+                <div className="mt-4 flex items-center gap-1 text-xs font-semibold relative z-10">
+                  Acessar <ChevronRight size={14} />
+                </div>
+                <div className="absolute -right-4 -bottom-4 opacity-10">
+                  <FileText size={80} />
+                </div>
+              </button>
+            </div>
 
-              <div className="rounded-xl bg-orange-50 p-3">
-                <p className="text-[9px] font-bold uppercase text-orange-700">
-                  Pendentes
-                </p>
-                <p className="mt-1 text-xl font-black text-orange-800">
-                  {pendencias.length}
-                </p>
-              </div>
+            <div>
+              <h3 className="mb-3 text-lg font-bold text-gray-900">Pré-visualização</h3>
+              <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white">
+                <button
+                  onClick={() => setVisualizar(!visualizar)}
+                  className="flex w-full items-center justify-between px-4 py-3.5 text-left"
+                >
+                  <span className="flex items-center gap-2">
+                    <Eye size={16} className="text-gray-500" />
+                    <span className="text-xs font-black text-gray-800">Ver dados</span>
+                    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[9px] font-bold text-gray-500">
+                      {secoes.length} seções
+                    </span>
+                  </span>
+                  <ChevronDown
+                    size={17}
+                    className={`text-gray-500 transition-transform ${visualizar ? "rotate-180" : ""}`}
+                  />
+                </button>
 
-              <div className="rounded-xl bg-blue-50 p-3">
-                <p className="text-[9px] font-bold uppercase text-blue-700">
-                  Justificadas
-                </p>
-                <p className="mt-1 text-xl font-black text-blue-800">
-                  {total.justificadas}
-                </p>
+                {visualizar && (
+                  <div className="space-y-3 border-t border-gray-100 p-3">
+                    {selecionados.length > 0 && (
+                      <div className="relative">
+                        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <input
+                          type="text"
+                          value={buscaPreview}
+                          onChange={(e) => setBuscaPreview(e.target.value)}
+                          placeholder="Pesquisar na prévia..."
+                          className="w-full rounded-xl border border-gray-100 bg-gray-50 py-2.5 pl-9 pr-3 text-xs outline-none transition focus:border-yellow-400 focus:bg-white"
+                        />
+                      </div>
+                    )}
+
+                    {selecionados.length ? (
+                      secoesFiltradas.map(renderizarPreview)
+                    ) : (
+                      <p className="rounded-xl bg-gray-50 p-5 text-center text-xs text-gray-400">
+                        Selecione pelo menos uma seção.
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
+
+            <button
+              onClick={gerarRelatorio}
+              disabled={!selecionados.length || exportando}
+              className="flex w-full items-center justify-center gap-2 rounded-full bg-black py-4 font-semibold text-white disabled:opacity-30 transition-all active:scale-[0.98]"
+            >
+              {formato === "excel" ? <Download size={16} /> : <Printer size={16} />}
+              {exportando ? "Gerando..." : formato === "excel" ? "Baixar Excel" : "Gerar PDF"}
+            </button>
           </div>
+        )}
 
-          {/* SELEÇÃO */}
+        {/* ============ TELA SELECIONAR (LISTA VERTICAL) ============ */}
+        {tela === "selecionar" && (
           <div>
             <div className="mb-3 flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-black text-gray-900">
-                  O que deseja incluir?
-                </h3>
-                <p className="mt-0.5 text-[11px] text-gray-400">
-                  Selecione as seções do relatório.
-                </p>
-              </div>
-
+              <p className="text-sm text-gray-500">Escolha as seções do relatório.</p>
               <button
                 onClick={selecionarTodos}
                 className="text-[10px] font-black uppercase tracking-wide text-gray-500 underline decoration-yellow-400 decoration-2 underline-offset-4 transition hover:text-black"
               >
-                {selecionados.length === OPCOES.length
-                  ? "Limpar tudo"
-                  : "Selecionar tudo"}
+                {selecionados.length === OPCOES.length ? "Limpar" : "Tudo"}
               </button>
             </div>
 
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {OPCOES.map(({ id, titulo, descricao, Icon, cor }) => {
+            <div className="flex flex-col gap-2">
+              {OPCOES.map(({ id, titulo, descricao, Icon }) => {
                 const ativo = selecionados.includes(id);
-
                 return (
                   <button
                     key={id}
+                    type="button"
                     onClick={() => alternarOpcao(id)}
-                    className={`group flex min-h-[82px] items-center gap-3 rounded-2xl border p-3 text-left transition-all duration-200 ${
-                      ativo
-                        ? "border-gray-900 bg-white shadow-[3px_3px_0px_#171717]"
-                        : "border-gray-100 bg-white hover:border-gray-300 hover:bg-gray-50"
+                    className={`flex items-center justify-between rounded-2xl px-4 py-3 text-left transition-colors ${
+                      ativo ? "bg-yellow-400 text-gray-900 shadow-sm" : "bg-[#f2f2f2] text-gray-700 hover:bg-gray-200"
                     }`}
                   >
-                    <div
-                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${cor}`}
-                    >
-                      <Icon size={19} />
+                    <div className="flex items-center gap-3">
+                      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${ativo ? "bg-yellow-300" : "bg-white text-black"}`}>
+                        <Icon size={20} strokeWidth={2} />
+                      </div>
+                      <div>
+                        <p className="font-semibold leading-tight">{titulo}</p>
+                        <p className={`text-xs ${ativo ? "text-yellow-800" : "text-gray-500"}`}>{descricao}</p>
+                      </div>
                     </div>
-
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[11px] font-black leading-tight text-gray-900">
-                        {titulo}
-                      </p>
-
-                      <p className="mt-1 text-[10px] leading-snug text-gray-400">
-                        {descricao}
-                      </p>
-                    </div>
-
-                    <div
-                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition ${
-                        ativo
-                          ? "border-gray-900 bg-gray-900 text-white"
-                          : "border-gray-200 bg-white text-transparent"
-                      }`}
-                    >
-                      <Check size={13} strokeWidth={3} />
-                    </div>
+                    {ativo && <CheckCircle2 size={20} className="text-gray-900" />}
                   </button>
                 );
               })}
             </div>
           </div>
+        )}
 
-          {/* FORMATO */}
-          <div>
-            <h3 className="mb-3 text-sm font-black text-gray-900">
-              Formato de saída
-            </h3>
-
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={() => setFormato("excel")}
-                className={`flex items-center gap-3 rounded-2xl border p-3 transition ${
-                  formato === "excel"
-                    ? "border-gray-900 bg-white shadow-[3px_3px_0px_#171717]"
-                    : "border-gray-100 bg-white hover:bg-gray-50"
-                }`}
-              >
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
-                  <FileSpreadsheet size={20} />
-                </div>
-
-                <div className="text-left">
-                  <p className="text-xs font-black text-gray-900">
-                    Excel
-                  </p>
-                  <p className="text-[10px] text-gray-400">
-                    Arquivo .xlsx
-                  </p>
-                </div>
-
-                {formato === "excel" && (
-                  <Check size={15} className="ml-auto text-emerald-700" />
-                )}
-              </button>
-
-              <button
-                onClick={() => setFormato("pdf")}
-                className={`flex items-center gap-3 rounded-2xl border p-3 transition ${
-                  formato === "pdf"
-                    ? "border-gray-900 bg-white shadow-[3px_3px_0px_#171717]"
-                    : "border-gray-100 bg-white hover:bg-gray-50"
-                }`}
-              >
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-50 text-rose-600">
-                  <FileText size={20} />
-                </div>
-
-                <div className="text-left">
-                  <p className="text-xs font-black text-gray-900">
-                    PDF
-                  </p>
-                  <p className="text-[10px] text-gray-400">
-                    Imprimir / salvar
-                  </p>
-                </div>
-
-                {formato === "pdf" && (
-                  <Check size={15} className="ml-auto text-rose-600" />
-                )}
-              </button>
-            </div>
-          </div>
-
-          {/* PRÉVIA */}
-          <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white">
+        {/* ============ TELA FORMATO (LISTA VERTICAL) ============ */}
+        {tela === "formato" && (
+          <div className="flex flex-col gap-3">
             <button
-              onClick={() => setVisualizar(!visualizar)}
-              className="flex w-full items-center justify-between px-4 py-3.5 text-left"
+              onClick={() => setFormato("excel")}
+              className={`flex items-center justify-between rounded-2xl p-4 transition ${
+                formato === "excel"
+                  ? "bg-yellow-400 text-gray-900 shadow-sm"
+                  : "bg-[#f2f2f2] text-gray-700 hover:bg-gray-200"
+              }`}
             >
-              <span className="flex items-center gap-2">
-                <Eye size={16} className="text-gray-500" />
-                <span className="text-xs font-black text-gray-800">
-                  Pré-visualização
-                </span>
-                <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[9px] font-bold text-gray-500">
-                  {secoes.length} seções
-                </span>
-              </span>
-
-              <ChevronDown
-                size={17}
-                className={`text-gray-500 transition-transform ${
-                  visualizar ? "rotate-180" : ""
-                }`}
-              />
+              <div className="flex items-center gap-3">
+                <FileSpreadsheet size={24} />
+                <div>
+                  <p className="font-bold">Excel</p>
+                  <p className={`text-xs ${formato === "excel" ? "text-yellow-800" : "text-gray-400"}`}>Arquivo .xlsx</p>
+                </div>
+              </div>
+              {formato === "excel" && <CheckCircle2 size={20} />}
             </button>
 
-            {visualizar && (
-              <div className="space-y-3 border-t border-gray-100 p-3">
-                {selecionados.length > 0 && (
-                  <div className="relative">
-                    <Search
-                      size={15}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                    />
-
-                    <input
-                      type="text"
-                      value={buscaPreview}
-                      onChange={(e) => setBuscaPreview(e.target.value)}
-                      placeholder="Pesquisar na prévia..."
-                      className="w-full rounded-xl border border-gray-100 bg-gray-50 py-2.5 pl-9 pr-3 text-xs outline-none transition focus:border-yellow-400 focus:bg-white"
-                    />
-                  </div>
-                )}
-
-                {selecionados.length ? (
-                  secoesFiltradas.map(renderizarPreview)
-                ) : (
-                  <p className="rounded-xl bg-gray-50 p-5 text-center text-xs text-gray-400">
-                    Selecione pelo menos uma seção.
-                  </p>
-                )}
+            <button
+              onClick={() => setFormato("pdf")}
+              className={`flex items-center justify-between rounded-2xl p-4 transition ${
+                formato === "pdf"
+                  ? "bg-yellow-400 text-gray-900 shadow-sm"
+                  : "bg-[#f2f2f2] text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <FileText size={24} />
+                <div>
+                  <p className="font-bold">PDF</p>
+                  <p className={`text-xs ${formato === "pdf" ? "text-yellow-800" : "text-gray-400"}`}>Imprimir / salvar</p>
+                </div>
               </div>
-            )}
+              {formato === "pdf" && <CheckCircle2 size={20} />}
+            </button>
           </div>
-        </div>
-
-        {/* RODAPÉ */}
-        <div className="flex items-center gap-3 border-t border-gray-100 bg-white px-5 py-4 sm:px-6">
-          <button
-            onClick={onClose}
-            className="rounded-full border border-gray-200 px-5 py-3 text-xs font-black text-gray-500 transition hover:bg-gray-50"
-          >
-            Fechar
-          </button>
-
-          <button
-            onClick={gerarRelatorio}
-            disabled={!selecionados.length || exportando}
-            className="flex flex-1 items-center justify-center gap-2 rounded-full bg-pensi-yellow px-4 py-3 text-xs font-black text-gray-950 shadow-[3px_3px_0px_#171717] transition hover:translate-y-[-1px] hover:shadow-[4px_4px_0px_#171717] active:translate-y-0 active:shadow-none disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {formato === "excel" ? (
-              <Download size={16} />
-            ) : (
-              <Printer size={16} />
-            )}
-
-            {exportando
-              ? "Gerando..."
-              : formato === "excel"
-                ? "Baixar Excel"
-                : "Gerar PDF"}
-          </button>
-        </div>
+        )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

@@ -1,7 +1,7 @@
-// MaisProfessorModal.jsx (mesma pasta do MaisModal.jsx)
 import { useMemo, useState } from "react";
 import {
   X, ChevronLeft, ChevronRight, Search, BookOpen, GraduationCap, Building2, User,
+  LayoutGrid, Settings
 } from "lucide-react";
 
 import { useAuth } from "../../hooks/useAuth";
@@ -37,9 +37,8 @@ function Vazio({ children }) {
   return <p className="py-8 text-center text-sm text-gray-400">{children}</p>;
 }
 
-export default function MaisProfessorModal({ onClose, onNavigate, onProfileOpen }) {
+export default function MaisProfessorModal({ onClose, onNavigate }) {
   const { user } = useAuth();
-
   const [aba, setAba] = useState("materia");
   const [busca, setBusca] = useState("");
   const [unidadeSel, setUnidadeSel] = useState(null);
@@ -55,7 +54,6 @@ export default function MaisProfessorModal({ onClose, onNavigate, onProfileOpen 
     }));
   }, [user]);
 
-  // um item por matéria + unidade (agrupa as turmas)
   const cardsMateria = useMemo(() => {
     const lista = [];
     disciplinas.forEach((d) => {
@@ -74,7 +72,6 @@ export default function MaisProfessorModal({ onClose, onNavigate, onProfileOpen 
     return lista;
   }, [disciplinas, turmasPorUnidade]);
 
-  // um item por matéria + unidade + turma
   const cardsTurma = useMemo(() => {
     const lista = [];
     disciplinas.forEach((d) => {
@@ -125,21 +122,23 @@ export default function MaisProfessorModal({ onClose, onNavigate, onProfileOpen 
     (c) => c.unidade === unidadeSel && bate(c.nome)
   );
 
-  const titulo = unidadeSel || "Minhas matérias";
+  const titulo = unidadeSel || "Mais";
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      className="fixed inset-0 z-[200] flex items-end justify-center bg-black/50 backdrop-blur-sm p-0 sm:items-center sm:p-4"
       onClick={onClose}
     >
       <div
-        className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-[28px] bg-white p-5"
+        className="max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-[28px] sm:rounded-[28px] bg-white p-5"
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* cabeçalho */}
+        <style>{`::-webkit-scrollbar { display: none; }`}</style>
+
         <div className="mb-4 flex items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2">
-            {unidadeSel && (
+            {unidadeSel ? (
               <button
                 type="button"
                 onClick={() => { setUnidadeSel(null); setBusca(""); }}
@@ -148,6 +147,10 @@ export default function MaisProfessorModal({ onClose, onNavigate, onProfileOpen 
               >
                 <ChevronLeft size={18} />
               </button>
+            ) : (
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-yellow-100 text-yellow-800">
+                <LayoutGrid size={20} />
+              </div>
             )}
             <h2 className="truncate text-xl font-extrabold">{titulo}</h2>
           </div>
@@ -161,7 +164,6 @@ export default function MaisProfessorModal({ onClose, onNavigate, onProfileOpen 
           </button>
         </div>
 
-        {/* abas */}
         {!unidadeSel && (
           <div className="mb-4 flex rounded-2xl bg-[#f2f2f2] p-1">
             {ABAS.map(([id, label]) => (
@@ -169,7 +171,7 @@ export default function MaisProfessorModal({ onClose, onNavigate, onProfileOpen 
                 key={id}
                 type="button"
                 onClick={() => trocarAba(id)}
-                className={`flex-1 rounded-xl py-3 text-sm font-semibold ${
+                className={`flex-1 rounded-xl py-3 text-sm font-semibold transition-colors ${
                   aba === id ? "bg-white shadow-sm" : "text-gray-400"
                 }`}
               >
@@ -179,7 +181,6 @@ export default function MaisProfessorModal({ onClose, onNavigate, onProfileOpen 
           </div>
         )}
 
-        {/* busca */}
         <div className="mb-3 flex items-center gap-3 rounded-2xl bg-[#f2f2f2] px-4 py-3">
           <Search size={18} className="text-gray-400" />
           <input
@@ -190,9 +191,7 @@ export default function MaisProfessorModal({ onClose, onNavigate, onProfileOpen 
           />
         </div>
 
-        {/* lista */}
         <div className="flex max-h-[50vh] flex-col gap-2 overflow-y-auto">
-          {/* MATÉRIA */}
           {aba === "materia" && !unidadeSel && (
             <>
               {materiasFiltradas.map((c) => (
@@ -208,7 +207,6 @@ export default function MaisProfessorModal({ onClose, onNavigate, onProfileOpen 
             </>
           )}
 
-          {/* TURMA */}
           {aba === "turma" && !unidadeSel && (
             <>
               {turmasFiltradas.map((c) => (
@@ -224,7 +222,6 @@ export default function MaisProfessorModal({ onClose, onNavigate, onProfileOpen 
             </>
           )}
 
-          {/* UNIDADE (lista) */}
           {aba === "unidade" && !unidadeSel && (
             <>
               {unidadesFiltradas.map((u) => (
@@ -240,7 +237,6 @@ export default function MaisProfessorModal({ onClose, onNavigate, onProfileOpen 
             </>
           )}
 
-          {/* UNIDADE (matérias da unidade escolhida) */}
           {unidadeSel && (
             <>
               {materiasDaUnidade.map((c) => (
@@ -256,16 +252,6 @@ export default function MaisProfessorModal({ onClose, onNavigate, onProfileOpen 
             </>
           )}
         </div>
-
-        <div className="my-5 border-t border-gray-100" />
-
-        <button
-          type="button"
-          onClick={() => { onClose(); onProfileOpen?.(); }}
-          className="flex w-full items-center justify-center gap-2 rounded-full bg-[#f2f2f2] py-4 font-semibold"
-        >
-          <User size={18} /> Perfil
-        </button>
       </div>
     </div>
   );

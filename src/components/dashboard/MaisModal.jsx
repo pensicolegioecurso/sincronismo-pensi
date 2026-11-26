@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import {
   X, ChevronLeft, ChevronRight, Search, Trash2, Upload, CheckCircle2,
   UserPlus, UserMinus, GraduationCap, Building2, CalendarPlus, CalendarX,
-  UserCheck, User, FileSpreadsheet, Layers, PlusCircle
+  UserCheck, FileSpreadsheet, Layers, PlusCircle, Settings
 } from "lucide-react";
 
 import {
@@ -14,9 +14,8 @@ import { onAuthStateChanged } from "firebase/auth";
 import { db, auth } from "../../services/firebase";
 import { useTurmas } from "../../hooks/useTurmas";
 import { useUnidades } from "../../hooks/useUnidades";
-import { useSegmentos } from "../../hooks/useSegmentos"; // <--- Importação do novo Hook
+import { useSegmentos } from "../../hooks/useSegmentos";
 
-// ⚠️ AJUSTE este caminho para onde está o seu CadastrarUsuario.jsx
 import CadastrarUsuario from "./users/CadastrarUsuario";
 
 const TURNOS = ["M", "T"];
@@ -95,7 +94,7 @@ function unidadesDoUsuario(u) {
 const fmt = (iso) =>
   iso ? new Date(`${iso}T12:00:00`).toLocaleDateString("pt-BR") : "—";
 
-/* ---------- pequenos componentes visuais ---------- */
+/* ---------- componentes visuais ---------- */
 
 function Label({ children }) {
   return <p className="mb-2 mt-4 text-sm font-semibold text-gray-600">{children}</p>;
@@ -153,8 +152,6 @@ export default function MaisModal({
 }) {
   const { todas: turmas = [] } = useTurmas();
   const { todasUnidades = [], criarUnidade, excluirUnidade } = useUnidades();
-  
-  // Usando o novo Hook
   const { segmentos, criarSegmento, excluirSegmento } = useSegmentos();
 
   const [perfilAtivo, setPerfilAtivo] = useState(null);
@@ -301,7 +298,6 @@ export default function MaisModal({
   const unidadesExc = adminNucleo ? ["Todas", ...unidadesPermitidas] : unidadesPermitidas;
   const unidadeAtual = unidExc || unidadesExc[0] || "";
 
-  // Usa os segmentos do hook, ou o fallback se estiver vazio
   const listaSeries = segmentos.length > 0 
     ? segmentos.map(s => s.nome) 
     : SERIES_FALLBACK;
@@ -781,8 +777,8 @@ export default function MaisModal({
 
   if (perfilCarregando) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-        <div className="rounded-[28px] bg-white px-8 py-6 text-sm font-semibold" onClick={(e) => e.stopPropagation()}>
+      <div className="fixed inset-0 z-[999] flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4" onClick={onClose}>
+        <div className="w-full rounded-t-[28px] bg-white px-8 py-6 text-sm font-semibold sm:w-auto sm:rounded-[28px]" onClick={(e) => e.stopPropagation()}>
           Carregando...
         </div>
       </div>
@@ -861,7 +857,7 @@ export default function MaisModal({
       onClick={onClick}
       className="flex flex-col items-center justify-center gap-2 rounded-2xl bg-white p-3 shadow-sm border border-gray-100 hover:shadow-md transition-all active:scale-95"
     >
-      <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${perigo ? "bg-rose-50 text-rose-600" : "bg-blue-50 text-blue-600"}`}>
+      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-yellow-100 text-black">
         <Icon size={24} strokeWidth={1.5} />
       </div>
       <span className="text-center text-[11px] font-semibold text-gray-700 leading-tight">{label}</span>
@@ -869,14 +865,17 @@ export default function MaisModal({
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-[999] flex items-end justify-center bg-black/50 backdrop-blur-sm p-0 sm:items-center sm:p-4" onClick={onClose}>
       <div
-        className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-[28px] bg-white p-5 pb-8"
+        className="max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-[28px] sm:rounded-[28px] bg-white p-5 pb-8"
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         onClick={(e) => e.stopPropagation()}
       >
+        <style>{`::-webkit-scrollbar { display: none; }`}</style>
+        
         <div className="mb-4 flex items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2">
-            {tela && (
+            {tela ? (
               <button
                 type="button"
                 onClick={acaoVoltar}
@@ -885,6 +884,8 @@ export default function MaisModal({
               >
                 <ChevronLeft size={18} />
               </button>
+            ) : (
+              <Settings size={24} className="text-gray-900" />
             )}
             <h2 className="truncate text-xl font-extrabold text-gray-900">
               {tela ? TITULOS[tela] : "Mais"}
@@ -912,7 +913,7 @@ export default function MaisModal({
           </div>
         )}
 
-        {/* ============ MENU INICIAL (NOVO LAYOUT) ============ */}
+        {/* ============ MENU INICIAL ============ */}
         {!tela && (
           <div className="flex flex-col gap-6">
             <div className="flex items-center gap-3 rounded-full bg-[#f2f2f2] px-4 py-3 text-gray-500">
@@ -921,19 +922,20 @@ export default function MaisModal({
             </div>
 
             {REM.length > 0 && (
-              <div className="flex gap-3 overflow-x-auto pb-2 snap-x">
+              <div className="flex gap-3 overflow-x-auto pb-2 snap-x" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                <style>{`::-webkit-scrollbar { display: none; }`}</style>
                 <button
                   type="button"
                   onClick={() => setModo("adicionar")}
                   className={`relative flex min-w-[200px] flex-1 snap-start flex-col justify-between overflow-hidden rounded-2xl p-4 text-left transition-all ${
                     modo === "adicionar" 
-                      ? "bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-lg" 
+                      ? "bg-yellow-400 text-gray-900 shadow-lg" 
                       : "bg-gray-100 text-gray-500"
                   }`}
                 >
                   <div className="relative z-10">
                     <h3 className="text-lg font-bold leading-tight">Adicionar</h3>
-                    <p className={`text-xs ${modo === "adicionar" ? "text-indigo-100" : "text-gray-400"}`}>Criar novos registros</p>
+                    <p className={`text-xs ${modo === "adicionar" ? "text-yellow-800" : "text-gray-400"}`}>Criar novos registros</p>
                   </div>
                   <div className="mt-4 flex items-center gap-1 text-xs font-semibold relative z-10">
                     Acessar <ChevronRight size={14} />
@@ -948,13 +950,13 @@ export default function MaisModal({
                   onClick={() => setModo("remover")}
                   className={`relative flex min-w-[200px] flex-1 snap-start flex-col justify-between overflow-hidden rounded-2xl p-4 text-left transition-all ${
                     modo === "remover" 
-                      ? "bg-gradient-to-br from-blue-600 to-cyan-500 text-white shadow-lg" 
+                      ? "bg-yellow-400 text-gray-900 shadow-lg" 
                       : "bg-gray-100 text-gray-500"
                   }`}
                 >
                   <div className="relative z-10">
                     <h3 className="text-lg font-bold leading-tight">Remover</h3>
-                    <p className={`text-xs ${modo === "remover" ? "text-blue-100" : "text-gray-400"}`}>Excluir registros</p>
+                    <p className={`text-xs ${modo === "remover" ? "text-yellow-800" : "text-gray-400"}`}>Excluir registros</p>
                   </div>
                   <div className="mt-4 flex items-center gap-1 text-xs font-semibold relative z-10">
                     Acessar <ChevronRight size={14} />
@@ -980,14 +982,6 @@ export default function MaisModal({
                 ))}
               </div>
             </div>
-
-            <button
-              type="button"
-              onClick={() => { onClose(); onProfileOpen?.(); }}
-              className="mt-2 flex w-full items-center justify-center gap-2 rounded-full bg-[#f2f2f2] py-4 font-semibold text-gray-700 hover:bg-gray-200 transition-colors"
-            >
-              <User size={18} /> Meu Perfil
-            </button>
           </div>
         )}
 

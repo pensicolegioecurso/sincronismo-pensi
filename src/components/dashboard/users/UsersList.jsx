@@ -8,7 +8,6 @@ function chaveDia(ms) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-// "18 De Novembro" (acrescenta o ano quando não é o ano atual)
 function rotuloDia(ms) {
   if (!ms) return "Sem data de cadastro";
   const d = new Date(ms);
@@ -18,8 +17,35 @@ function rotuloDia(ms) {
   return d.getFullYear() === new Date().getFullYear() ? texto : `${texto} ${d.getFullYear()}`;
 }
 
+/* --- SKELETON BONITO PARA USUÁRIOS --- */
+function SkeletonUserCard() {
+  return (
+    <div className="py-4 flex gap-3 w-400 animate-pulse border-b border-gray-100 last:border-0">
+      <div className="shrink-0">
+        <div className="w-10 h-10 bg-gray-200 rounded-full"></div>
+      </div>
+      <div className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center gap-3">
+        <div className="flex-1 min-w-0 space-y-2">
+          <div className="flex items-center gap-2">
+            <div className="h-4 bg-gray-200 rounded-md w-1/3"></div>
+            <div className="h-4 bg-gray-200 rounded-full w-12"></div>
+          </div>
+          <div className="h-3 bg-gray-200 rounded-md w-1/2"></div>
+          <div className="h-3 bg-gray-200 rounded-md w-1/4"></div>
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <div className="w-8 h-8 bg-gray-200 rounded-full"></div>
+          <div className="w-8 h-8 bg-gray-200 rounded-full"></div>
+          <div className="w-8 h-8 bg-gray-200 rounded-full"></div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function UsersList({
   users,
+  carregando,
   totalFiltrado,
   totalGeral,
   ativos,
@@ -31,7 +57,6 @@ export default function UsersList({
   onOpenProfile,
   onDelete,
 }) {
-  // Agrupa por dia de cadastro, preservando a ordem (já vem do mais recente para o mais antigo)
   const grupos = useMemo(() => {
     const mapa = new Map();
     users.forEach((u) => {
@@ -43,20 +68,15 @@ export default function UsersList({
   }, [users]);
 
   return (
-    <section className="w-full min-w-0">
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-2 px-1">
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="text-[11px] font-black uppercase tracking-wider text-gray-800">
-            Usuários cadastrados
-          </span>
-
-          <div className="flex items-center gap-2 rounded-full border border-gray-100 bg-white px-3 py-1.5 text-[11px] font-bold text-gray-600 shadow-sm">
-            <span className="h-2 w-2 rounded-full bg-emerald-500" />
-            {ativos} ativos
-            <span className="mx-0.5 h-3 w-px bg-gray-200" />
-            <span className="h-2 w-2 rounded-full bg-gray-300" />
-            {inativos} inativos
-          </div>
+    <section className="w-full min-w-0 px-4 sm:px-6 max-w-4xl mx-auto">
+      {/* Contadores no topo */}
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 pb-3 mt-4">
+        <div className="flex items-center gap-2 rounded-full bg-gray-50 px-3 py-1 text-[11px] font-bold text-gray-600">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+          {ativos} ativos
+          <span className="mx-0.5 h-2 w-px bg-gray-300" />
+          <span className="h-1.5 w-1.5 rounded-full bg-gray-400" />
+          {inativos} inativos
         </div>
 
         <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-500">
@@ -66,7 +86,18 @@ export default function UsersList({
         </div>
       </div>
 
-      {users.length === 0 ? (
+      {/* Skeletons enquanto carrega */}
+      {carregando && (
+        <div className="flex flex-col gap-1">
+          <SkeletonUserCard />
+          <SkeletonUserCard />
+          <SkeletonUserCard />
+          <SkeletonUserCard />
+        </div>
+      )}
+
+      {/* Lista Vazia */}
+      {!carregando && users.length === 0 && (
         <div className="mt-4 rounded-2xl border border-gray-100 bg-white p-8 text-center shadow-sm">
           <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl border border-gray-100 bg-gray-50">
             <Users className="h-6 w-6 text-gray-400" />
@@ -74,10 +105,13 @@ export default function UsersList({
           <h3 className="text-sm font-bold uppercase text-gray-900">Nenhum usuário encontrado</h3>
           <p className="mt-1.5 text-[11px] text-gray-500">Não há usuários para exibir com esses filtros.</p>
         </div>
-      ) : (
-        grupos.map((grupo) => (
-          <div key={grupo.chave}>
-            <h3 className="mb-3 mt-6 px-2 text-sm font-bold text-gray-500">{grupo.rotulo}</h3>
+      )}
+
+      {/* Lista de Usuários */}
+      {!carregando && grupos.map((grupo) => (
+        <div key={grupo.chave} className="mb-6">
+          <h3 className="mb-2 px-1 text-xs font-bold text-gray-400 uppercase tracking-wider">{grupo.rotulo}</h3>
+          <div className="divide-y divide-gray-100">
             {grupo.itens.map((user) => (
               <UserCard
                 key={user.id}
@@ -91,8 +125,8 @@ export default function UsersList({
               />
             ))}
           </div>
-        ))
-      )}
+        </div>
+      ))}
     </section>
   );
 }

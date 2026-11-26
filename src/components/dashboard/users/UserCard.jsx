@@ -12,16 +12,16 @@ const ICONE_CARGO = {
   regional: Globe,
 };
 
+// Cores mais suaves para o status
 const COR_STATUS = {
-  Ativo: "text-emerald-600",
-  Parcial: "text-amber-600",
-  Inativo: "text-gray-400",
+  Ativo: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  Parcial: "bg-amber-50 text-amber-700 border-amber-200",
+  Inativo: "bg-gray-50 text-gray-500 border-gray-200",
 };
 
 const acao =
-  "flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-600 transition hover:bg-gray-900 hover:text-white active:scale-95";
+  "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/50 text-gray-500 transition hover:bg-black hover:text-white active:scale-95 shadow-sm";
 
-// Linha estilo "extrato": ícone em círculo | nome + detalhes | status + ações
 export default function UserCard({
   user,
   podeGerenciar,
@@ -43,48 +43,65 @@ export default function UserCard({
   const unidadesTexto = unidades.length ? unidades.join(", ") : "Sem unidade";
 
   return (
-    <article className="mb-3 rounded-[32px] border border-gray-100 bg-white px-4 py-4 shadow-[0_8px_30px_rgba(0,0,0,0.04)] sm:px-5">
+    <article className="mb-3 relative overflow-hidden rounded-[24px] border border-white/60 bg-gradient-to-br from-white/80 via-white/50 to-white/20 backdrop-blur-2xl px-4 py-4 shadow-[0_8px_32px_rgba(0,0,0,0.04),inset_0_1px_1px_rgba(255,255,255,0.8)] sm:px-5 transition-all hover:shadow-[0_8px_32px_rgba(0,0,0,0.08)]">
+      
+      {/* Linha de brilho no topo (Liquid Glass) */}
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/80 to-transparent" />
+
       <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-800">
-          <Icone size={22} strokeWidth={1.75} />
+        
+        {/* Ícone do Cargo em Círculo */}
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/60 border border-white/50 shadow-sm text-gray-700">
+          <Icone size={20} strokeWidth={1.75} />
         </div>
 
+        {/* Informações do Usuário */}
         <div className="min-w-0 flex-1 basis-[180px]">
-          <h3 className="truncate text-base font-bold text-gray-900">{user.nome}</h3>
-          <p className="truncate text-sm font-medium text-gray-400">
+          <div className="flex items-center gap-2">
+            <h3 className="truncate text-sm font-bold text-gray-900">{user.nome}</h3>
+            {/* Status como Pill sutil */}
+            <span className={`hidden sm:inline-flex shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${COR_STATUS[status]}`}>
+              {status}
+            </span>
+          </div>
+          <p className="truncate text-xs font-medium text-gray-500 mt-0.5">
             {cargosTexto} · {unidadesTexto}
           </p>
-          <p className="truncate text-[11px] font-medium text-gray-300">{user.email}</p>
+          <p className="truncate text-[10px] font-medium text-gray-400 mt-0.5">{user.email}</p>
         </div>
 
-        <span className={`shrink-0 text-base font-bold ${COR_STATUS[status]}`}>{status}</span>
+        {/* Status Mobile */}
+        <span className={`sm:hidden shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${COR_STATUS[status]}`}>
+          {status}
+        </span>
 
-        <div className="flex items-center gap-1.5 max-sm:w-full max-sm:justify-end max-sm:border-t max-sm:border-gray-50 max-sm:pt-3">
+        {/* Ações */}
+        <div className="flex items-center gap-1.5 max-sm:w-full max-sm:justify-end max-sm:border-t max-sm:border-black/5 max-sm:pt-3">
           {!ehDirecao && (
             <button type="button" onClick={onOpenStatus} title="Acessos" aria-label="Acessos" className={acao}>
-              <SlidersHorizontal size={15} />
+              <SlidersHorizontal size={14} />
             </button>
           )}
 
           {cargos.includes("professor") && (
             <button type="button" onClick={onOpenProfile} title="Perfil" aria-label="Perfil" className={acao}>
-              <Eye size={15} />
+              <Eye size={14} />
             </button>
           )}
 
           {podeGerenciar && (
             <>
               <button type="button" onClick={onOpenPermissions} title="Permissões" aria-label="Permissões" className={acao}>
-                <ShieldCheck size={15} />
+                <ShieldCheck size={14} />
               </button>
               <button
                 type="button"
                 onClick={onDelete}
                 title="Excluir"
                 aria-label="Excluir"
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-300 transition hover:bg-rose-50 hover:text-rose-500 active:scale-95"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-400 transition hover:bg-rose-50 hover:text-rose-500 active:scale-95"
               >
-                <Trash2 size={16} />
+                <Trash2 size={14} />
               </button>
             </>
           )}
